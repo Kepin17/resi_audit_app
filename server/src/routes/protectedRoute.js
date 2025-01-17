@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const authToken = require("../middleware/auth");
-const showAll = require("../controllers/bagianController");
+const { scaneHandler } = require("../controllers/auditResiController");
 
-router.get("/bagian/show", authToken, showAll);
+router.post("/auditResi", authToken, scaneHandler);
 
 module.exports = router;

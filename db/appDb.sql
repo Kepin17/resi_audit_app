@@ -33,27 +33,22 @@ CREATE TABLE PEKERJA (
   CONSTRAINT FK_Bagian FOREIGN KEY (id_bagian) REFERENCES BAGIAN(id_bagian) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+-- drop table proses, log_proses;
 
 CREATE TABLE PROSES (
   resi_number VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
   id_pekerja VARCHAR(8),
-  tanggal_proses DATE NOT NULL,
-  jenis_proses VARCHAR(10) NOT NULL CHECK (jenis_proses IN ('picking', 'packing', 'pickout')),
-  status_proses VARCHAR(20) NOT NULL,
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picking', 'packing', 'pickout')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT FK_Pekerja FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+
 CREATE TABLE LOG_PROSES (
   id_log INT PRIMARY KEY AUTO_INCREMENT,
   resi_number VARCHAR(20),
-  id_pekerja VARCHAR(8),
-  tanggal_proses DATE NOT NULL,
-  jenis_proses VARCHAR(10) NOT NULL CHECK (jenis_proses IN ('picking', 'packing', 'pickout')),
-  status_proses VARCHAR(20) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT FK_Pekerja2 FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT FK_Proses FOREIGN KEY (resi_number) REFERENCES PROSES(resi_number) ON UPDATE CASCADE ON DELETE SET NULL
+  CONSTRAINT FK_LogProses1 FOREIGN KEY (resi_number) REFERENCES PROSES(resi_number) ON UPDATE CASCADE ON DELETE SET NULL
 );

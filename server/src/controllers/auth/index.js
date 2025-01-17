@@ -87,4 +87,11 @@ const loginHandler = async (req, res) => {
   }
 };
 
-module.exports = { RegisterHandler, loginHandler };
+const logOutHandler = (req, res) => {
+  res.status(200).send({
+    success: true,
+    message: "Logout success",
+  });
+};
+
+module.exports = { RegisterHandler, loginHandler, logOutHandler };
