@@ -1,0 +1,59 @@
+CREATE DATABASE pack_db;
+USE pack_db;
+
+CREATE TABLE BAGIAN (
+  id_bagian VARCHAR(7) PRIMARY KEY NOT NULL,
+  jenis_pekerja VARCHAR(10) NOT NULL CHECK (jenis_pekerja IN ('picking', 'packing', 'pickout', 'admin','superadmin')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT CheckBagian1 CHECK (CHAR_LENGTH(id_bagian) = 6),
+  CONSTRAINT CheckBagian2 CHECK (id_bagian REGEXP '^BGN[0-9]{3}$')
+);
+
+
+INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
+  ('BGN001', 'picking'),
+  ('BGN002', 'packing'),
+  ('BGN003', 'pickout'),
+  ('BGN004', 'admin'),
+  ('BGN005', 'superadmin');
+
+-- DROP TABLE log_proses, PROSES, PEKERJA;
+
+CREATE TABLE PEKERJA (
+  id_pekerja VARCHAR(7) PRIMARY KEY NOT NULL,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  nama_pekerja VARCHAR(50) NOT NULL,
+  id_bagian VARCHAR(8),
+  password VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT CheckPekerja1 CHECK (CHAR_LENGTH(id_pekerja) = 6),
+  CONSTRAINT CheckPekerja2 CHECK (id_pekerja REGEXP '^PKR[0-9]{3}$'),
+  CONSTRAINT FK_Bagian FOREIGN KEY (id_bagian) REFERENCES BAGIAN(id_bagian) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+
+CREATE TABLE PROSES (
+  resi_number VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
+  id_pekerja VARCHAR(8),
+  tanggal_proses DATE NOT NULL,
+  jenis_proses VARCHAR(10) NOT NULL CHECK (jenis_proses IN ('picking', 'packing', 'pickout')),
+  status_proses VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT FK_Pekerja FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE LOG_PROSES (
+  id_log INT PRIMARY KEY AUTO_INCREMENT,
+  resi_number VARCHAR(20),
+  id_pekerja VARCHAR(8),
+  tanggal_proses DATE NOT NULL,
+  jenis_proses VARCHAR(10) NOT NULL CHECK (jenis_proses IN ('picking', 'packing', 'pickout')),
+  status_proses VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT FK_Pekerja2 FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT FK_Proses FOREIGN KEY (resi_number) REFERENCES PROSES(resi_number) ON UPDATE CASCADE ON DELETE SET NULL
+);
