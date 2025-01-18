@@ -49,18 +49,18 @@ const scaneHandler = async (req, res) => {
 
     const workerRole = bagian_data[0].jenis_pekerja;
     const [prosesRows] = await mysqlPool.query("SELECT * FROM proses WHERE resi_number = ?", [resi_number]);
+    await mysqlPool.query("INSERT INTO log_proses (resi_number) VALUES (?) ", [resi_number]);
     if (prosesRows.length === 0) {
       await mysqlPool.query("INSERT INTO proses (resi_number, id_pekerja, status_proses) VALUES (?, ?,?)", [resi_number, id_pekerja, workerRole]);
       return res.status(200).send({
         success: true,
-        message: "Scane success",
+        message: "Scan success",
         data: {
           nama_pekerja: pekerja_data[0].nama_pekerja,
           proses_scan: workerRole,
         },
       });
     } else {
-      
       await mysqlPool.query("UPDATE proses SET id_pekerja = ?, status_proses = ? WHERE resi_number = ?", [id_pekerja, workerRole, resi_number]);
       return res.status(200).send({
         success: true,
@@ -80,7 +80,5 @@ const scaneHandler = async (req, res) => {
     });
   }
 };
-
-module.exports = { showAllData, scaneHandler };
 
 module.exports = { showAllData, scaneHandler };
