@@ -7,10 +7,28 @@
   opacity: 0.3;
 }
 
+.scan-line {
+  width: 100%;
+  height: 2px;
+  animation: scan 2s linear infinite;
+}
+
 .line {
   position: absolute;
-  height: 2px;
+  height: 100%;
   width: 100%;
-  background-color: #fff;
-  animation: scan 2s infinite;
+  background: linear-gradient(90deg, transparent 0%, #60a5fa 50%, transparent 100%);
+  box-shadow: 0 0 10px #60a5fa;
+}
+
+@keyframes scan {
+  0% {
+    top: 0;
+  }
+  50% {
+    top: 500px;
+  }
+  100% {
+    top: 0;
+  }
 }

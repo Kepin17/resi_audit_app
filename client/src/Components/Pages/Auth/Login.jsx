@@ -4,6 +4,8 @@ import InputFragment from "../../Fragments/InputFragment";
 import { IoIosWarning } from "react-icons/io";
 import SubChapter from "../../Elements/SubChapter";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
+
 const LoginPage = () => {
   const [loginData, setLoginData] = React.useState({
     username: "",
@@ -15,7 +17,9 @@ const LoginPage = () => {
     axios
       .post("http://localhost:8080/api/v1/auth/login", loginData)
       .then((res) => {
-        console.log(res);
+        console.log(res.data);
+        const getToken = res.data.yourToken;
+        localStorage.setItem("token", getToken);
       })
       .catch((err) => {
         if (err.response) {

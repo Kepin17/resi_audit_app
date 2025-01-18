@@ -51,6 +51,8 @@ const loginHandler = async (req, res) => {
 
     const pekerja = rows[0];
     const passcordValidation = await bcrypt.compare(password, pekerja.password);
+    const [bagianData] = await mysqlPool.query("SELECT * FROM bagian WHERE id_bagian = ?", [pekerja.id_bagian]);
+    const role = bagianData[0].jenis_pekerja;
 
     if (!passcordValidation) {
       return res.status(400).send({
@@ -64,7 +66,7 @@ const loginHandler = async (req, res) => {
         id_pekerja: pekerja.id_pekerja,
         username: pekerja.username,
         pekerja: pekerja.nama_pekerja,
-        id_bagian: pekerja.id_bagian,
+        bagian: role,
       },
       secretKey,
       {
@@ -75,6 +77,11 @@ const loginHandler = async (req, res) => {
     res.status(200).send({
       success: true,
       message: "Login success",
+      data: {
+        username: pekerja.username,
+        nama_pekerja: pekerja.nama_pekerja,
+        bagian: role,
+      },
       yourToken: token,
     });
   } catch (error) {
