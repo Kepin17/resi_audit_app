@@ -4,12 +4,15 @@ const routes = require("./routes");
 const dotenv = require("dotenv");
 const mysqlPool = require("./config/db");
 const protectedRoute = require("./routes/protectedRoute");
+const cors = require("cors");
 
 dotenv.config();
 
+app.use(cors());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use("/", routes);
-app.use("/api", protectedRoute);
+app.use("/api/v1", routes);
+app.use("/api/v1", protectedRoute);
 
 const PORT = process.env.PORT || 3000;
 

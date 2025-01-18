@@ -2,7 +2,7 @@ import { CiBarcode } from "react-icons/ci";
 import Button from "../../Elements/Button";
 import MainLayout from "../../Layouts/MainLayout";
 import React, { useState } from "react";
-import BarcodeScanner from "../../Fragments/BarcodeScanner";
+import BarcodeScannerFragment from "../../Fragments/BarcodeScannerFragment";
 
 const HomePage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -12,18 +12,18 @@ const HomePage = () => {
         <div className="flex items-center space-x-4">
           <Button onClick={() => setIsBarcodeActive(!isBarcodeActive)}>
             <CiBarcode />
-            Tambah Barcode
+            Update Paket
           </Button>
         </div>
       </div>
       <div className="w-full flex-1 p-5 space-y-5">
         {isBarcodeActive && (
-          <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="w-full h-auto py-2 max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
             <div className="p-4 bg-gray-50 border-b">
-              <h3 className="text-lg font-medium">Scanner Barcode</h3>
+              <h3 className="text-lg font-medium">Scanner Resi </h3>
             </div>
-            <div className="p-4">
-              <BarcodeScanner />
+            <div>
+              <BarcodeScannerFragment />
             </div>
           </div>
         )}
