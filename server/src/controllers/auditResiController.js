@@ -27,13 +27,13 @@ const showAllData = async (req, res) => {
 
 const scaneHandler = async (req, res) => {
   try {
-    const { resi_number, id_pekerja } = req.body;
+    const { resi_id, id_pekerja } = req.body;
 
     // Validate required fields
-    if (!resi_number || !id_pekerja) {
+    if (!resi_id || !id_pekerja) {
       return res.status(400).send({
         success: false,
-        message: "resi_number and id_pekerja are required",
+        message: "resi_id and id_pekerja are required",
       });
     }
 
@@ -46,51 +46,60 @@ const scaneHandler = async (req, res) => {
     );
 
     const workerRole = workerData[0].jenis_pekerja;
-    const [prosesRows] = await mysqlPool.query("SELECT * FROM proses WHERE resi_number = ?", [resi_number]);
 
-    if (prosesRows.length === 0) {
-      // For new entry, only picking role is allowed
-      if (workerRole !== "picking") {
-        return res.status(400).send({
-          success: false,
-          message: "New resi must start with picking process",
-        });
+    const [checkBarangRow] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
+
+    if (checkBarangRow.length !== 0) {
+      const [prosesRows] = await mysqlPool.query("SELECT * FROM proses WHERE resi_id = ?", [resi_id]);
+
+      if (prosesRows.length === 0) {
+        // For new entry, only picker role is allowed
+        if (workerRole !== "picker") {
+          return res.status(400).send({
+            success: false,
+            message: "New resi must start with picker process",
+          });
+        }
+        await mysqlPool.query("INSERT INTO proses (resi_id, id_pekerja, status_proses) VALUES (?, ?,?)", [resi_id, id_pekerja, workerRole]);
+      } else {
+        // Check if trying to scan with same role
+        if (prosesRows[0].status_proses === workerRole) {
+          return res.status(400).send({
+            success: false,
+            message: `This resi is already processed for ${workerRole}`,
+          });
+        }
+
+        // Define valid workflow sequence
+        const workflow = ["picker", "packing", "pickout"];
+        const currentIndex = workflow.indexOf(prosesRows[0].status_proses);
+        const nextIndex = workflow.indexOf(workerRole);
+
+        // Check if the update follows linear workflow
+        if (nextIndex !== currentIndex + 1) {
+          return res.status(400).send({
+            success: false,
+            message: `Invalid workflow sequence. Current: ${prosesRows[0].status_proses}, Expected next: ${workflow[currentIndex + 1]}`,
+          });
+        }
+
+        await mysqlPool.query("UPDATE proses SET id_pekerja = ?, status_proses = ? WHERE resi_id = ?", [id_pekerja, workerRole, resi_id]);
       }
-      await mysqlPool.query("INSERT INTO proses (resi_number, id_pekerja, status_proses) VALUES (?, ?,?)", [resi_number, id_pekerja, workerRole]);
-    } else {
-      // Check if trying to scan with same role
-      if (prosesRows[0].status_proses === workerRole) {
-        return res.status(400).send({
-          success: false,
-          message: `This resi is already processed for ${workerRole}`,
-        });
-      }
 
-      // Define valid workflow sequence
-      const workflow = ["picking", "packing", "pickout"];
-      const currentIndex = workflow.indexOf(prosesRows[0].status_proses);
-      const nextIndex = workflow.indexOf(workerRole);
-
-      // Check if the update follows linear workflow
-      if (nextIndex !== currentIndex + 1) {
-        return res.status(400).send({
-          success: false,
-          message: `Invalid workflow sequence. Current: ${prosesRows[0].status_proses}, Expected next: ${workflow[currentIndex + 1]}`,
-        });
-      }
-
-      await mysqlPool.query("UPDATE proses SET id_pekerja = ?, status_proses = ? WHERE resi_number = ?", [id_pekerja, workerRole, resi_number]);
+      await mysqlPool.query("INSERT INTO log_proses (id_pekerja, resi_id, status_proses) VALUES (?, ?, ?)", [id_pekerja, resi_id, workerRole]);
+      return res.status(200).send({
+        success: true,
+        message: "Scan success",
+        data: {
+          nama_pekerja: workerData[0].nama_pekerja,
+          proses_scan: workerRole,
+        },
+      });
     }
 
-    await mysqlPool.query("INSERT INTO log_proses (id_pekerja, resi_number, status_proses) VALUES (?, ?, ?)", [id_pekerja, resi_number, workerRole]);
-
-    return res.status(200).send({
-      success: true,
-      message: "Scan success",
-      data: {
-        nama_pekerja: workerData[0].nama_pekerja,
-        proses_scan: workerRole,
-      },
+    res.status(404).send({
+      success: false,
+      message: "Resi not valid or not found",
     });
   } catch (error) {
     console.log(error);
@@ -105,9 +114,9 @@ const scaneHandler = async (req, res) => {
 const showAllActiviy = async (req, res) => {
   try {
     const [rows] = await mysqlPool.query(`
-      SELECT pekerja.nama_pekerja, log_proses.resi_number as resi, log_proses.status_proses as status, log_proses.created_at as proses_scan
+      SELECT pekerja.nama_pekerja, log_proses.resi_id as resi, log_proses.status_proses as status, log_proses.created_at as proses_scan
       FROM log_proses 
-      JOIN proses ON log_proses.resi_number = proses.resi_number 
+      JOIN proses ON log_proses.resi_id = proses.resi_id 
       JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
     `);
     if (rows.length === 0) {
@@ -137,9 +146,9 @@ const getActivityByName = async (req, res) => {
     const { username } = req.params;
     const [rows] = await mysqlPool.query(
       `
-      SELECT pekerja.nama_pekerja, log_proses.resi_number as resi, log_proses.status_proses as status, log_proses.created_at as proses_scan
+      SELECT pekerja.nama_pekerja, log_proses.resi_id as resi, log_proses.status_proses as status, log_proses.created_at as proses_scan
       FROM log_proses 
-      JOIN proses ON log_proses.resi_number = proses.resi_number 
+      JOIN proses ON log_proses.resi_id = proses.resi_id 
       JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
       WHERE pekerja.username = ?
     `,

@@ -1,18 +1,11 @@
 import React, { useEffect, useState } from "react";
 import BarcodeScannerComponent from "react-qr-barcode-scanner";
-import Button from "../../Elements/Button";
 import "./scan.css";
-import { FaCamera } from "react-icons/fa";
 
 const BarcodeScannerFragment = () => {
   const [data, setData] = useState("");
   const [scanning, setScanning] = useState(true);
 
-  useEffect(() => {
-    if (!scanning) {
-      window.location.reload();
-    }
-  });
   return (
     <>
       <div className="relative ">

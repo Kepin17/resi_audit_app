@@ -1,9 +1,40 @@
 CREATE DATABASE pack_db;
 USE pack_db;
 
+
+
+CREATE TABLE CATEGORY (
+  id_category VARCHAR(7) PRIMARY KEY NOT NULL,
+  nama_category VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT CheckCategory1 CHECK (CHAR_LENGTH(id_category) = 6),
+  CONSTRAINT CheckCategory2 CHECK (id_category REGEXP '^CTG[0-9]{3}$')
+)
+
+INSERT INTO CATEGORY (id_category, nama_category) VALUES
+  ('CTG001', 'Elektronik'),
+  ('CTG002', 'Fashion'),
+  ('CTG003', 'Makanan'),
+  ('CTG004', 'Minuman'),
+  ('CTG005', 'Buku');
+
+-- DROP TABLE Barang , BAGIAN , PEKERJA , PROSES , LOG_PROSES;
+
+CREATE TABLE Barang (
+  resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
+  nama_barang VARCHAR(225) NOT NULL,
+  id_category VARCHAR(7),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT FK_Category FOREIGN KEY (id_category) REFERENCES CATEGORY(id_category) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+-- drop table bagian
+
 CREATE TABLE BAGIAN (
-  id_bagian VARCHAR(7) PRIMARY KEY NOT NULL,
-  jenis_pekerja VARCHAR(10) NOT NULL CHECK (jenis_pekerja IN ('picking', 'packing', 'pickout', 'admin','superadmin')),
+  id_bagian VARCHAR(8) PRIMARY KEY NOT NULL,
+  jenis_pekerja VARCHAR(10) NOT NULL CHECK (jenis_pekerja IN ('picker', 'packing', 'pickout', 'admin','superadmin')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT CheckBagian1 CHECK (CHAR_LENGTH(id_bagian) = 6),
@@ -12,13 +43,13 @@ CREATE TABLE BAGIAN (
 
 
 INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
-  ('BGN001', 'picking'),
+  ('BGN001', 'picker'),
   ('BGN002', 'packing'),
   ('BGN003', 'pickout'),
   ('BGN004', 'admin'),
   ('BGN005', 'superadmin');
 
--- DROP TABLE log_proses, PROSES, PEKERJA;
+-- DROP TABLE  PEKERJA , PROSES, LOG_PROSES;
 
 CREATE TABLE PEKERJA (
   id_pekerja VARCHAR(7) PRIMARY KEY NOT NULL,
@@ -33,26 +64,30 @@ CREATE TABLE PEKERJA (
   CONSTRAINT FK_Bagian FOREIGN KEY (id_bagian) REFERENCES BAGIAN(id_bagian) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+
+
 -- drop table proses, log_proses;
 
 CREATE TABLE PROSES (
-  resi_number VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
+  id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,
+  resi_id VARCHAR(20),
   id_pekerja VARCHAR(8),
-  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picking', 'packing', 'pickout')),
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT FK_Pekerja FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
+  CONSTRAINT FK_Pekerja FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT FK_Proses FOREIGN KEY (resi_id) REFERENCES Barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
 
 CREATE TABLE LOG_PROSES (
   id_log INT PRIMARY KEY AUTO_INCREMENT,
+  resi_id VARCHAR(20),
   id_pekerja VARCHAR(8),
-  resi_number VARCHAR(20),
-  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picking', 'packing', 'pickout')),
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT FK_PekerjaLog FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT FK_ProsesLog FOREIGN KEY (resi_number) REFERENCES PROSES(resi_number) ON UPDATE CASCADE ON DELETE SET NULL
+  CONSTRAINT FK_BarangLog FOREIGN KEY (resi_id) REFERENCES Barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 

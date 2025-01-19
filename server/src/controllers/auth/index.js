@@ -16,7 +16,7 @@ const RegisterHandler = async (req, res) => {
     if (rows.affectedRows === 0) {
       return res.status(400).send({
         success: false,
-        message: "Failed to register",
+        message: "Failed to register username already exist",
       });
     }
 
