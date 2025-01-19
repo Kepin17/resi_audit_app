@@ -1,17 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import BarcodeScannerComponent from "react-qr-barcode-scanner";
 import Button from "../../Elements/Button";
 import "./scan.css";
 import { FaCamera } from "react-icons/fa";
 
 const BarcodeScannerFragment = () => {
-  const [data, setData] = useState("Not found");
+  const [data, setData] = useState("");
   const [scanning, setScanning] = useState(true);
 
-  const sendDataHandler = () => {
-    console.log(data);
-  };
-
+  useEffect(() => {
+    if (!scanning) {
+      window.location.reload();
+    }
+  });
   return (
     <>
       <div className="relative ">
@@ -38,16 +39,7 @@ const BarcodeScannerFragment = () => {
           }}
         />
         <div className="p-4 relative">
-          <div className="w-full flex flex-col items-center justify-center absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 ">
-            <Button
-              buttonStyle="w-24 h-12 rounded-md flex items-center justify-center
-            bg-orange-500 text-white hover:bg-orange-600 text-2xl
-            "
-              onClick={sendDataHandler}
-            >
-              <FaCamera />
-            </Button>
-          </div>
+          <div className="w-full flex flex-col items-center justify-center absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 "></div>
           <div className={`mt-5 ${data === "Not Found" ? "text-red-500" : "text-green-700"}`}>
             <p>{data}</p>
           </div>

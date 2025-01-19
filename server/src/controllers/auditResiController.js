@@ -29,51 +29,69 @@ const scaneHandler = async (req, res) => {
   try {
     const { resi_number, id_pekerja } = req.body;
 
-    // Get worker data
-    const [pekerja_data] = await mysqlPool.query("SELECT id_bagian, nama_pekerja FROM pekerja WHERE id_pekerja = ?", [id_pekerja]);
-    if (pekerja_data.length === 0) {
-      return res.status(404).send({
+    // Validate required fields
+    if (!resi_number || !id_pekerja) {
+      return res.status(400).send({
         success: false,
-        message: "Worker not found",
+        message: "resi_number and id_pekerja are required",
       });
     }
 
-    // Get bagian data
-    const [bagian_data] = await mysqlPool.query("SELECT jenis_pekerja FROM bagian WHERE id_bagian = ?", [pekerja_data[0].id_bagian]);
-    if (bagian_data.length === 0) {
-      return res.status(404).send({
-        success: false,
-        message: "Bagian not found",
-      });
-    }
+    const [workerData] = await mysqlPool.query(
+      `SELECT pekerja.id_bagian, pekerja.nama_pekerja, bagian.jenis_pekerja
+       FROM pekerja 
+       JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
+       WHERE pekerja.id_pekerja = ?`,
+      [id_pekerja]
+    );
 
-    const workerRole = bagian_data[0].jenis_pekerja;
+    const workerRole = workerData[0].jenis_pekerja;
     const [prosesRows] = await mysqlPool.query("SELECT * FROM proses WHERE resi_number = ?", [resi_number]);
+
     if (prosesRows.length === 0) {
+      // For new entry, only picking role is allowed
+      if (workerRole !== "picking") {
+        return res.status(400).send({
+          success: false,
+          message: "New resi must start with picking process",
+        });
+      }
       await mysqlPool.query("INSERT INTO proses (resi_number, id_pekerja, status_proses) VALUES (?, ?,?)", [resi_number, id_pekerja, workerRole]);
-      await mysqlPool.query("INSERT INTO log_proses (resi_number) VALUES (?) ", [resi_number]);
-
-      return res.status(200).send({
-        success: true,
-        message: "Scan success",
-        data: {
-          nama_pekerja: pekerja_data[0].nama_pekerja,
-          proses_scan: workerRole,
-        },
-      });
     } else {
-      await mysqlPool.query("UPDATE proses SET id_pekerja = ?, status_proses = ? WHERE resi_number = ?", [id_pekerja, workerRole, resi_number]);
-      await mysqlPool.query("INSERT INTO log_proses (resi_number) VALUES (?) ", [resi_number]);
+      // Check if trying to scan with same role
+      if (prosesRows[0].status_proses === workerRole) {
+        return res.status(400).send({
+          success: false,
+          message: `This resi is already processed for ${workerRole}`,
+        });
+      }
 
-      return res.status(200).send({
-        success: true,
-        message: "Scane success",
-        data: {
-          nama_pekerja: pekerja_data[0].nama_pekerja,
-          proses_scan: workerRole,
-        },
-      });
+      // Define valid workflow sequence
+      const workflow = ["picking", "packing", "pickout"];
+      const currentIndex = workflow.indexOf(prosesRows[0].status_proses);
+      const nextIndex = workflow.indexOf(workerRole);
+
+      // Check if the update follows linear workflow
+      if (nextIndex !== currentIndex + 1) {
+        return res.status(400).send({
+          success: false,
+          message: `Invalid workflow sequence. Current: ${prosesRows[0].status_proses}, Expected next: ${workflow[currentIndex + 1]}`,
+        });
+      }
+
+      await mysqlPool.query("UPDATE proses SET id_pekerja = ?, status_proses = ? WHERE resi_number = ?", [id_pekerja, workerRole, resi_number]);
     }
+
+    await mysqlPool.query("INSERT INTO log_proses (id_pekerja, resi_number, status_proses) VALUES (?, ?, ?)", [id_pekerja, resi_number, workerRole]);
+
+    return res.status(200).send({
+      success: true,
+      message: "Scan success",
+      data: {
+        nama_pekerja: workerData[0].nama_pekerja,
+        proses_scan: workerRole,
+      },
+    });
   } catch (error) {
     console.log(error);
     res.status(500).send({
@@ -84,4 +102,69 @@ const scaneHandler = async (req, res) => {
   }
 };
 
-module.exports = { showAllData, scaneHandler };
+const showAllActiviy = async (req, res) => {
+  try {
+    const [rows] = await mysqlPool.query(`
+      SELECT pekerja.nama_pekerja, log_proses.resi_number as resi, log_proses.status_proses as status, log_proses.created_at as proses_scan
+      FROM log_proses 
+      JOIN proses ON log_proses.resi_number = proses.resi_number 
+      JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
+    `);
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Data not found",
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "Data found",
+      data: rows,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to show all data",
+      error: error.message,
+    });
+  }
+};
+
+const getActivityByName = async (req, res) => {
+  try {
+    const { username } = req.params;
+    const [rows] = await mysqlPool.query(
+      `
+      SELECT pekerja.nama_pekerja, log_proses.resi_number as resi, log_proses.status_proses as status, log_proses.created_at as proses_scan
+      FROM log_proses 
+      JOIN proses ON log_proses.resi_number = proses.resi_number 
+      JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
+      WHERE pekerja.username = ?
+    `,
+      [username]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Data not found",
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "Data found",
+      data: rows,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to show all data",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { showAllData, scaneHandler, showAllActiviy, getActivityByName };
