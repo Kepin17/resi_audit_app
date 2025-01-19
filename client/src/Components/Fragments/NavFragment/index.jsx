@@ -41,7 +41,13 @@ const NavFragment = () => {
             </div>
             {isOpen && (
               <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 border border-gray-100 transform opacity-100 scale-100 transition-all duration-200">
-                <Button buttonStyle="w-full text-left px-4 py-3 hover:bg-red-50 flex items-center gap-3 text-red-600 transition-colors duration-200">
+                <Button
+                  buttonStyle="w-full text-left px-4 py-3 hover:bg-red-50 flex items-center gap-3 text-red-600 transition-colors duration-200"
+                  onClick={() => {
+                    localStorage.removeItem("token");
+                    window.location.href = "/";
+                  }}
+                >
                   <FaSignOutAlt />
                   Logout
                 </Button>

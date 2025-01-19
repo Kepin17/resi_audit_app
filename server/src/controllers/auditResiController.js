@@ -89,7 +89,7 @@ const scaneHandler = async (req, res) => {
       await mysqlPool.query("INSERT INTO log_proses (id_pekerja, resi_id, status_proses) VALUES (?, ?, ?)", [id_pekerja, resi_id, workerRole]);
       return res.status(200).send({
         success: true,
-        message: "Scan success",
+        message: "Scan success and data updated",
         data: {
           nama_pekerja: workerData[0].nama_pekerja,
           proses_scan: workerRole,

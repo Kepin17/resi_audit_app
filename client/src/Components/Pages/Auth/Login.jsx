@@ -20,6 +20,7 @@ const LoginPage = () => {
         console.log(res.data);
         const getToken = res.data.yourToken;
         localStorage.setItem("token", getToken);
+        window.location.href = "/";
       })
       .catch((err) => {
         if (err.response) {

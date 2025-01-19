@@ -2,17 +2,26 @@ const mysqlPool = require("../config/db");
 
 const addNewBarang = async (req, res) => {
   try {
-    const { resi_id, nama_barang, jumlah_barang, id_category } = req.body;
+    const { resi_id, nama_barang, id_category } = req.body;
 
     // Validate required fields
-    if (!resi_id || !nama_barang || !jumlah_barang || !id_category) {
+    if (!resi_id || !nama_barang || !id_category) {
       return res.status(400).send({
         success: false,
         message: "all field are required",
       });
     }
 
-    await mysqlPool.query("INSERT INTO barang (resi_id, nama_barang, jumlah_barang, id_category) VALUES (?, ?, ?, ?)", [resi_id, nama_barang, jumlah_barang, id_category]);
+    const [rows] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
+
+    if (rows.length === 0) {
+      await mysqlPool.query("INSERT INTO barang (resi_id, nama_barang, id_category) VALUES (?, ?, ?)", [resi_id, nama_barang, id_category]);
+    } else {
+      return res.status(400).send({
+        success: false,
+        message: "resi already exist",
+      });
+    }
 
     res.status(200).send({
       success: true,
@@ -30,9 +39,9 @@ const addNewBarang = async (req, res) => {
 
 const editBarang = async (req, res) => {
   try {
-    const { resi_id, nama_barang, jumlah_barang, id_category } = req.body;
+    const { resi_id, nama_barang, id_category } = req.body;
 
-    await mysqlPool.query("UPDATE barang SET nama_barang = ?, jumlah_barang = ?, id_category = ? WHERE resi_id = ?", [nama_barang, jumlah_barang, id_category, resi_id]);
+    await mysqlPool.query("UPDATE barang SET nama_barang = ?, id_category = ? WHERE resi_id = ?", [nama_barang, id_category, resi_id]);
 
     res.status(200).send({
       success: true,
@@ -51,7 +60,7 @@ const editBarang = async (req, res) => {
 const showAllBarang = async (req, res) => {
   try {
     const [rows] = await mysqlPool.query(`
-      SELECT resi_id, nama_barang ,nama_category, jumlah_barang FROM barang
+      SELECT resi_id, nama_barang ,nama_category,  FROM barang
       JOIN category ON barang.id_category = category.id_category
       `);
     if (rows.length === 0) {

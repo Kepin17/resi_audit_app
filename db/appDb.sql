@@ -66,7 +66,7 @@ CREATE TABLE PEKERJA (
 
 
 
--- drop table proses, log_proses;
+drop table proses, log_proses;
 
 CREATE TABLE PROSES (
   id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,
