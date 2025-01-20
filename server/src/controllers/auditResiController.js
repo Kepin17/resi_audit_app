@@ -1,5 +1,40 @@
 const mysqlPool = require("../config/db");
 
+const handleError = (error, res, operation) => {
+  console.error(`Error in ${operation}:`, error);
+
+  if (error.code === "ER_NO_SUCH_TABLE") {
+    return res.status(500).send({
+      success: false,
+      message: "Database table not found",
+      error: error.message,
+    });
+  }
+
+  if (error.code === "ER_BAD_FIELD_ERROR") {
+    return res.status(500).send({
+      success: false,
+      message: "Invalid database field",
+      error: error.message,
+    });
+  }
+
+  if (error.code === "ECONNREFUSED") {
+    return res.status(503).send({
+      success: false,
+      message: "Database connection failed",
+      error: error.message,
+    });
+  }
+
+  return res.status(500).send({
+    success: false,
+    message: `Error when ${operation}`,
+    error: error.message,
+    stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+  });
+};
+
 const showAllData = async (req, res) => {
   try {
     const [rows] = await mysqlPool.query("SELECT * FROM proses");
@@ -16,12 +51,7 @@ const showAllData = async (req, res) => {
       data: rows,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).send({
-      success: false,
-      message: "Error when trying to show all data",
-      error: error.message,
-    });
+    handleError(error, res, "fetching all data");
   }
 };
 
@@ -44,6 +74,14 @@ const scaneHandler = async (req, res) => {
        WHERE pekerja.id_pekerja = ?`,
       [id_pekerja]
     );
+
+    // Add worker validation
+    if (!workerData || workerData.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Worker not found",
+      });
+    }
 
     const workerRole = workerData[0].jenis_pekerja;
 
@@ -102,12 +140,14 @@ const scaneHandler = async (req, res) => {
       message: "Resi not valid or not found",
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).send({
-      success: false,
-      message: "Error when trying to show last scan",
-      error: error.message,
-    });
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).send({
+        success: false,
+        message: "Duplicate scan entry detected",
+        error: error.message,
+      });
+    }
+    handleError(error, res, "processing scan");
   }
 };
 
@@ -132,12 +172,7 @@ const showAllActiviy = async (req, res) => {
       data: rows,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).send({
-      success: false,
-      message: "Error when trying to show all data",
-      error: error.message,
-    });
+    handleError(error, res, "fetching all activities");
   }
 };
 
@@ -167,12 +202,7 @@ const getActivityByName = async (req, res) => {
       data: rows,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).send({
-      success: false,
-      message: "Error when trying to show all data",
-      error: error.message,
-    });
+    handleError(error, res, "fetching activities by name");
   }
 };
 

@@ -4,6 +4,7 @@ const authToken = require("../middleware/auth");
 const { scaneHandler, showAllActiviy, getActivityByName } = require("../controllers/auditResiController");
 const { addNewBarang, editBarang, showAllBarang, deleteBarang } = require("../controllers/barangController");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const { RegisterHandler } = require("../controllers/auth");
 
 const roles = {
   staff: "staff",
@@ -11,6 +12,9 @@ const roles = {
   supadmin: "superadmin",
 };
 
+// add staff area
+
+router.post("/auth/register", authToken, roleMiddleware([roles.supadmin]), RegisterHandler);
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin]), showAllBarang);
 router.post("/barang/add", authToken, roleMiddleware([roles.admin]), addNewBarang);
