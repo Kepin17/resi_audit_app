@@ -8,10 +8,10 @@ const secretKey = process.env.SECRET_KEY;
 // regisrasi pekerja
 const RegisterHandler = async (req, res) => {
   try {
-    const { id_pekerja, username, nama_pekerja, id_bagian, password } = req.body;
+    const { id_pekerja, username, nama_pekerja, id_bagian, password, role } = req.body;
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const [rows] = await mysqlPool.query("INSERT INTO pekerja (id_pekerja , username ,nama_pekerja , id_bagian ,password) VALUES (?, ?, ?, ?, ?)", [id_pekerja, username, nama_pekerja, id_bagian, hashedPassword]);
+    const [rows] = await mysqlPool.query("INSERT INTO pekerja (id_pekerja , username ,nama_pekerja , id_bagian ,password, role) VALUES (?, ?, ?, ?, ?, ?)", [id_pekerja, username, nama_pekerja, id_bagian, hashedPassword, role]);
 
     if (rows.affectedRows === 0) {
       return res.status(400).send({
@@ -52,7 +52,8 @@ const loginHandler = async (req, res) => {
     const pekerja = rows[0];
     const passcordValidation = await bcrypt.compare(password, pekerja.password);
     const [bagianData] = await mysqlPool.query("SELECT * FROM bagian WHERE id_bagian = ?", [pekerja.id_bagian]);
-    const role = bagianData[0].jenis_pekerja;
+
+    const divisi = bagianData[0] ? bagianData[0].nama_bagian : "admin";
 
     if (!passcordValidation) {
       return res.status(400).send({
@@ -66,7 +67,8 @@ const loginHandler = async (req, res) => {
         id_pekerja: pekerja.id_pekerja,
         username: pekerja.username,
         pekerja: pekerja.nama_pekerja,
-        bagian: role,
+        bagian: divisi || null,
+        role: pekerja.role,
       },
       secretKey,
       {
@@ -80,7 +82,7 @@ const loginHandler = async (req, res) => {
       data: {
         username: pekerja.username,
         nama_pekerja: pekerja.nama_pekerja,
-        bagian: role,
+        bagian: divisi,
       },
       yourToken: token,
     });

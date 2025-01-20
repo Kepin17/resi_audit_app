@@ -45,18 +45,18 @@ CREATE TABLE BAGIAN (
 INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
   ('BGN001', 'picker'),
   ('BGN002', 'packing'),
-  ('BGN003', 'pickout'),
-  ('BGN004', 'admin'),
-  ('BGN005', 'superadmin');
+  ('BGN003', 'pickout')
 
--- DROP TABLE  PEKERJA , PROSES, LOG_PROSES;
+
+DROP TABLE  PEKERJA , PROSES, LOG_PROSES;
 
 CREATE TABLE PEKERJA (
   id_pekerja VARCHAR(7) PRIMARY KEY NOT NULL,
   username VARCHAR(50) NOT NULL UNIQUE,
   nama_pekerja VARCHAR(50) NOT NULL,
-  id_bagian VARCHAR(8),
+  id_bagian VARCHAR(8) ,
   password VARCHAR(255) NOT NULL,
+  role VARCHAR(10) NOT NULL DEFAULT "staff" CHECK (role IN ('staff', 'admin','superadmin')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT CheckPekerja1 CHECK (CHAR_LENGTH(id_pekerja) = 6),
@@ -66,7 +66,7 @@ CREATE TABLE PEKERJA (
 
 
 
-drop table proses, log_proses;
+-- drop table proses, log_proses;
 
 CREATE TABLE PROSES (
   id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,

@@ -60,28 +60,25 @@ const editBarang = async (req, res) => {
 const showAllBarang = async (req, res) => {
   try {
     const [rows] = await mysqlPool.query(`
-      SELECT resi_id, nama_barang ,nama_category,  FROM barang
+      SELECT resi_id, nama_barang, nama_category
+      FROM barang
       JOIN category ON barang.id_category = category.id_category
-      `);
-    if (rows.length === 0) {
-      return res.status(404).send({
-        success: false,
-        message: "Barang not found",
-      });
-    }
+    `);
 
-    res.status(200).send({
+    return res.status(200).send({
       success: true,
       message: "Barang found",
       data: rows,
     });
   } catch (error) {
     console.log(error);
-    res.status(500).send({
-      success: false,
-      message: "Error when trying to show all barang",
-      error: error.message,
-    });
+    if (!res.headersSent) {
+      return res.status(500).send({
+        success: false,
+        message: "Error when trying to show all barang",
+        error: error.message,
+      });
+    }
   }
 };
 
