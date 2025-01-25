@@ -57,7 +57,7 @@ const PaginationFragment = ({ children, data = [] }) => {
       )}
 
       {safeData.length > itemsPerPage && (
-        <div className="col-span-full absolute bottom-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div className="col-span-full m-auto">
           <div className="flex flex-col items-center gap-4 mt-6">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">

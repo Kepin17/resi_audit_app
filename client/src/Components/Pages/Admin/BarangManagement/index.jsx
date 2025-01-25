@@ -14,17 +14,12 @@ import SelectOptionFragment from "../../../Fragments/SelectOptionFragment";
 import { ToastContainer, toast } from "react-toastify";
 
 const ItemCard = ({ item, index }) => (
-  <div
-    className="w-[22rem] bg-white p-6 rounded-lg shadow-md flex items-center justify-between gap-5 hover:shadow-lg transition-all duration-300 border border-slate-200
-  cursor-pointer
-  "
-    key={index}
-  >
-    <div className="w-full flex items-center gap-5">
-      <FaBox className="text-5xl text-orange-400" />
-      <div className="flex flex-col gap-1">
-        <h3 className="text-lg font-semibold text-slate-800">{item.nama_barang}</h3>
-        <div className="w-[15rem] flex items-center justify-between gap-2 relative">
+  <div className="w-full md:w-[22rem] bg-white p-4 md:p-6 rounded-lg shadow-md flex items-center justify-between gap-3 md:gap-5 hover:shadow-lg transition-all duration-300 border border-slate-200 cursor-pointer" key={index}>
+    <div className="w-full flex items-center gap-3 md:gap-5">
+      <FaBox className="text-3xl md:text-5xl text-orange-400" />
+      <div className="flex flex-col gap-1 flex-1">
+        <h3 className="text-base md:text-lg font-semibold text-slate-800">{item.nama_barang}</h3>
+        <div className="w-full flex items-center justify-between gap-2 relative">
           <div className=" flex flex-col gap-1">
             <p className="text-slate-600 text-xs">{item.resi_id}</p>
             <p className={`text-slate-600 text-xs`}>{item.nama_category}</p>
@@ -131,7 +126,7 @@ const AdminBarangSection = () => {
     <DashboardLayout>
       <div className="w-full">
         <ToastContainer position="top-center" autoClose={2000} hideProgressBar={false} closeOnClick={false} pauseOnHover={false} theme="dark" />
-        <div className="w-full h-[85vh]  flex flex-col px-5 bg-slate-200 rounded-md relative">
+        <div className="w-full h-[85vh] flex flex-col px-2 md:px-5 bg-slate-200 rounded-md relative">
           {/* modal menu */}
 
           <ModalMenuFragment
@@ -179,18 +174,22 @@ const AdminBarangSection = () => {
             </Form>
           </ModalMenuFragment>
 
-          <div className="w-full flex gap-5">
+          <div className="w-full flex flex-col md:flex-row gap-3 md:gap-5 mb-4 px-4">
             <SearchFragment value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by name, resi, or category..." />
-            <div className="w-28 flex items-center gap-5">
-              <Button onClick={() => setIsModalOpen(true)} buttonStyle="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md transition-all duration-200">
+            <div className="w-full md:w-28 flex items-center gap-5">
+              <Button onClick={() => setIsModalOpen(true)} buttonStyle="w-full md:w-auto bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md transition-all duration-200">
                 Add Barang
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-            <PaginationFragment data={filteredData}>
-              <ItemCard />
-            </PaginationFragment>
+
+          {/* Wrap content in a container with overflow handling */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+              <PaginationFragment data={filteredData}>
+                <ItemCard />
+              </PaginationFragment>
+            </div>
           </div>
         </div>
       </div>

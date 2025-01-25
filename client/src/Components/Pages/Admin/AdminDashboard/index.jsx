@@ -12,7 +12,7 @@ import Title from "../../../Elements/Title";
 
 const ItemCard = ({ item, index }) => (
   <div
-    className="w-[22rem] bg-white p-6 rounded-lg shadow-md flex items-center justify-between gap-5 hover:shadow-lg transition-all duration-300 border border-slate-200
+    className="w-[22rem] m-auto bg-white p-6 rounded-lg shadow-md flex items-center justify-between gap-5 hover:shadow-lg transition-all duration-300 border border-slate-200
   cursor-pointer
   "
     key={index}
@@ -60,45 +60,48 @@ const AdminDashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="status-card-wrapper w-full h-[7.5rem] flex gap-5 justify-center items-center">
-        <div className="status-card bg-blue-500 w-1/2 h-[7rem] rounded-lg">
-          <div className="status-card-content text-white p-5 flex items-center gap-5">
-            <FaClipboardCheck className="text-5xl" />
+      <div className="status-card-wrapper w-full flex flex-col md:flex-row gap-3 md:gap-5 justify-center items-stretch p-2 md:p-0">
+        <div className="status-card bg-blue-500 w-full md:w-1/3 p-4 rounded-lg">
+          <div className="status-card-content text-white flex items-center gap-3 md:gap-5">
+            <FaClipboardCheck className="text-3xl md:text-5xl" />
             <div>
-              <h1 className="text-3xl font-semibold">{data.length}</h1>
-              <p className="text-lg">Total Orders</p>
+              <h1 className="text-2xl md:text-3xl font-semibold">{data.length}</h1>
+              <p className="text-base md:text-lg">Total Orders</p>
             </div>
           </div>
         </div>
-        <div className="status-card bg-blue-500 w-1/2 h-[7rem] rounded-lg">
-          <div className="status-card-content text-white p-5 flex items-center gap-5">
-            <LuPackageCheck className="text-5xl" />
+        <div className="status-card bg-blue-500 w-full md:w-1/3 p-4 rounded-lg">
+          <div className="status-card-content text-white flex items-center gap-3 md:gap-5">
+            <LuPackageCheck className="text-3xl md:text-5xl" />
             <div>
-              <h1 className="text-3xl font-semibold">{totalReadyForShipment}</h1>
-              <p className="text-lg">Ready for shipment</p>
+              <h1 className="text-2xl md:text-3xl font-semibold">{totalReadyForShipment}</h1>
+              <p className="text-base md:text-lg">Ready for shipment</p>
             </div>
           </div>
         </div>
 
-        <div className="status-card bg-blue-500 w-1/2 h-[7rem] rounded-lg">
-          <div className="status-card-content text-white p-5 flex items-center gap-5">
-            <FaUserCheck className="text-5xl" />
+        <div className="status-card bg-blue-500 w-full md:w-1/3 p-4 rounded-lg">
+          <div className="status-card-content text-white flex items-center gap-3 md:gap-5">
+            <FaUserCheck className="text-3xl md:text-5xl" />
             <div>
-              <h1 className="text-3xl font-semibold">{totalReadyForShipment}</h1>
-              <p className="text-lg">Total Staff</p>
+              <h1 className="text-2xl md:text-3xl font-semibold">{totalReadyForShipment}</h1>
+              <p className="text-base md:text-lg">Total Staff</p>
             </div>
           </div>
         </div>
       </div>
       <SearchFragment />
-      <div className="w-full h-[85vh] p-4 rounded-lg bg-slate-100 relative">
-        <div>
-          <Title titleStyle="text-2xl font-semibold text-slate-800">Recent Orders</Title>
+      <div className="w-full min-h-0 flex flex-col bg-slate-100 rounded-lg relative">
+        <div className="p-4">
+          <Title titleStyle="text-xl md:text-2xl font-semibold text-slate-800">Recent Orders</Title>
         </div>
-        <div className="grid grid-cols-4 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <PaginationFragment data={data}>
-            <ItemCard />
-          </PaginationFragment>
+
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6 ">
+            <PaginationFragment data={data}>
+              <ItemCard />
+            </PaginationFragment>
+          </div>
         </div>
       </div>
     </DashboardLayout>

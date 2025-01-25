@@ -3,6 +3,7 @@ import Title from "../Elements/Title";
 import { jwtDecode } from "jwt-decode";
 import { IoIosArrowUp, IoIosArrowDown } from "react-icons/io";
 import { Link } from "react-router-dom";
+import { HiMenuAlt3 } from "react-icons/hi";
 
 const DashboardLayout = ({ children }) => {
   const token = localStorage.getItem("token");
@@ -12,6 +13,7 @@ const DashboardLayout = ({ children }) => {
   const [isLogDropdownOpen, setIsLogDropdownOpen] = useState(false);
   const [isResiDropdownOpen, setIsResiDropdownOpen] = useState(false);
   const [isAuthDropdownOpen, setIsAuthDropdownOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -37,14 +39,37 @@ const DashboardLayout = ({ children }) => {
     setIsLogDropdownOpen(!isLogDropdownOpen);
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
-    <div className="bg-slate-900">
-      <div className="flex py-2 px-5 gap-5">
-        <nav className="sidebar w-[40vh] h-auto bg-blue-800 shadow-xl rounded-md">
-          <div className="h-[8rem] flex items-center justify-start px-5">
+    <div className="bg-slate-900 min-h-screen">
+      <div className="flex flex-col md:flex-row py-2 px-2 md:px-5 gap-5">
+        {/* Mobile Hamburger Menu */}
+        <div className="md:hidden flex items-center p-4">
+          <button onClick={toggleSidebar} className="text-white text-2xl">
+            <HiMenuAlt3 />
+          </button>
+        </div>
+
+        {/* Sidebar */}
+        <nav
+          className={`
+          sidebar w-[85%] md:w-[40vh] bg-blue-800 shadow-xl rounded-md h-screen
+          fixed md:relative top-0 left-0  z-40
+          transform transition-transform duration-300 ease-in-out
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+        `}
+        >
+          {/* Sidebar Content */}
+          <div className="h-[8rem] flex items-center justify-between px-5">
             <Link to="/admin">
               <Title titleStyle="text-white font-semibold text-xl flex items-center gap-2">SIAR DASHBOARD</Title>
             </Link>
+            <button onClick={toggleSidebar} className="md:hidden text-white text-2xl">
+              ✕
+            </button>
           </div>
 
           <ul className="list-wrapper px-5 flex flex-col gap-5  ">
@@ -85,22 +110,6 @@ const DashboardLayout = ({ children }) => {
               </div>
             </li>
 
-            <li className="bg-blue-200 p-2 rounded-md cursor-pointer ">
-              <div className="flex items-center justify-between" onClick={toggleResiDropdown}>
-                Scan Activity
-                {isResiDropdownOpen ? <IoIosArrowUp /> : <IoIosArrowDown />}
-              </div>
-              <div className={`transition-all duration-300 overflow-hidden ${isResiDropdownOpen ? "h-30 mt-2" : "h-0"}`}>
-                <ul className="list-inside space-y-2">
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/barang" className="text-blue-800 block">
-                      Data Scan
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-            </li>
-
             <li className="bg-blue-200 p-2 rounded-md cursor-pointer">
               <div className="flex items-center justify-between" onClick={toggleLogDropdown}>
                 Log Activity
@@ -123,12 +132,17 @@ const DashboardLayout = ({ children }) => {
             </li>
           </ul>
         </nav>
-        <div className="h-auto container mx-auto flex flex-col gap-5">
-          <nav className="h-[8rem] px-5 bg-blue-700 shadow-lg rounded-lg flex items-center justify-between">
-            <h1 className="text-white font-semibold text-xl">Admin Dashboard</h1>
+
+        {/* Overlay for mobile */}
+        {isSidebarOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden" onClick={toggleSidebar} />}
+
+        {/* Main Content */}
+        <div className="h-auto w-full flex flex-col gap-5">
+          <nav className="h-auto md:h-[8rem] p-4 md:px-5 bg-blue-700 shadow-lg rounded-lg flex flex-col md:flex-row md:items-center justify-between">
+            <h1 className="text-white font-semibold text-xl mb-2 md:mb-0">Admin Dashboard</h1>
             <div className="profile cursor-pointer relative text-white">
               <div className="flex gap-2 flex-col">
-                <p> {user.pekerja}</p>
+                <p>{user.pekerja}</p>
                 <p>{currentTime.toLocaleTimeString()} | Fighting 🔥</p>
               </div>
             </div>

@@ -4,6 +4,10 @@ export default {
   theme: {
     extend: {},
     screens: {
+      sm: "640px",
+      md: "768px",
+      lg: "1024px",
+      xl: "1280px",
       mobile: { max: "639px" },
       tablet: { min: "640px", max: "1023px" },
       laptop: { min: "1024px", max: "1279px" },
