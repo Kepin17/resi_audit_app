@@ -31,14 +31,6 @@ const DashboardLayout = ({ children }) => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const toggleResiDropdown = () => {
-    setIsResiDropdownOpen(!isResiDropdownOpen);
-  };
-
-  const toggleLogDropdown = () => {
-    setIsLogDropdownOpen(!isLogDropdownOpen);
-  };
-
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
@@ -81,7 +73,7 @@ const DashboardLayout = ({ children }) => {
               <div className={`transition-all duration-300 overflow-hidden ${isAuthDropdownOpen ? "h-30 mt-2" : "h-0"}`}>
                 <ul className="list-inside space-y-2">
                   <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/barang" className="text-blue-800 block">
+                    <Link to="/admin/staff" className="text-blue-800 block">
                       Data Staff
                     </Link>
                   </li>
@@ -102,33 +94,22 @@ const DashboardLayout = ({ children }) => {
                     </Link>
                   </li>
                   <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/kategori" className="text-blue-800 block">
+                    <Link to="/admin/barang/kategori" className="text-blue-800 block">
                       Kategori Barang
                     </Link>
                   </li>
                 </ul>
               </div>
             </li>
-
-            <li className="bg-blue-200 p-2 rounded-md cursor-pointer">
-              <div className="flex items-center justify-between" onClick={toggleLogDropdown}>
-                Log Activity
-                {isLogDropdownOpen ? <IoIosArrowUp /> : <IoIosArrowDown />}
-              </div>
-              <div className={`transition-all duration-300 overflow-hidden ${isLogDropdownOpen ? "h-30 mt-2" : "h-0"}`}>
-                <ul className="list-inside space-y-2">
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/log-proses" className="text-blue-800 block">
-                      Log Proses
-                    </Link>
-                  </li>
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/log-login" className="text-blue-800 block">
-                      Log Login
-                    </Link>
-                  </li>
-                </ul>
-              </div>
+            <li
+              className="bg-red-500 p-2 rounded-md cursor-pointer text-white"
+              onClick={() => {
+                localStorage.removeItem("token");
+                window.location.href = "/login";
+              }}
+            >
+              {" "}
+              Logout
             </li>
           </ul>
         </nav>

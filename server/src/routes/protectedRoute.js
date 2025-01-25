@@ -2,9 +2,9 @@ const express = require("express");
 const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
-const { scaneHandler, showAllActiviy, getActivityByName } = require("../controllers/auditResiController");
+const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi } = require("../controllers/auditResiController");
 const { addNewBarang, editBarang, showAllBarang, deleteBarang } = require("../controllers/barangController");
-const { RegisterHandler, showAllStaff, showStaffDetail } = require("../controllers/auth");
+const { RegisterHandler, showAllStaff, showStaffDetail, editStaff } = require("../controllers/auth");
 const { showAllCategory, addNewCategory, updateCategoryBarang, deleteCategoryBarang } = require("../controllers/categoriesBarangController");
 
 const roles = {
@@ -29,6 +29,7 @@ router.delete("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.
 router.post("/auditResi", authToken, roleMiddleware([roles.staff]), scaneHandler);
 router.get("/auditResi/activity", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllActiviy);
 router.get("/auditResi/activity/:username", authToken, getActivityByName);
+router.get("/auditResi/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDataByResi);
 
 // categories area
 
