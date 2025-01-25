@@ -24,7 +24,7 @@ const HomePage = () => {
       hour12: true,
     });
 
-    return `${day} ${month} ${year} `;
+    return `${day} ${month} ${year} | ${time}`;
   };
 
   useEffect(() => {
@@ -32,6 +32,11 @@ const HomePage = () => {
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
       const username = decodeToken.username;
+
+      const allowedRoles = ["admin", "superadmin"];
+      if (allowedRoles.includes(decodeToken.role)) {
+        window.location.href = "/admin";
+      }
 
       axios
         .get(`http://localhost:8080/api/v1/auditResi/activity/${username}`, {
@@ -60,27 +65,7 @@ const HomePage = () => {
   return (
     <MainLayout>
       <div className="w-full h-16 flex items-center justify-start px-5 border-b">
-        <div className="flex items-center space-x-4">
-          <Button
-            buttonStyle={`${changeBtn ? "bg-red-500 hover:bg-red-600 " : "bg-blue-500 hover:bg-blue-600 "} p-2 rounded-md flex items-center gap-2 text-white transition-all duration-200`}
-            onClick={() => {
-              setIsBarcodeActive(!isBarcodeActive);
-              setChangeBtn(!changeBtn);
-            }}
-          >
-            {isBarcodeActive ? (
-              <>
-                <IoIosCloseCircle />
-                Tutup Scanner
-              </>
-            ) : (
-              <>
-                <CiBarcode />
-                Update Paket
-              </>
-            )}
-          </Button>
-        </div>
+        <div className="flex items-center space-x-4"></div>
       </div>
       <div className="w-full flex-1 p-5 space-y-5">
         {isBarcodeActive && (
@@ -94,7 +79,28 @@ const HomePage = () => {
           </div>
         )}
         <div className="w-full bg-white rounded-lg shadow-md p-4">
-          <h3 className="text-lg font-medium mb-4">Data Hari Ini</h3>
+          <div className=" h-32 flex items-center justify-between">
+            <h3 className="text-lg font-medium">Data Hari Ini</h3>
+            <Button
+              buttonStyle={`${changeBtn ? "bg-red-500 hover:bg-red-600 " : "bg-blue-500 hover:bg-blue-600 "} p-2 rounded-md flex items-center gap-2 text-white transition-all duration-200`}
+              onClick={() => {
+                setIsBarcodeActive(!isBarcodeActive);
+                setChangeBtn(!changeBtn);
+              }}
+            >
+              {isBarcodeActive ? (
+                <>
+                  <IoIosCloseCircle />
+                  Tutup Scanner
+                </>
+              ) : (
+                <>
+                  <CiBarcode />
+                  Update Paket
+                </>
+              )}
+            </Button>
+          </div>
           <div className="today-data-wrapper">
             {data.map((item, index) => (
               <div key={index} className="today-data-item bg-gray-50 p-5 mb-2 rounded-lg flex items-center justify-between">

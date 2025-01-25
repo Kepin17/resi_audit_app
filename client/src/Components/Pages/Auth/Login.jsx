@@ -20,7 +20,14 @@ const LoginPage = () => {
         console.log(res.data);
         const getToken = res.data.yourToken;
         localStorage.setItem("token", getToken);
-        window.location.href = "/";
+        const decodeToken = jwtDecode(getToken);
+        const allowedRoles = ["admin", "superadmin"];
+
+        if (allowedRoles.includes(decodeToken.role)) {
+          window.location.href = "/admin";
+        } else {
+          window.location.href = "/";
+        }
       })
       .catch((err) => {
         if (err.response) {

@@ -46,6 +46,17 @@ const RegisterHandler = async (req, res) => {
       });
     }
 
+    // const check bagian
+
+    // const [checkBagian] = await mysqlPool.query("SELECT * FROM bagian WHERE id_bagian = ?", [id_bagian]);
+    // if (checkBagian.length === 0) {
+    //   return res.status(404).send({
+    //     success: false,
+    //     message: "Bagian not found",
+    //     error: "bagian_not_found",
+    //   });
+    // }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     await mysqlPool.query(
       `INSERT INTO pekerja (username, nama_pekerja, id_bagian, password, role) 
@@ -227,4 +238,53 @@ const logOutHandler = (req, res) => {
   });
 };
 
-module.exports = { RegisterHandler, loginHandler, logOutHandler };
+const showAllStaff = async (req, res) => {
+  try {
+    const [rows] = await mysqlPool.query(`
+      SELECT id_pekerja, nama_pekerja, role
+      FROM pekerja 
+    `);
+
+    res.status(200).send({
+      success: true,
+      message: "Data found",
+      data: rows,
+    });
+  } catch (error) {
+    console.error("Error when trying to show all workers:", error);
+
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to show all workers",
+      error: "internal_server_error",
+    });
+  }
+};
+
+const showStaffDetail = async (req, res) => {
+  try {
+    const { id_pekerja } = req.params;
+    const [rows] = await mysqlPool.query("SELECT * FROM pekerja WHERE id_pekerja = ?", [id_pekerja]);
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Data not found",
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "Data found",
+      data: rows,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to show worker detail",
+      error: "internal_server_error",
+    });
+  }
+};
+
+module.exports = { RegisterHandler, loginHandler, logOutHandler, showAllStaff, showStaffDetail };

@@ -39,7 +39,8 @@ const addNewBarang = async (req, res) => {
 
 const editBarang = async (req, res) => {
   try {
-    const { resi_id, nama_barang, id_category } = req.body;
+    const { resi_id } = req.params;
+    const { nama_barang, id_category } = req.body;
 
     await mysqlPool.query("UPDATE barang SET nama_barang = ?, id_category = ? WHERE resi_id = ?", [nama_barang, id_category, resi_id]);
 
@@ -60,7 +61,7 @@ const editBarang = async (req, res) => {
 const showAllBarang = async (req, res) => {
   try {
     const [rows] = await mysqlPool.query(`
-      SELECT resi_id, nama_barang, nama_category
+      SELECT resi_id, nama_barang, nama_category, status_barang
       FROM barang
       JOIN category ON barang.id_category = category.id_category
     `);
@@ -84,7 +85,7 @@ const showAllBarang = async (req, res) => {
 
 const deleteBarang = async (req, res) => {
   try {
-    const { resi_id } = req.body;
+    const { resi_id } = req.params;
 
     await mysqlPool.query("DELETE FROM barang WHERE resi_id = ?", [resi_id]);
 

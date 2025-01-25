@@ -4,6 +4,9 @@ import HomePage from "./Components/Pages/Home";
 import LoginPage from "./Components/Pages/Auth/Login";
 import ProtectedRoute from "./Components/Auth/ProtectedRoute";
 import PublicRoute from "./Components/Auth/PublicRoute";
+import AdminProtectedRoute from "./Components/Auth/AdminProtectedRoute";
+import AdminDashboard from "./Components/Pages/Admin/AdminDashboard";
+import AdminBarangSection from "./Components/Pages/Admin/BarangManagement";
 
 function App() {
   return (
@@ -23,6 +26,24 @@ function App() {
             <PublicRoute>
               <LoginPage />
             </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={
+            <AdminProtectedRoute>
+              <AdminDashboard />
+            </AdminProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/barang"
+          element={
+            <AdminProtectedRoute>
+              <AdminBarangSection />
+            </AdminProtectedRoute>
           }
         />
       </Routes>

@@ -3,6 +3,13 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {},
+    screens: {
+      mobile: { max: "639px" },
+      tablet: { min: "640px", max: "1023px" },
+      laptop: { min: "1024px", max: "1279px" },
+      desktop: { min: "1280px", max: "1535px" },
+      "desktop-xl": { min: "1536px" },
+    },
   },
   plugins: [],
 };

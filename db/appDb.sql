@@ -1,8 +1,7 @@
 CREATE DATABASE pack_db;
 USE pack_db;
 
-
--- drop table if exists CATEGORY;
+-- DROP DATABASE IF EXISTS pack_db;
 
 CREATE TABLE CATEGORY (
   id_category VARCHAR(9) PRIMARY KEY ,
@@ -59,7 +58,6 @@ INSERT INTO CATEGORY (nama_category) VALUES
 
 
 
--- DROP TABLE Barang , BAGIAN , PEKERJA , PROSES , LOG_PROSES;
 
 CREATE TABLE Barang (
   resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
@@ -69,6 +67,10 @@ CREATE TABLE Barang (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT FK_Category FOREIGN KEY (id_category) REFERENCES CATEGORY(id_category) ON UPDATE CASCADE ON DELETE SET NULL
 );
+
+ALTER TABLE barang
+ADD COLUMN STATUS_BARANG ENUM('pending for packing', 'pending for shipment', 'ready for shipment') DEFAULT 'pending for packing';
+
 
 INSERT INTO Barang (resi_id, nama_barang, id_category) VALUES
   ('RESI001', 'Laptop', 'CTG00001'),
@@ -99,7 +101,7 @@ INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
 
 
 
--- DROP TABLE  PEKERJA, device_logs  , proses , log_proses;
+-- DROP TABLE  PEKERJA, device_logs  , proses , log_proses, status_logs;
 
 
 CREATE TABLE pekerja (
@@ -108,7 +110,7 @@ CREATE TABLE pekerja (
     nama_pekerja VARCHAR(100) NOT NULL,
     id_bagian VARCHAR(6),
     password VARCHAR(255) NOT NULL,
-    role ENUM('superadmin', 'admin', 'staff') NOT NULL,
+    role ENUM('superadmin', 'admin', 'staff') NOT NULL DEFAULT 'staff',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (id_bagian) REFERENCES bagian(id_bagian),
@@ -231,3 +233,32 @@ CREATE TABLE LOG_PROSES (
   CONSTRAINT FK_BarangLog FOREIGN KEY (resi_id) REFERENCES Barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+
+
+DELIMITER $$
+CREATE TRIGGER trigger_barang_status
+AFTER UPDATE ON PROSES
+FOR EACH ROW
+BEGIN
+
+    IF NEW.status_proses = 'picker' THEN
+        UPDATE Barang
+        SET STATUS_BARANG = 'pending for packing'
+        WHERE resi_id = NEW.resi_id;
+    END IF;
+   
+    IF  NEW.status_proses = "packing" THEN
+        UPDATE Barang
+        SET STATUS_BARANG = 'pending for shipment'
+        WHERE resi_id = NEW.resi_id;
+    END IF;
+
+    IF NEW.status_proses = 'pickout' THEN
+        UPDATE Barang 
+        SET STATUS_BARANG = 'ready for shipment'
+        WHERE resi_id = NEW.resi_id;
+    END IF;
+
+
+END$$
+DELIMITER ;
