@@ -7,6 +7,8 @@ import PublicRoute from "./Components/Auth/PublicRoute";
 import AdminProtectedRoute from "./Components/Auth/AdminProtectedRoute";
 import AdminDashboard from "./Components/Pages/Admin/AdminDashboard";
 import AdminBarangSection from "./Components/Pages/Admin/BarangManagement";
+import KategoriPage from "./Components/Pages/Admin/KategoriPage";
+import StaffManagementPage from "./Components/Pages/Admin/StaffManagementPage";
 
 function App() {
   return (
@@ -43,6 +45,24 @@ function App() {
           element={
             <AdminProtectedRoute>
               <AdminBarangSection />
+            </AdminProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/barang/kategori"
+          element={
+            <AdminProtectedRoute>
+              <KategoriPage />
+            </AdminProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/staff"
+          element={
+            <AdminProtectedRoute>
+              <StaffManagementPage />
             </AdminProtectedRoute>
           }
         />

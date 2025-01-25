@@ -61,9 +61,10 @@ const editBarang = async (req, res) => {
 const showAllBarang = async (req, res) => {
   try {
     const [rows] = await mysqlPool.query(`
-      SELECT resi_id, nama_barang, nama_category, status_barang
+      SELECT resi_id, nama_barang, nama_category, status_barang 
       FROM barang
       JOIN category ON barang.id_category = category.id_category
+      ORDER BY barang.created_at DESC
     `);
 
     return res.status(200).send({

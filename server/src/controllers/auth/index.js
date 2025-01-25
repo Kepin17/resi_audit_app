@@ -46,17 +46,6 @@ const RegisterHandler = async (req, res) => {
       });
     }
 
-    // const check bagian
-
-    // const [checkBagian] = await mysqlPool.query("SELECT * FROM bagian WHERE id_bagian = ?", [id_bagian]);
-    // if (checkBagian.length === 0) {
-    //   return res.status(404).send({
-    //     success: false,
-    //     message: "Bagian not found",
-    //     error: "bagian_not_found",
-    //   });
-    // }
-
     const hashedPassword = await bcrypt.hash(password, 10);
     await mysqlPool.query(
       `INSERT INTO pekerja (username, nama_pekerja, id_bagian, password, role) 

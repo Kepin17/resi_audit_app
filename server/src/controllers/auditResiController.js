@@ -206,4 +206,48 @@ const getActivityByName = async (req, res) => {
   }
 };
 
-module.exports = { showAllData, scaneHandler, showAllActiviy, getActivityByName };
+const showDataByResi = async (req, res) => {
+  try {
+    const { resi_id } = req.params;
+
+    if (!resi_id) {
+      return res.status(400).send({
+        success: false,
+        message: "Resi ID is required",
+      });
+    }
+
+    const [rows] = await mysqlPool.query(
+      `
+      SELECT 
+        pekerja.nama_pekerja,
+        log_proses.resi_id as resi,
+        log_proses.status_proses as status,
+        log_proses.created_at as proses_scan
+      FROM log_proses 
+      JOIN proses ON log_proses.resi_id = proses.resi_id 
+      JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
+      WHERE log_proses.resi_id = ?
+      ORDER BY log_proses.created_at ASC
+    `,
+      [resi_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: `No data found for resi ID: ${resi_id}`,
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "Data found",
+      data: rows,
+    });
+  } catch (error) {
+    handleError(error, res, "fetching data by resi ID");
+  }
+};
+
+module.exports = { showAllData, scaneHandler, showAllActiviy, getActivityByName, showDataByResi };
