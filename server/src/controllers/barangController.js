@@ -2,10 +2,10 @@ const mysqlPool = require("../config/db");
 
 const addNewBarang = async (req, res) => {
   try {
-    const { resi_id, nama_barang, id_category } = req.body;
+    const { resi_id } = req.body;
 
     // Validate required fields
-    if (!resi_id || !nama_barang || !id_category) {
+    if (!resi_id) {
       return res.status(400).send({
         success: false,
         message: "all field are required",
@@ -15,7 +15,7 @@ const addNewBarang = async (req, res) => {
     const [rows] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
 
     if (rows.length === 0) {
-      await mysqlPool.query("INSERT INTO barang (resi_id, nama_barang, id_category) VALUES (?, ?, ?)", [resi_id, nama_barang, id_category]);
+      await mysqlPool.query("INSERT INTO barang (resi_id) VALUES (?)", [resi_id]);
     } else {
       return res.status(400).send({
         success: false,
@@ -37,33 +37,11 @@ const addNewBarang = async (req, res) => {
   }
 };
 
-const editBarang = async (req, res) => {
-  try {
-    const { resi_id } = req.params;
-    const { nama_barang, id_category } = req.body;
-
-    await mysqlPool.query("UPDATE barang SET nama_barang = ?, id_category = ? WHERE resi_id = ?", [nama_barang, id_category, resi_id]);
-
-    res.status(200).send({
-      success: true,
-      message: "Barang updated",
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).send({
-      success: false,
-      message: "Error when trying to update barang",
-      error: error.message,
-    });
-  }
-};
-
 const showAllBarang = async (req, res) => {
   try {
     const [rows] = await mysqlPool.query(`
-      SELECT resi_id, nama_barang, nama_category, status_barang 
+      SELECT *
       FROM barang
-      JOIN category ON barang.id_category = category.id_category
       ORDER BY barang.created_at DESC
     `);
 
@@ -84,29 +62,7 @@ const showAllBarang = async (req, res) => {
   }
 };
 
-const deleteBarang = async (req, res) => {
-  try {
-    const { resi_id } = req.params;
-
-    await mysqlPool.query("DELETE FROM barang WHERE resi_id = ?", [resi_id]);
-
-    res.status(200).send({
-      success: true,
-      message: "Barang deleted",
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).send({
-      success: false,
-      message: "Error when trying to delete barang",
-      error: error.message,
-    });
-  }
-};
-
 module.exports = {
   addNewBarang,
-  editBarang,
   showAllBarang,
-  deleteBarang,
 };

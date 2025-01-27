@@ -98,6 +98,14 @@ const scaneHandler = async (req, res) => {
             message: "New resi must start with picker process",
           });
         }
+
+        if (checkBarangRow[0].status_pengiriman !== "ready") {
+          return res.status(400).send({
+            success: false,
+            message: "Resi has been cancelled",
+          });
+        }
+
         await mysqlPool.query("INSERT INTO proses (resi_id, id_pekerja, status_proses) VALUES (?, ?,?)", [resi_id, id_pekerja, workerRole]);
       } else {
         // Check if trying to scan with same role

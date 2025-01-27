@@ -1,87 +1,10 @@
+-- Active: 1737628718543@@127.0.0.1@3306@pack_db
+
 CREATE DATABASE pack_db;
 USE pack_db;
 
--- DROP DATABASE IF EXISTS pack_db;
-
-CREATE TABLE CATEGORY (
-  id_category VARCHAR(9) PRIMARY KEY ,
-  nama_category VARCHAR(50) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT CheckCategory1 CHECK (CHAR_LENGTH(id_category) = 8),
-  CONSTRAINT CheckCategory2 CHECK (id_category REGEXP '^CTG[0-9]{5}$')
-)
-
-DELIMITER $$
-
-CREATE TRIGGER trg_generate_id_category
-BEFORE INSERT ON CATEGORY
-FOR EACH ROW
-BEGIN
-    DECLARE new_id VARCHAR(9);
-    DECLARE last_id INT;
-
-    -- Ambil angka terakhir dari id_category (mengunci tabel untuk menghindari konflik saat multiple input)
-    SELECT CAST(SUBSTRING(id_category, 4, 5) AS UNSIGNED)
-    INTO last_id
-    FROM CATEGORY
-    WHERE id_category REGEXP '^CTG[0-9]{5}$'
-    ORDER BY id_category DESC
-    LIMIT 1;
-
-    -- Jika tidak ada ID, mulai dari 1
-    IF last_id IS NULL THEN
-        SET last_id = 0;
-    END IF;
-
-    -- Tambahkan angka terakhir untuk baris baru
-    SET last_id = last_id + 1;
-
-    -- Buat ID baru
-    SET new_id = CONCAT('CTG', LPAD(last_id, 5, '0'));
-
-    -- Set nilai ID baru ke kolom id_category
-    SET NEW.id_category = new_id;
-END$$
-
-DELIMITER ;
 
 
-INSERT INTO CATEGORY (nama_category) VALUES 
-('Elektronik'),
-('Fashion'),
-('Makanan'),
-('Minuman'),
-('Buku'),
-('Olahraga'),
-('Kesehatan');
-
-
-
-
-CREATE TABLE Barang (
-  resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
-  nama_barang VARCHAR(225) NOT NULL,
-  id_category VARCHAR(9),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT FK_Category FOREIGN KEY (id_category) REFERENCES CATEGORY(id_category) ON UPDATE CASCADE ON DELETE SET NULL
-);
-
-ALTER TABLE barang
-ADD COLUMN STATUS_BARANG ENUM('pending for packing', 'pending for shipment', 'ready for shipment') DEFAULT 'pending for packing';
-
-
-INSERT INTO Barang (resi_id, nama_barang, id_category) VALUES
-  ('RESI001', 'Laptop', 'CTG00001'),
-  ('RESI002', 'Baju', 'CTG00002'),
-  ('RESI003', 'Mie Instan', 'CTG00003'),
-  ('RESI004', 'Teh Botol', 'CTG00004'),
-  ('RESI005', 'Buku', 'CTG00005'),
-  ('RESI006', 'Raket', 'CTG00006'),
-  ('RESI007', 'Masker', 'CTG00007');
-
--- drop table bagian 
 
 CREATE TABLE BAGIAN (
   id_bagian VARCHAR(7) PRIMARY KEY NOT NULL,
@@ -100,25 +23,16 @@ INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
 
 
 
-
--- DROP TABLE  PEKERJA, device_logs  , proses , log_proses, status_logs;
-
-
 CREATE TABLE pekerja (
     id_pekerja VARCHAR(9) PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     nama_pekerja VARCHAR(100) NOT NULL,
     id_bagian VARCHAR(6) NULL,
     password VARCHAR(255) NOT NULL,
-    role ENUM('superadmin', 'admin', 'staff') NOT NULL DEFAULT 'staff',
+    role ENUM('superadmin', 'admin', 'staff') DEFAULT 'staff',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (id_bagian) REFERENCES bagian(id_bagian),
-    CONSTRAINT check_staff_role CHECK (
-        (role = 'admin' AND id_bagian IS NULL) OR
-        (role = 'superadmin' AND id_bagian IS NULL) OR
-        (role = 'staff' AND id_bagian IS NOT NULL)
-    ),
     CONSTRAINT CheckPekerja CHECK (id_pekerja REGEXP '^PKJ[0-9]{5}$')
 );
 
@@ -148,8 +62,6 @@ END$$
 DELIMITER ;
 
 
-
--- DROP TABLE IF EXISTS device_logs, status_logs;
 
 
 -- Status tracking table
@@ -208,7 +120,25 @@ DO CALL cleanup_old_logs()$$
 
 DELIMITER ;
 
--- drop table proses, log_proses;
+-- drop table barang, proses, log_proses;
+
+
+CREATE TABLE Barang (
+  resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
+  status_pengiriman ENUM("cancelled", "ready") DEFAULT "ready",
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+ALTER TABLE barang
+ADD COLUMN STATUS_BARANG ENUM('pending for pickup', 'pending for packing', 'pending for shipment', 'ready for shipment') DEFAULT 'pending for pickup';
+
+
+INSERT INTO Barang (resi_id) VALUES
+  ('RESI001'),
+  ('RESI002')
+
+
 
 CREATE TABLE PROSES (
   id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,
@@ -232,8 +162,6 @@ CREATE TABLE LOG_PROSES (
   CONSTRAINT FK_PekerjaLog FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT FK_BarangLog FOREIGN KEY (resi_id) REFERENCES Barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
-
-
 
 DELIMITER $$
 CREATE TRIGGER trigger_barang_status
@@ -262,3 +190,78 @@ BEGIN
 
 END$$
 DELIMITER ;
+
+
+-- DROP TABLE IF EXISTS gaji_pegawai;
+-- DROP TABLE IF EXISTS gaji;
+
+CREATE TABLE gaji (
+    id_gaji INT AUTO_INCREMENT PRIMARY KEY,
+    total_gaji_per_scan DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO gaji (total_gaji_per_scan) 
+VALUES (1000.00)
+
+
+-- Create new gaji_pegawai table
+CREATE TABLE gaji_pegawai (
+    id_gaji_pegawai INT AUTO_INCREMENT PRIMARY KEY,
+    id_gaji INT,
+    id_pekerja VARCHAR(9),
+    jumlah_scan INT DEFAULT 0,
+    gaji_total DECIMAL(10, 2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_gaji) REFERENCES gaji(id_gaji),
+    FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja)
+);
+
+
+-- DROP TRIGGER IF EXISTS trigger_hitung_gaji
+
+DELIMITER $$
+
+CREATE TRIGGER trigger_hitung_gaji
+AFTER INSERT ON LOG_PROSES
+FOR EACH ROW
+BEGIN
+    DECLARE v_id_gaji INT;
+    DECLARE v_gaji_per_scan DECIMAL(10, 2);
+    DECLARE v_last_update DATE;
+    
+    -- Get the current active salary configuration
+    SELECT id_gaji, total_gaji_per_scan 
+    INTO v_id_gaji, v_gaji_per_scan
+    FROM gaji 
+    LIMIT 1;
+    
+    -- Get the last update date for this worker
+    SELECT DATE(created_at) INTO v_last_update
+    FROM gaji_pegawai 
+    WHERE id_pekerja = NEW.id_pekerja 
+    AND DATE(created_at) = CURRENT_DATE()
+    LIMIT 1;
+    
+    -- If record exists for today, update it
+    IF v_last_update = CURRENT_DATE() THEN
+        UPDATE gaji_pegawai 
+        SET jumlah_scan = jumlah_scan + 1,
+            gaji_total = (jumlah_scan + 1) * v_gaji_per_scan,
+            updated_at = NOW()
+        WHERE id_gaji = v_id_gaji 
+        AND id_pekerja = NEW.id_pekerja
+        AND DATE(created_at) = CURRENT_DATE();
+    ELSE
+        -- If no record for today, create new one
+        INSERT INTO gaji_pegawai (id_gaji, id_pekerja, jumlah_scan, gaji_total)
+        VALUES (v_id_gaji, NEW.id_pekerja, 1, v_gaji_per_scan);
+    END IF;
+END$$
+
+DELIMITER ;
+
+
+

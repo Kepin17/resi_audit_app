@@ -230,10 +230,10 @@ const logOutHandler = (req, res) => {
 const showAllStaff = async (req, res) => {
   try {
     const [rows] = await mysqlPool.query(`
-      SELECT id_pekerja, nama_pekerja, role
+      SELECT id_pekerja, username,nama_pekerja, role, jenis_pekerja
       FROM pekerja 
+      LEFT JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
     `);
-
     res.status(200).send({
       success: true,
       message: "Data found",
@@ -276,4 +276,121 @@ const showStaffDetail = async (req, res) => {
   }
 };
 
-module.exports = { RegisterHandler, loginHandler, logOutHandler, showAllStaff, showStaffDetail };
+const deviceLog = async (req, res) => {
+  try {
+    const { id_pekerja } = req.params;
+    const [rows] = await mysqlPool.query("SELECT * FROM device_logs WHERE id_pekerja = ?", [id_pekerja]);
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Data not found",
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "Data found",
+      data: rows,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to show worker detail",
+      error: "internal_server_error",
+    });
+  }
+};
+
+const editStaff = async (req, res) => {
+  try {
+    const { id_pekerja } = req.params;
+    const { username, nama_pekerja, id_bagian, password, role } = req.body;
+
+    // Enhanced input validation
+    if (!username?.trim()) {
+      return res.status(400).send({
+        success: false,
+        message: "Username is required",
+        error: "validation_error",
+      });
+    }
+
+    if (!password || password.length < 6) {
+      return res.status(400).send({
+        success: false,
+        message: "Password must be at least 6 characters long",
+        error: "validation_error",
+      });
+    }
+
+    if (!nama_pekerja?.trim()) {
+      return res.status(400).send({
+        success: false,
+        message: "Worker name is required",
+        error: "validation_error",
+      });
+    }
+
+    // Validate role
+    const validRoles = ["superadmin", "admin", "staff"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid role specified",
+        error: "invalid_role",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [result] = await mysqlPool.query(`UPDATE pekerja SET username = ?, nama_pekerja = ?, id_bagian = ?, password = ?, role = ? WHERE id_pekerja = ?`, [username, nama_pekerja, id_bagian, hashedPassword, role, id_pekerja]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Worker not found",
+        error: "not_found",
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "Successfully edited",
+    });
+  } catch (error) {
+    console.error("Edit staff error:", error);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).send({
+        success: false,
+        message: "Username already exists",
+        error: "duplicate_username",
+      });
+    }
+
+    if (error.code === "ER_NO_REFERENCED_ROW_2") {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid department ID",
+        error: "invalid_department",
+      });
+    }
+
+    if (error.code === "ER_DATA_TOO_LONG") {
+      return res.status(400).send({
+        success: false,
+        message: "Input data exceeds maximum length",
+        error: "data_length_error",
+      });
+    }
+
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to edit worker",
+      error: "internal_server_error",
+      details: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+module.exports = { RegisterHandler, loginHandler, logOutHandler, showAllStaff, showStaffDetail, editStaff, deviceLog };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import SearchFragment from "../../../Fragments/SearchFragment";
-import { FaBox, FaTruck, FaTruckLoading } from "react-icons/fa";
+import { FaBox, FaTruck, FaTruckLoading, FaWarehouse } from "react-icons/fa";
 import { FaBoxesPacking } from "react-icons/fa6";
 import { IoIosAddCircle } from "react-icons/io";
 import ModalMenuFragment from "../../../Fragments/ModalMenuFragment";
@@ -37,8 +37,6 @@ const AdminBarangSection = () => {
   const [category, setCategory] = useState([]);
   const [form, setForm] = useState({
     resi_id: "",
-    nama_barang: "",
-    id_category: "",
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,22 +81,24 @@ const AdminBarangSection = () => {
 
     return (
       <div
-        className="w-full md:w-[22rem] bg-white p-4 md:p-6 rounded-lg shadow-md flex items-center justify-between gap-3 md:gap-5 hover:shadow-lg transition-all duration-300 border border-slate-200 cursor-pointer"
+        className="  w-full md:w-[22rem] bg-white p-4 md:p-6 rounded-lg shadow-md flex items-center justify-between gap-3 md:gap-5 hover:shadow-lg transition-all duration-300 border border-slate-200 cursor-pointer"
         onClick={() => handleItemClick(item)}
       >
         <div className="w-full flex items-center gap-3 md:gap-5">
           <FaBox className="text-3xl md:text-5xl text-orange-400" />
           <div className="flex flex-col gap-1 flex-1">
-            <h3 className="text-base md:text-lg font-semibold text-slate-800">{item.nama_barang}</h3>
+            <h3 className="text-base md:text-lg font-semibold text-slate-800">{item.resi_id}</h3>
             <div className="w-full flex items-center justify-between gap-2 relative">
               <div className="flex flex-col gap-1">
-                <p className="text-slate-600 text-xs">{item.resi_id}</p>
-                <p className="text-slate-600 text-xs">{item.nama_category}</p>
+                <div className={`w-auto rounded-full px-2 py-1 text-white text-xs ${item.status_pengiriman === "ready" ? "bg-green-500" : "bg-red-500 "}`}>
+                  <p className="text-slate-50 text-md font-bold">{item.status_pengiriman}</p>
+                </div>
               </div>
-              <div className="absolute top-0 right-0 bg-blue-500 text-white px-3 py-1 rounded-lg">
-                {item.status_barang === "pending for packing" && <FaTruckLoading />}
-                {item.status_barang === "pending for shipment" && <FaBoxesPacking />}
-                {item.status_barang === "ready for shipment" && <FaTruck />}
+              <div className="absolute -top-5 right-0 bg-slate-800 text-2xl shadow-xl border-2 text-white px-3 py-1 rounded-lg">
+                {item.STATUS_BARANG === "pending for pickup" && <FaWarehouse className="text-red-400" />}
+                {item.STATUS_BARANG === "pending for packing" && <FaTruckLoading className="text-orange-400" />}
+                {item.STATUS_BARANG === "pending for shipment" && <FaBoxesPacking className="text-blue-400" />}
+                {item.STATUS_BARANG === "ready for shipment" && <FaTruck className="text-green-500" />}
               </div>
             </div>
           </div>
@@ -188,8 +188,6 @@ const AdminBarangSection = () => {
       // Reset everything
       setForm({
         resi_id: "",
-        nama_barang: "",
-        id_category: "",
       });
       setShowConfirm(false);
       handleCloseModal();
@@ -288,25 +286,6 @@ const AdminBarangSection = () => {
               <InputFragment htmlFor={"resi_id"} inputName={"resi_id"} inputValue={form.resi_id} inputOnChange={(e) => setForm({ ...form, resi_id: e.target.value })}>
                 Resi ID
               </InputFragment>
-              <InputFragment htmlFor={"nama_barang"} inputName={"nama_barang"} inputValue={form.nama_barang} inputOnChange={(e) => setForm({ ...form, nama_barang: e.target.value })}>
-                Nama Barang
-              </InputFragment>
-
-              <SelectOptionFragment
-                name={"barang"}
-                value={form.category_id}
-                onChange={(e) => setForm({ ...form, id_category: e.target.value })}
-                options={[
-                  {
-                    value: "",
-                    label: "Select Category",
-                  },
-                  ...category.map((item) => ({
-                    value: item.id_category,
-                    label: item.nama_category,
-                  })),
-                ]}
-              />
 
               <Button
                 buttonStyle="bg-blue-500 hover:bg-blue-600
@@ -330,7 +309,7 @@ const AdminBarangSection = () => {
 
           {/* Wrap content in a container with overflow handling */}
           <div className="flex-1 overflow-y-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+            <div className="flex flex-wrap justify-center gap-4 p-4">
               {currentItems.map((item, index) => (
                 <ItemCard key={index} item={item} />
               ))}
@@ -396,12 +375,6 @@ const AdminBarangSection = () => {
             <div className="bg-gray-50 p-4 rounded-lg">
               <p>
                 <span className="font-semibold">Resi ID:</span> {formData?.resi_id}
-              </p>
-              <p>
-                <span className="font-semibold">Item Name:</span> {formData?.nama_barang}
-              </p>
-              <p>
-                <span className="font-semibold">Category:</span> {category.find((cat) => cat.id_category === formData?.id_category)?.nama_category}
               </p>
             </div>
           </div>

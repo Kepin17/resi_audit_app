@@ -10,8 +10,6 @@ const DashboardLayout = ({ children }) => {
   const user = jwtDecode(token);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isLogDropdownOpen, setIsLogDropdownOpen] = useState(false);
-  const [isResiDropdownOpen, setIsResiDropdownOpen] = useState(false);
   const [isAuthDropdownOpen, setIsAuthDropdownOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -93,11 +91,6 @@ const DashboardLayout = ({ children }) => {
                       Data Barang
                     </Link>
                   </li>
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/admin/barang/kategori" className="text-blue-800 block">
-                      Kategori Barang
-                    </Link>
-                  </li>
                 </ul>
               </div>
             </li>
@@ -108,7 +101,6 @@ const DashboardLayout = ({ children }) => {
                 window.location.href = "/login";
               }}
             >
-              {" "}
               Logout
             </li>
           </ul>
