@@ -4,6 +4,7 @@ import { Button, Table, Modal, Form, Input, Space, message, Select } from "antd"
 import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import axios from "axios";
 import "./staff.css";
+import { FaMoneyBill } from "react-icons/fa";
 
 const StaffManagementPage = () => {
   const [staffList, setStaffList] = useState([]);
@@ -70,7 +71,8 @@ const StaffManagementPage = () => {
       render: (_, record) => (
         <Space>
           <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} />
+          <Button icon={<FaMoneyBill />} />
+          <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id_pekerja)} />
         </Space>
       ),
     },
@@ -102,13 +104,13 @@ const StaffManagementPage = () => {
     try {
       if (editingStaff) {
         // Add API call to update staff
-        axios.put(`http://localhost:8080/api/v1/auth/${editingStaff.id}`, values, {
+        axios.put(`http://localhost:8080/api/v1/auth/${editingStaff.id_pekerja}`, values, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
 
-        setStaffList(staffList.map((staff) => (staff.id === editingStaff.id ? { ...values, id: staff.id } : staff)));
+        setStaffList(staffList.map((staff) => (staff.id === editingStaff.id_pekerja ? { ...values, id: staff.id } : staff)));
       } else {
         // Add API call to create staff
         axios
@@ -181,17 +183,6 @@ const StaffManagementPage = () => {
                   }))
                 )}
               />
-            </Form.Item>
-
-            <Form.Item
-              name="password"
-              label="Password"
-              rules={[
-                { required: true, message: "Please input staff password!" },
-                { type: "password", message: "Please input valid password!" },
-              ]}
-            >
-              <Input />
             </Form.Item>
 
             <Form.Item name="role" label="role" rules={[{ required: true, message: "Please input staff role!" }]}>

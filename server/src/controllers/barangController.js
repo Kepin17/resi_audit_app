@@ -62,6 +62,8 @@ const showAllBarang = async (req, res) => {
   }
 };
 
+const cancelBarang = async (req, res) => {};
+
 module.exports = {
   addNewBarang,
   showAllBarang,

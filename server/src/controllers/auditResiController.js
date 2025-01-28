@@ -99,7 +99,7 @@ const scaneHandler = async (req, res) => {
           });
         }
 
-        if (checkBarangRow[0].status_pengiriman !== "ready") {
+        if (checkBarangRow[0].status_pengiriman === "cancelled") {
           return res.status(400).send({
             success: false,
             message: "Resi has been cancelled",

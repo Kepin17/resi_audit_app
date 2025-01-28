@@ -91,6 +91,12 @@ const DashboardLayout = ({ children }) => {
                       Data Barang
                     </Link>
                   </li>
+
+                  <li className="hover:bg-blue-300 p-2 rounded">
+                    <Link to="/admin/barang/bermasalah" className="text-blue-800 block">
+                      Data Barang Bermasalah
+                    </Link>
+                  </li>
                 </ul>
               </div>
             </li>

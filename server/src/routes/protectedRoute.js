@@ -4,7 +4,7 @@ const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi } = require("../controllers/auditResiController");
 const { addNewBarang, showAllBarang } = require("../controllers/barangController");
-const { RegisterHandler, showAllStaff, showStaffDetail, editStaff } = require("../controllers/auth");
+const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 
 const roles = {
@@ -19,6 +19,7 @@ router.post("/auth/register", authToken, roleMiddleware([roles.supadmin]), Regis
 router.get("/auth/show", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllStaff);
 router.get("/auth/show/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), showStaffDetail);
 router.put("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), editStaff);
+router.get("/auth/log", authToken, roleMiddleware([roles.admin, roles.supadmin]), deviceLog);
 
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllBarang);

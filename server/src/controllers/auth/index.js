@@ -278,8 +278,10 @@ const showStaffDetail = async (req, res) => {
 
 const deviceLog = async (req, res) => {
   try {
-    const { id_pekerja } = req.params;
-    const [rows] = await mysqlPool.query("SELECT * FROM device_logs WHERE id_pekerja = ?", [id_pekerja]);
+    const [rows] = await mysqlPool.query(`
+      SELECT device_logs.*, nama_pekerja FROM device_logs
+      LEFT JOIN pekerja ON device_logs.id_pekerja = pekerja.id_pekerja
+      `);
 
     if (rows.length === 0) {
       return res.status(404).send({
@@ -305,21 +307,13 @@ const deviceLog = async (req, res) => {
 const editStaff = async (req, res) => {
   try {
     const { id_pekerja } = req.params;
-    const { username, nama_pekerja, id_bagian, password, role } = req.body;
+    const { username, nama_pekerja, id_bagian, role } = req.body;
 
     // Enhanced input validation
     if (!username?.trim()) {
       return res.status(400).send({
         success: false,
         message: "Username is required",
-        error: "validation_error",
-      });
-    }
-
-    if (!password || password.length < 6) {
-      return res.status(400).send({
-        success: false,
-        message: "Password must be at least 6 characters long",
         error: "validation_error",
       });
     }
@@ -342,8 +336,7 @@ const editStaff = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const [result] = await mysqlPool.query(`UPDATE pekerja SET username = ?, nama_pekerja = ?, id_bagian = ?, password = ?, role = ? WHERE id_pekerja = ?`, [username, nama_pekerja, id_bagian, hashedPassword, role, id_pekerja]);
+    const [result] = await mysqlPool.query(`UPDATE pekerja SET username = ?, nama_pekerja = ?, id_bagian = ?, role = ? WHERE id_pekerja = ?`, [username, nama_pekerja, id_bagian, role, id_pekerja]);
 
     if (result.affectedRows === 0) {
       return res.status(404).send({

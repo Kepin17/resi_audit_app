@@ -125,7 +125,7 @@ DELIMITER ;
 
 CREATE TABLE Barang (
   resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
-  status_pengiriman ENUM("cancelled", "ready") DEFAULT "ready",
+  status_pengiriman ENUM("cancelled", "ready" , 'pending') DEFAULT "pending",
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -136,7 +136,92 @@ ADD COLUMN STATUS_BARANG ENUM('pending for pickup', 'pending for packing', 'pend
 
 INSERT INTO Barang (resi_id) VALUES
   ('RESI001'),
-  ('RESI002')
+  ('RESI002'),
+  ('RESI003'),
+  ('RESI004'),
+  ('RESI005'),
+  ('RESI006'),
+  ('RESI007'),
+  ('RESI008'),
+  ('RESI009'),
+  ('RESI010'),
+  ('RESI011'),
+  ('RESI012'),
+  ('RESI013'),
+  ('RESI014'),
+  ('RESI015'),
+  ('RESI016'),
+  ('RESI017'),
+  ('RESI018'),
+  ('RESI019'),
+  ('RESI020'),
+  ('RESI021'),
+  ('RESI022'),
+  ('RESI023'),
+  ('RESI024'),
+  ('RESI025'),
+  ('RESI026'),
+  ('RESI027'),
+  ('RESI028'),
+  ('RESI029'),
+  ('RESI030'),
+  ('RESI031'),
+  ('RESI032'),
+  ('RESI033'),
+  ('RESI034'),
+  ('RESI035'),
+  ('RESI036'),
+  ('RESI037'),
+  ('RESI038'),
+  ('RESI039'),
+  ('RESI040'),
+  ('RESI041'),
+  ('RESI042'),
+  ('RESI043'),
+  ('RESI044'),
+  ('RESI045'),
+  ('RESI046'),
+  ('RESI047'),
+  ('RESI048'),
+  ('RESI049'),
+  ('RESI050'),
+  ('RESI051'),
+  ('RESI052'),
+  ('RESI053'),
+  ('RESI054'),
+  ('RESI055'),
+  ('RESI056'),
+  ('RESI057'),
+  ('RESI058'),
+  ('RESI059'),
+  ('RESI060'),
+  ('RESI061'),
+  ('RESI062'),
+  ('RESI063'),
+  ('RESI064'),
+  ('RESI065'),
+  ('RESI066'),
+  ('RESI067'),
+  ('RESI068'),
+  ('RESI069'),
+  ('RESI070'),
+  ('RESI071'),
+  ('RESI072'),
+  ('RESI073'),
+  ('RESI074'),
+  ('RESI075'),
+  ('RESI076'),
+  ('RESI077'),
+  ('RESI078'),
+  ('RESI079'),
+  ('RESI080'),
+  ('RESI081'),
+  ('RESI082'),
+  ('RESI083'),
+  ('RESI084'),
+  ('RESI085'),
+  ('RESI086'),
+  ('RESI087')
 
 
 
@@ -169,27 +254,42 @@ AFTER UPDATE ON PROSES
 FOR EACH ROW
 BEGIN
 
-    IF NEW.status_proses = 'picker' THEN
-        UPDATE Barang
-        SET STATUS_BARANG = 'pending for packing'
-        WHERE resi_id = NEW.resi_id;
-    END IF;
-   
     IF  NEW.status_proses = "packing" THEN
-        UPDATE Barang
+        UPDATE barang
         SET STATUS_BARANG = 'pending for shipment'
         WHERE resi_id = NEW.resi_id;
     END IF;
 
     IF NEW.status_proses = 'pickout' THEN
-        UPDATE Barang 
-        SET STATUS_BARANG = 'ready for shipment'
+        
+        UPDATE barang 
+        SET STATUS_BARANG = 'ready for shipment' 
+        WHERE resi_id = NEW.resi_id;
+
+        UPDATE barang
+        SET status_pengiriman = 'ready'
         WHERE resi_id = NEW.resi_id;
     END IF;
 
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER trigger_barang_status2
+AFTER INSERT ON PROSES
+FOR EACH ROW
+BEGIN
+
+    IF  NEW.status_proses = "picker" THEN
+        UPDATE barang
+        SET STATUS_BARANG = 'pending for packing'
+        WHERE resi_id = NEW.resi_id;
+    END IF;
 
 END$$
 DELIMITER ;
+
+
 
 
 -- DROP TABLE IF EXISTS gaji_pegawai;
