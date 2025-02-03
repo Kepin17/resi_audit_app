@@ -1,6 +1,6 @@
--- Active: 1737628718543@@127.0.0.1@3306@pack_db
+-- Active: 1738167577342@@127.0.0.1@3306@pack_db
 
-CREATE DATABASE pack_db;
+-- CREATE DATABASE pack_db;
 USE pack_db;
 
 
@@ -39,7 +39,7 @@ CREATE TABLE pekerja (
 ALTER TABLE pekerja
 ADD COLUMN last_device_info JSON,
 ADD COLUMN last_ip VARCHAR(45),
-ADD COLUMN last_login TIMESTAMP;
+ADD COLUMN last_login TIMESTAMP NULL;
 
 
 DELIMITER $$
@@ -120,111 +120,40 @@ DO CALL cleanup_old_logs()$$
 
 DELIMITER ;
 
--- drop table barang, proses, log_proses;
 
+-- DROP TABLE BARANG
 
-CREATE TABLE Barang (
+CREATE TABLE barang (
   resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
-  status_pengiriman ENUM("cancelled", "ready" , 'pending') DEFAULT "pending",
+  status_barang ENUM('pending', 'cancelled', 'ready', 'picked', 'packed', "shipped") DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+DELIMITER $$
 
-ALTER TABLE barang
-ADD COLUMN STATUS_BARANG ENUM('pending for pickup', 'pending for packing', 'pending for shipment', 'ready for shipment') DEFAULT 'pending for pickup';
+-- Trigger for INSERT
+CREATE TRIGGER trg_add_id_proses_to_barang_insert
+AFTER INSERT ON proses
+FOR EACH ROW
+BEGIN
+    UPDATE barang
+    SET id_proses = NEW.id_proses
+    WHERE resi_id = NEW.resi_id;
+END$$
 
+-- Trigger for UPDATE
+CREATE TRIGGER trg_add_id_proses_to_barang_update
+AFTER UPDATE ON proses
+FOR EACH ROW
+BEGIN
+    UPDATE barang
+    SET id_proses = NEW.id_proses
+    WHERE resi_id = NEW.resi_id;
+END$$
 
-INSERT INTO Barang (resi_id) VALUES
-  ('RESI001'),
-  ('RESI002'),
-  ('RESI003'),
-  ('RESI004'),
-  ('RESI005'),
-  ('RESI006'),
-  ('RESI007'),
-  ('RESI008'),
-  ('RESI009'),
-  ('RESI010'),
-  ('RESI011'),
-  ('RESI012'),
-  ('RESI013'),
-  ('RESI014'),
-  ('RESI015'),
-  ('RESI016'),
-  ('RESI017'),
-  ('RESI018'),
-  ('RESI019'),
-  ('RESI020'),
-  ('RESI021'),
-  ('RESI022'),
-  ('RESI023'),
-  ('RESI024'),
-  ('RESI025'),
-  ('RESI026'),
-  ('RESI027'),
-  ('RESI028'),
-  ('RESI029'),
-  ('RESI030'),
-  ('RESI031'),
-  ('RESI032'),
-  ('RESI033'),
-  ('RESI034'),
-  ('RESI035'),
-  ('RESI036'),
-  ('RESI037'),
-  ('RESI038'),
-  ('RESI039'),
-  ('RESI040'),
-  ('RESI041'),
-  ('RESI042'),
-  ('RESI043'),
-  ('RESI044'),
-  ('RESI045'),
-  ('RESI046'),
-  ('RESI047'),
-  ('RESI048'),
-  ('RESI049'),
-  ('RESI050'),
-  ('RESI051'),
-  ('RESI052'),
-  ('RESI053'),
-  ('RESI054'),
-  ('RESI055'),
-  ('RESI056'),
-  ('RESI057'),
-  ('RESI058'),
-  ('RESI059'),
-  ('RESI060'),
-  ('RESI061'),
-  ('RESI062'),
-  ('RESI063'),
-  ('RESI064'),
-  ('RESI065'),
-  ('RESI066'),
-  ('RESI067'),
-  ('RESI068'),
-  ('RESI069'),
-  ('RESI070'),
-  ('RESI071'),
-  ('RESI072'),
-  ('RESI073'),
-  ('RESI074'),
-  ('RESI075'),
-  ('RESI076'),
-  ('RESI077'),
-  ('RESI078'),
-  ('RESI079'),
-  ('RESI080'),
-  ('RESI081'),
-  ('RESI082'),
-  ('RESI083'),
-  ('RESI084'),
-  ('RESI085'),
-  ('RESI086'),
-  ('RESI087')
+DELIMITER ;
 
-
-
+-- Create proses table
 CREATE TABLE PROSES (
   id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,
   resi_id VARCHAR(20),
@@ -235,6 +164,11 @@ CREATE TABLE PROSES (
   CONSTRAINT FK_Pekerja FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT FK_Proses FOREIGN KEY (resi_id) REFERENCES Barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
+
+-- Now add the foreign key to barang table
+ALTER TABLE barang
+ADD COLUMN id_proses INT NULL,
+ADD CONSTRAINT FK_PROSES_BARANG FOREIGN KEY (id_proses) REFERENCES proses(id_proses) ON UPDATE CASCADE ON DELETE SET NULL;
 
 
 CREATE TABLE LOG_PROSES (
@@ -248,46 +182,70 @@ CREATE TABLE LOG_PROSES (
   CONSTRAINT FK_BarangLog FOREIGN KEY (resi_id) REFERENCES Barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+
+-- DROP TRIGGER IF EXISTS trigger_barang_status;
+
 DELIMITER $$
 CREATE TRIGGER trigger_barang_status
 AFTER UPDATE ON PROSES
 FOR EACH ROW
-BEGIN
 
+BEGIN
+  
     IF  NEW.status_proses = "packing" THEN
         UPDATE barang
-        SET STATUS_BARANG = 'pending for shipment'
+        SET status_barang = 'packed'
         WHERE resi_id = NEW.resi_id;
     END IF;
 
     IF NEW.status_proses = 'pickout' THEN
         
         UPDATE barang 
-        SET STATUS_BARANG = 'ready for shipment' 
-        WHERE resi_id = NEW.resi_id;
-
-        UPDATE barang
-        SET status_pengiriman = 'ready'
-        WHERE resi_id = NEW.resi_id;
+        SET status_barang = 'shipped' 
+        WHERE resi_id = NEW.resi_id;   
     END IF;
-
+  
 END$$
+
 DELIMITER ;
 
+-- DROP TRIGGER IF EXISTS trigger_inssert_log_proses;
+
 DELIMITER $$
-CREATE TRIGGER trigger_barang_status2
+
+
+CREATE TRIGGER trigger_inssert_log_proses
 AFTER INSERT ON PROSES
 FOR EACH ROW
 BEGIN
+    
+    INSERT INTO LOG_PROSES (resi_id, id_pekerja, status_proses)
+    VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_proses);
 
-    IF  NEW.status_proses = "picker" THEN
+      IF NEW.status_proses = "picker" THEN
         UPDATE barang
-        SET STATUS_BARANG = 'pending for packing'
+        SET status_barang = 'picked'
         WHERE resi_id = NEW.resi_id;
     END IF;
 
 END$$
+
 DELIMITER ;
+
+DELIMITER $$
+
+CREATE TRIGGER trigger_after_update_log_proses
+AFTER UPDATE ON PROSES
+FOR EACH ROW
+BEGIN
+    
+    INSERT INTO LOG_PROSES (resi_id, id_pekerja, status_proses)
+    VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_proses);
+
+END$$
+
+DELIMITER ;
+
 
 
 
@@ -303,7 +261,7 @@ CREATE TABLE gaji (
 );
 
 INSERT INTO gaji (total_gaji_per_scan) 
-VALUES (1000.00)
+VALUES (1500.00)
 
 
 -- Create new gaji_pegawai table
@@ -331,6 +289,7 @@ BEGIN
     DECLARE v_id_gaji INT;
     DECLARE v_gaji_per_scan DECIMAL(10, 2);
     DECLARE v_last_update DATE;
+    DECLARE v_jenis_pekerja ENUM('picker', 'packing', 'pickout');
     
     -- Get the current active salary configuration
     SELECT id_gaji, total_gaji_per_scan 
@@ -338,30 +297,39 @@ BEGIN
     FROM gaji 
     LIMIT 1;
     
-    -- Get the last update date for this worker
-    SELECT DATE(created_at) INTO v_last_update
-    FROM gaji_pegawai 
-    WHERE id_pekerja = NEW.id_pekerja 
-    AND DATE(created_at) = CURRENT_DATE()
+    -- Get the jenis_pekerja for this worker
+    SELECT b.jenis_pekerja INTO v_jenis_pekerja
+    FROM pekerja p
+    JOIN bagian b ON p.id_bagian = b.id_bagian
+    WHERE p.id_pekerja = NEW.id_pekerja
     LIMIT 1;
     
-    -- If record exists for today, update it
-    IF v_last_update = CURRENT_DATE() THEN
-        UPDATE gaji_pegawai 
-        SET jumlah_scan = jumlah_scan + 1,
-            gaji_total = (jumlah_scan + 1) * v_gaji_per_scan,
-            updated_at = NOW()
-        WHERE id_gaji = v_id_gaji 
-        AND id_pekerja = NEW.id_pekerja
-        AND DATE(created_at) = CURRENT_DATE();
-    ELSE
-        -- If no record for today, create new one
-        INSERT INTO gaji_pegawai (id_gaji, id_pekerja, jumlah_scan, gaji_total)
-        VALUES (v_id_gaji, NEW.id_pekerja, 1, v_gaji_per_scan);
+    -- Only update salary if jenis_pekerja is 'packing'
+    IF v_jenis_pekerja = 'packing' THEN
+        -- Get the last update date for this worker
+        SELECT DATE(created_at) INTO v_last_update
+        FROM gaji_pegawai 
+        WHERE id_pekerja = NEW.id_pekerja 
+        AND DATE(created_at) = CURRENT_DATE()
+        LIMIT 1;
+        
+        -- If record exists for today, update it
+        IF v_last_update = CURRENT_DATE() THEN
+            UPDATE gaji_pegawai 
+            SET jumlah_scan = jumlah_scan + 1,
+                gaji_total = (jumlah_scan + 1) * v_gaji_per_scan,
+                updated_at = NOW()
+            WHERE id_gaji = v_id_gaji 
+            AND id_pekerja = NEW.id_pekerja
+            AND DATE(created_at) = CURRENT_DATE();
+        ELSE
+            -- If no record for today, create new one
+            INSERT INTO gaji_pegawai (id_gaji, id_pekerja, jumlah_scan, gaji_total)
+            VALUES (v_id_gaji, NEW.id_pekerja, 1, v_gaji_per_scan);
+        END IF;
     END IF;
 END$$
 
 DELIMITER ;
-
 
 

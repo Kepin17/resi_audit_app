@@ -1,18 +1,13 @@
 import React from "react";
-import Input from "../../Elements/Input";
+import { FaSearch } from "react-icons/fa";
 
-const SearchFragment = ({ placeholder = "Search", onChange, value }) => {
+const SearchFragment = ({ onSearch, value, placeholder, className }) => {
   return (
-    <div className="searchbar w-full h-[5rem] flex items-center justify-center relative">
-      <Input
-        name={"search"}
-        placeholder={placeholder}
-        inputStyle="
-      w-full h-11 px-5 py-3 bg-white border-2 border-gray-200 rounded-md focus:outline-none focus:border-blue-500 transition-all duration-300 ease-in-out
-      "
-        onChange={onChange}
-        value={value}
-      />
+    <div className={`relative ${className}`}>
+      <input type="text" value={value} onChange={(e) => onSearch(e.target.value)} placeholder={placeholder} className="w-full p-2 pr-10 border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+        <FaSearch className="h-5 w-5" />
+      </span>
     </div>
   );
 };

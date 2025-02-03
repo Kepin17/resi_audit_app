@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import { Button, Table, Modal, Form, Input, Space, message, Select } from "antd";
 import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
@@ -96,7 +96,7 @@ const StaffManagementPage = () => {
       setStaffList(staffList.filter((staff) => staff.id !== id));
       message.success("Staff deleted successfully");
     } catch (error) {
-      message.error("Failed to delete staff");
+      message.error(error.response.data.message);
     }
   };
 
@@ -129,6 +129,7 @@ const StaffManagementPage = () => {
       setIsModalVisible(false);
       message.success(`Staff ${editingStaff ? "updated" : "added"} successfully`);
     } catch (error) {
+      console.log(error);
       message.error(`Failed to ${editingStaff ? "update" : "add"} staff`);
     }
   };
@@ -185,6 +186,13 @@ const StaffManagementPage = () => {
               />
             </Form.Item>
 
+            {editingStaff ? (
+              ""
+            ) : (
+              <Form.Item name="password" label="password" rules={[{ required: true, message: "Please input staff password!" }]}>
+                <Input.Password placeholder="Input password" />
+              </Form.Item>
+            )}
             <Form.Item name="role" label="role" rules={[{ required: true, message: "Please input staff role!" }]}>
               <Select
                 style={{ width: 200 }}

@@ -8,6 +8,8 @@ import AdminProtectedRoute from "./Components/Auth/AdminProtectedRoute";
 import AdminDashboard from "./Components/Pages/Admin/AdminDashboard";
 import AdminBarangSection from "./Components/Pages/Admin/BarangManagement";
 import StaffManagementPage from "./Components/Pages/Admin/StaffManagementPage";
+import LogLoginPage from "./Components/Pages/Admin/Log/LogLoginPage";
+import PackSalary from "./Components/Pages/Admin/PackSalary";
 
 function App() {
   return (
@@ -53,6 +55,24 @@ function App() {
           element={
             <AdminProtectedRoute>
               <StaffManagementPage />
+            </AdminProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/staff/log-login"
+          element={
+            <AdminProtectedRoute>
+              <LogLoginPage />
+            </AdminProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/staff/packer-salary"
+          element={
+            <AdminProtectedRoute>
+              <PackSalary />
             </AdminProtectedRoute>
           }
         />

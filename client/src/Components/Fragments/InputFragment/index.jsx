@@ -3,7 +3,7 @@ import Label from "../../Elements/Label";
 import Input from "../../Elements/Input";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 
-const InputFragment = ({ InputType = "text", inputName, htmlFor, inputValue, inputOnChange, children }) => {
+const InputFragment = ({ InputType = "text", inputName, htmlFor, inputValue, inputOnChange, children, isDisabled }) => {
   const [isShowPass, setIsShowPass] = useState(false);
   return (
     <div className="relative w-full group">
@@ -11,10 +11,11 @@ const InputFragment = ({ InputType = "text", inputName, htmlFor, inputValue, inp
         InputType={!isShowPass ? InputType : "text"}
         name={inputName}
         id={inputName}
-        inputStyle="w-full h-12 px-4 pt-2 peer border-2 rounded-lg outline-none transition-all duration-200 focus:border-blue-500"
+        inputStyle="w-full h-12 px-4 pt-4 peer border-2 rounded-lg outline-none transition-all duration-200 focus:border-blue-500"
         placeholder=" "
         value={inputValue}
         onChange={inputOnChange}
+        isDisabled={isDisabled}
       />
 
       {InputType === "password" && (

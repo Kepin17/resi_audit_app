@@ -75,6 +75,16 @@ const DashboardLayout = ({ children }) => {
                       Data Staff
                     </Link>
                   </li>
+                  <li className="hover:bg-blue-300 p-2 rounded">
+                    <Link to="/admin/staff/log-login" className="text-blue-800 block">
+                      log login Staff
+                    </Link>
+                  </li>
+                  <li className="hover:bg-blue-300 p-2 rounded">
+                    <Link to="/admin/staff/packer-salary" className="text-blue-800 block">
+                      Packer Salary Staff
+                    </Link>
+                  </li>
                 </ul>
               </div>
             </li>
