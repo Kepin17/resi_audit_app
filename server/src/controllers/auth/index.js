@@ -229,15 +229,57 @@ const logOutHandler = (req, res) => {
 
 const showAllStaff = async (req, res) => {
   try {
-    const [rows] = await mysqlPool.query(`
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10; // Changed default to 10
+    const offset = (page - 1) * limit;
+    const { search } = req.query;
+
+    let whereConditions = [];
+    let queryParams = [];
+
+    if (search) {
+      whereConditions.push("(pekerja.nama_pekerja LIKE ? OR pekerja.role LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
+
+    const [countResult] = await mysqlPool.query(
+      `
+      SELECT COUNT(*) as count
+      FROM pekerja
+      ${whereClause}
+      `,
+      queryParams
+    );
+
+    const totalItems = countResult[0].count;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    const [rows] = await mysqlPool.query(
+      `
       SELECT id_pekerja, username,nama_pekerja, role, jenis_pekerja
       FROM pekerja 
       LEFT JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
-    `);
+      ${whereClause}
+      ORDER BY pekerja.created_at DESC
+      LIMIT ?, ?
+    `,
+      [...queryParams, offset, limit]
+    );
+
     res.status(200).send({
       success: true,
       message: "Data found",
       data: rows,
+      pagination: {
+        totalPages,
+        currentPage: page,
+        totalItems,
+        pageSize: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error when trying to show all workers:", error);
@@ -278,22 +320,60 @@ const showStaffDetail = async (req, res) => {
 
 const deviceLog = async (req, res) => {
   try {
-    const [rows] = await mysqlPool.query(`
-      SELECT device_logs.*, nama_pekerja FROM device_logs
-      LEFT JOIN pekerja ON device_logs.id_pekerja = pekerja.id_pekerja
-      `);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const offset = (page - 1) * limit;
+    const { search, startDate, endDate } = req.query;
 
-    if (rows.length === 0) {
-      return res.status(404).send({
-        success: false,
-        message: "Data not found",
-      });
+    // Build the WHERE clause dynamically
+    let whereConditions = [];
+    let queryParams = [];
+
+    // Updated search condition
+    if (search) {
+      whereConditions.push("(pekerja.nama_pekerja LIKE ? OR pekerja.nama_pekerja LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`);
     }
 
-    res.status(200).send({
+    if (startDate && endDate) {
+      whereConditions.push("DATE(device_logs.login_time) BETWEEN ? AND ?");
+      queryParams.push(startDate, endDate);
+    }
+
+    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
+
+    // Get total count with filters
+    const [countResult] = await mysqlPool.query(
+      `SELECT COUNT(*) as count 
+       FROM device_logs 
+       LEFT JOIN pekerja ON device_logs.id_pekerja = pekerja.id_pekerja
+       ${whereClause}`,
+      queryParams
+    );
+
+    const totalItems = countResult[0].count;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    const [rows] = await mysqlPool.query(
+      `
+      SELECT device_logs.*, pekerja.nama_pekerja FROM device_logs
+      LEFT JOIN pekerja ON device_logs.id_pekerja = pekerja.id_pekerja
+      ${whereClause}
+      ORDER BY login_time DESC
+      LIMIT ?, ?
+      `,
+      [...queryParams, offset, limit]
+    );
+
+    return res.status(200).json({
       success: true,
-      message: "Data found",
+      message: "Barang found",
       data: rows,
+      pagination: {
+        totalPages,
+        currentPage: page,
+        totalItems,
+      },
     });
   } catch (error) {
     res.status(500).send({
@@ -386,4 +466,34 @@ const editStaff = async (req, res) => {
   }
 };
 
-module.exports = { RegisterHandler, loginHandler, logOutHandler, showAllStaff, showStaffDetail, editStaff, deviceLog };
+const deleteStaff = async (req, res) => {
+  try {
+    const { id_pekerja } = req.params;
+
+    const [result] = await mysqlPool.query("DELETE FROM pekerja WHERE id_pekerja = ?", [id_pekerja]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Worker not found",
+        error: "not_found",
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "Successfully deleted",
+    });
+  } catch (error) {
+    console.error("Delete staff error:", error);
+
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to delete worker",
+      error: "internal_server_error",
+      details: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+module.exports = { RegisterHandler, loginHandler, logOutHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff };

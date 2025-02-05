@@ -4,7 +4,7 @@ const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi } = require("../controllers/auditResiController");
 const { addNewBarang, showAllBarang, cancelBarang, exportBarang, showDetailByResi } = require("../controllers/barangController");
-const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog } = require("../controllers/auth");
+const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking } = require("../controllers/SalaryController");
 
@@ -21,6 +21,7 @@ const roles = {
 router.post("/auth/register", authToken, roleMiddleware([roles.supadmin]), RegisterHandler);
 router.get("/auth/show", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllStaff);
 router.get("/auth/show/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), showStaffDetail);
+router.delete("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), deleteStaff);
 router.put("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), editStaff);
 router.get("/auth/log", authToken, roleMiddleware([roles.admin, roles.supadmin]), deviceLog);
 

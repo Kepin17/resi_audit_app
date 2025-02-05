@@ -11,7 +11,6 @@ import { IoIosCreate } from "react-icons/io";
 import axios from "axios";
 import Modal from "antd/es/modal/Modal";
 import { PiMicrosoftExcelLogoFill } from "react-icons/pi";
-import { use } from "react";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -299,11 +298,11 @@ const AdminBarangSection = () => {
                         <div className="mb-2">
                           <Title titleStyle="text-lg font-bold text-gray-800">{item.resi_id}</Title>
                           <span className="text-sm text-gray-500">
-                            {item.status_description} oleh {item.nama_pekerja}
+                            {item.status_description} {item.status !== "pending" ? "oleh" : ""} {item.nama_pekerja}
                           </span>
                         </div>
                         <div className="flex items-center mt-2">
-                          <span className="text-xs text-gray-500">Last Scan : {moment(item.last_scan).format("DD/MM/YYYY")}</span>
+                          <span className="text-xs text-gray-500">Last Scan : {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("DD/MM/YYYY")}</span>
                         </div>
                       </div>
                     </div>

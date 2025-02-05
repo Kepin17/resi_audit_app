@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import { Card, DatePicker, Input } from "antd";
 import moment from "moment";
+import SearchFragment from "../../../Fragments/SearchFragment";
 
 const { RangePicker } = DatePicker;
 const { Search } = Input;
@@ -13,94 +14,164 @@ const LogLoginPage = () => {
     return d.toLocaleString();
   };
 
-  const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [dateRange, setDateRange] = useState([null, null]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [searchInput, setSearchInput] = useState("");
+
+  const fetchLogs = async (page = 1) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const fetchBarang = async (page) => {
+        setLoading(true);
+        setError(null);
+        try {
+          let url = new URL("http://localhost:8080/api/v1/auth/log");
+
+          // Add query parameters
+          const params = new URLSearchParams();
+          params.append("page", page);
+          params.append("limit", 16);
+
+          if (searchTerm?.trim()) {
+            params.append("search", searchTerm.trim());
+          }
+
+          if (dateRange?.[0] && dateRange?.[1]) {
+            params.append("startDate", dateRange[0].format("YYYY-MM-DD"));
+            params.append("endDate", dateRange[1].format("YYYY-MM-DD"));
+          }
+
+          url.search = params.toString();
+
+          const response = await axios.get(url.toString(), {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          });
+
+          if (response.data?.success) {
+            setFilteredLogs(response.data.data);
+            setTotalPages(response.data.pagination.totalPages);
+          } else {
+            throw new Error(response.data?.message || "Invalid response format");
+          }
+        } catch (error) {
+          let errorMessage = "Failed to fetch barang data";
+          if (error.response) {
+            // Handle specific HTTP error responses
+            if (error.response.status === 500) {
+              errorMessage = "Server error. Please try again later.";
+            } else {
+              errorMessage = error.response.data?.message || errorMessage;
+            }
+          }
+          setError(errorMessage);
+          console.error("Error fetching barang:", error);
+          setFilteredLogs([]);
+          setTotalPages(1);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      await fetchBarang(page);
+    } catch (error) {
+      setError("Failed to fetch logs");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const res = await axios.get("http://localhost:8080/api/v1/auth/log", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        const logsWithKey = res.data.data.map((log) => ({
-          ...log,
-          key: log.id_log,
-        }));
-        setLogs(logsWithKey);
-        setFilteredLogs(logsWithKey);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-
-    fetchLogs();
-  }, []);
+    fetchLogs(currentPage);
+  }, [currentPage, searchTerm, dateRange]);
 
   const handleDateChange = (dates) => {
     setDateRange(dates);
-    filterLogs(dates, searchTerm);
+    setCurrentPage(1); // Reset to first page when changing dates
   };
 
-  const handleSearch = (value) => {
-    setSearchTerm(value);
-    filterLogs(dateRange, value);
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
-  const filterLogs = (dates, term) => {
-    let filtered = logs;
-    if (dates && dates[0] && dates[1]) {
-      const [start, end] = dates;
-      filtered = filtered.filter((log) => {
-        const logDate = moment(log.login_time);
-        return logDate.isBetween(start, end, null, "[]");
-      });
+  const handleSearchInput = (value) => {
+    setSearchInput(value);
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e.key === "Enter") {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
     }
-    if (term) {
-      filtered = filtered.filter((log) => log.nama_pekerja.toLowerCase().includes(term.toLowerCase()));
-    }
-    setFilteredLogs(filtered);
   };
 
   return (
     <DashboardLayout>
       <div className="w-full h-[84vh] bg-slate-200 rounded-md p-4 overflow-y-scroll">
         <div className="mb-4 flex space-x-4">
-          <RangePicker onChange={handleDateChange} />
-          <Search placeholder="Search by Nama Pekerja" onSearch={handleSearch} enterButton />
+          <RangePicker onChange={handleDateChange} format="YYYY-MM-DD" />
+          <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nama " className="w-full md:w-64" />
         </div>
-        {filteredLogs.map((log) => {
-          const device = log.device_info;
-          const devicejson = JSON.parse(device);
-          return (
-            <Card key={log.id_log} className="mb-4">
-              <p>
-                <strong>Nama Pekerja:</strong> {log.nama_pekerja}
-              </p>
-              <p>
-                <strong>IP Address:</strong> {log.ip_address}
-              </p>
-              <p>
-                <strong>Last Login:</strong> {formatDate(log.login_time)}
-              </p>
 
-              <p>
-                <strong>Device:</strong> {devicejson.device_type}
-              </p>
+        {loading && (
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        )}
 
-              <p>
-                <strong>OS:</strong> {devicejson.os}
-              </p>
+        {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
-              <p>
-                <strong>Browser:</strong> {devicejson.browser}
-              </p>
-            </Card>
-          );
-        })}
+        {!loading &&
+          !error &&
+          filteredLogs.map((log) => {
+            const device = log.device_info;
+            const devicejson = JSON.parse(device);
+            return (
+              <Card key={log.id_log} className="mb-4">
+                <p>
+                  <strong>Nama Pekerja:</strong> {log.nama_pekerja}
+                </p>
+                <p>
+                  <strong>IP Address:</strong> {log.ip_address}
+                </p>
+                <p>
+                  <strong>Last Login:</strong> {formatDate(log.login_time)}
+                </p>
+
+                <p>
+                  <strong>Device:</strong> {devicejson.device_type}
+                </p>
+
+                <p>
+                  <strong>OS:</strong> {devicejson.os}
+                </p>
+
+                <p>
+                  <strong>Browser:</strong> {devicejson.browser}
+                </p>
+              </Card>
+            );
+          })}
+        {totalPages > 1 && (
+          <div className="pagination flex items-center justify-end gap-4 my-5">
+            <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600 transition-all duration-300 disabled:opacity-50">
+              Previous
+            </button>
+            <span className="text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600 transition-all duration-300 disabled:opacity-50">
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

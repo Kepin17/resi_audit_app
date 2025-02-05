@@ -51,7 +51,7 @@ const showAllBarang = async (req, res) => {
 
     // Updated search condition
     if (search) {
-      whereConditions.push("(resi_id LIKE ? OR resi_id LIKE ?)");
+      whereConditions.push("(barang.resi_id LIKE ? OR barang.resi_id LIKE ?)");
       queryParams.push(`%${search}%`, `%${search}%`);
     }
 
@@ -61,7 +61,7 @@ const showAllBarang = async (req, res) => {
     }
 
     if (startDate && endDate) {
-      whereConditions.push("DATE(created_at) BETWEEN ? AND ?");
+      whereConditions.push("DATE(barang.created_at) BETWEEN ? AND ?");
       queryParams.push(startDate, endDate);
     }
 

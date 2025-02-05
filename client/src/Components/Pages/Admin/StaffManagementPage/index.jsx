@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
-import { Button, Table, Modal, Form, Input, Space, message, Select } from "antd";
+import { Button, Table, Modal, Form, Input, Space, message, Select, Pagination } from "antd";
 import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import axios from "axios";
 import "./staff.css";
 import { FaMoneyBill } from "react-icons/fa";
+import SearchFragment from "../../../Fragments/SearchFragment";
 
 const StaffManagementPage = () => {
   const [staffList, setStaffList] = useState([]);
@@ -12,21 +13,68 @@ const StaffManagementPage = () => {
   const [form] = Form.useForm();
   const [editingStaff, setEditingStaff] = useState(null);
   const [bagian, setBagian] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [totalItems, setTotalItems] = useState(0);
+  const pageSize = 10; // Define consistent page size
 
-  useEffect(() => {
-    axios
-      .get("http://localhost:8080/api/v1/auth/show", {
+  const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  };
+
+  const fetchStaff = async (page = 1, search = "") => {
+    try {
+      setIsLoading(true);
+      let url = new URL("http://localhost:8080/api/v1/auth/show");
+
+      const params = new URLSearchParams();
+      params.append("page", page);
+      params.append("limit", pageSize);
+
+      if (search?.trim()) {
+        params.append("search", search.trim());
+      }
+
+      url.search = params.toString();
+
+      const response = await axios.get(url.toString(), {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-      })
-      .then((response) => {
-        setStaffList(response.data.data);
-      })
-      .catch((error) => {
-        message.error(error.response.data.message);
       });
-  }, []);
+
+      if (response.data?.success) {
+        setStaffList(response.data.data);
+        setTotalPages(response.data.pagination.totalPages);
+        setTotalItems(response.data.pagination.totalItems);
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || "Failed to fetch staff data");
+      setStaffList([]);
+      setTotalPages(1);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const debouncedSearch = useCallback(
+    debounce((searchValue) => {
+      setSearchTerm(searchValue);
+      setCurrentPage(1);
+    }, 500),
+    []
+  );
+
+  useEffect(() => {
+    fetchStaff(currentPage, searchTerm);
+  }, [currentPage, searchTerm]);
 
   useEffect(() => {
     axios
@@ -90,67 +138,80 @@ const StaffManagementPage = () => {
     setIsModalVisible(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id_pekerja) => {
     try {
-      // Add API call to delete staff
-      setStaffList(staffList.filter((staff) => staff.id !== id));
+      await axios.delete(`http://localhost:8080/api/v1/auth/${id_pekerja}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
       message.success("Staff deleted successfully");
+      fetchStaff(currentPage, searchTerm);
     } catch (error) {
-      message.error(error.response.data.message);
+      message.error(error.response?.data?.message || "Failed to delete staff");
     }
   };
 
   const handleSubmit = async (values) => {
     try {
       if (editingStaff) {
-        // Add API call to update staff
-        axios.put(`http://localhost:8080/api/v1/auth/${editingStaff.id_pekerja}`, values, {
+        await axios.put(`http://localhost:8080/api/v1/auth/${editingStaff.id_pekerja}`, values, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
-
-        setStaffList(staffList.map((staff) => (staff.id === editingStaff.id_pekerja ? { ...values, id: staff.id } : staff)));
       } else {
-        // Add API call to create staff
-        axios
-          .post("http://localhost:8080/api/v1/auth/register", values, {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          })
-          .then((response) => {
-            setStaffList([...staffList, { ...values, id: response.data.data.id_pekerja }]);
-          })
-          .catch((error) => {
-            message.error(error.response.data.message);
-          });
+        await axios.post("http://localhost:8080/api/v1/auth/register", values, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
       }
+
       setIsModalVisible(false);
+      form.resetFields();
       message.success(`Staff ${editingStaff ? "updated" : "added"} successfully`);
+      fetchStaff(currentPage, searchTerm);
     } catch (error) {
-      console.log(error);
-      message.error(`Failed to ${editingStaff ? "update" : "add"} staff`);
+      message.error(error.response?.data?.message || `Failed to ${editingStaff ? "update" : "add"} staff`);
     }
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearchInput = (value) => {
+    setSearchInput(value);
+    debouncedSearch(value);
   };
 
   return (
     <DashboardLayout>
       <div style={{ padding: "24px" }}>
-        <div style={{ marginBottom: "16px" }}>
+        <div style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between" }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             Add Staff
           </Button>
+          <SearchFragment onSearch={handleSearchInput} value={searchInput} placeholder="Search by name or role..." style={{ width: "250px" }} allowClear />
         </div>
 
-        <Table
-          columns={columns}
-          dataSource={staffList}
-          rowKey="id_pekerja"
-          pagination={{
-            className: "custom-pagination",
-          }}
-        />
+        <div className="staff-table h-full bg-white rounded-lg shadow-lg p-5">
+          <Table columns={columns} dataSource={staffList} rowKey="id_pekerja" pagination={false} loading={isLoading} />
+
+          <Pagination
+            current={currentPage}
+            total={totalItems}
+            pageSize={pageSize}
+            onChange={handlePageChange}
+            showSizeChanger={false}
+            showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} items`}
+            style={{ marginTop: "16px", textAlign: "right" }}
+            nextIcon="Next"
+            prevIcon="Previous"
+            align="end"
+          />
+        </div>
 
         <Modal
           open={isModalVisible}

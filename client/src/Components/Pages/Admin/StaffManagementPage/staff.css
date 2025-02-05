@@ -2,3 +2,66 @@
   color: white !important;
   background-color: #1890ff !important;
 }
+
+/* Dark theme pagination styles */
+.ant-pagination .ant-pagination-item {
+  background-color: #1f1f1f;
+  border-color: #434343;
+}
+
+.ant-pagination .ant-pagination-item a {
+  color: #d9d9d9;
+}
+
+.ant-pagination .ant-pagination-item:hover {
+  border-color: #177ddc;
+}
+
+.ant-pagination .ant-pagination-item-active {
+  background-color: #177ddc;
+  border-color: #177ddc;
+}
+
+.ant-pagination .ant-pagination-item-active a {
+  color: #ffffff;
+}
+
+.ant-pagination .ant-pagination-prev button,
+.ant-pagination .ant-pagination-next button {
+  background-color: #1f1f1f;
+  border-color: #434343;
+  color: #d9d9d9;
+}
+
+.ant-pagination .ant-pagination-prev:hover button,
+.ant-pagination .ant-pagination-next:hover button {
+  border-color: #177ddc;
+  color: #177ddc;
+}
+
+.ant-pagination .ant-pagination-disabled button {
+  background-color: #141414;
+  border-color: #303030;
+  color: #595959;
+}
+
+.ant-pagination-total-text {
+  color: #d9d9d9;
+}
+
+/* Hover effects */
+.ant-pagination-item:hover a {
+  color: #177ddc;
+}
+
+.ant-pagination-item-active:hover a {
+  color: #ffffff;
+}
+
+/* Focus styles */
+.ant-pagination-item:focus-visible,
+.ant-pagination-prev button:focus-visible,
+.ant-pagination-next button:focus-visible {
+  outline: 2px solid #177ddc;
+  outline-offset: 1px;
+}
