@@ -1,7 +1,7 @@
--- Active: 1738167577342@@127.0.0.1@3306@pack_db
+-- Active: 1738167577342@@127.0.0.1@3306@db_pack
 
 -- CREATE DATABASE pack_db;
-USE pack_db;
+USE db_pack;
 
 
 
@@ -276,6 +276,8 @@ CREATE TABLE gaji_pegawai (
     FOREIGN KEY (id_gaji) REFERENCES gaji(id_gaji),
     FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja)
 );
+
+ALTER TABLE gaji_pegawai ADD COLUMN is_dibayar BOOLEAN DEFAULT FALSE;
 
 
 -- DROP TRIGGER IF EXISTS trigger_hitung_gaji

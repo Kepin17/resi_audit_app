@@ -20,6 +20,11 @@ const PackSalary = () => {
   const [source, setSource] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [dateRange, setDateRange] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [error, setError] = useState(null);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0); // Add this state
 
   useEffect(() => {
     axios
@@ -34,18 +39,47 @@ const PackSalary = () => {
       });
   }, []);
 
-  useEffect(() => {
-    axios
-      .get("http://localhost:8080/api/v1/gaji/packing", {
+  const fetchGajiPacking = async (page, pageSize, searchValue) => {
+    try {
+      let url = new URL("http://localhost:8080/api/v1/gaji/packing");
+
+      const params = new URLSearchParams();
+      params.append("page", page);
+      params.append("limit", pageSize);
+
+      if (searchValue?.trim()) {
+        params.append("search", searchValue.trim());
+      }
+      if (dateRange?.[0] && dateRange?.[1]) {
+        params.append("startDate", dateRange[0].toISOString());
+        params.append("endDate", dateRange[1].toISOString());
+      }
+
+      url.search = params.toString();
+
+      const response = await axios.get(url.toString(), {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-      })
-      .then((res) => {
-        console.log(res.data.data);
-        setSource(res.data.data);
       });
-  }, []);
+
+      if (response.data?.success) {
+        setSource(response.data.data);
+        setTotalPages(response.data.pagination.totalPages);
+        setTotalItems(response.data.pagination.totalItems); // Add this line
+      }
+    } catch (err) {
+      if (err.response) {
+        setError(err.response.data.message);
+        setSource([]);
+        setTotalPages(1);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchGajiPacking(currentPage, pageSize, searchText);
+  }, [currentPage, pageSize, searchText, dateRange]);
 
   const formatRupiah = (number) => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(number);
@@ -87,6 +121,13 @@ const PackSalary = () => {
     },
 
     {
+      title: "Status dibayar",
+      dataIndex: "is_dibayar",
+      key: "is_dibayar",
+      render: (text) => (text ? "Sudah Dibayar" : "Belum Dibayar"),
+    },
+
+    {
       title: "Action",
       dataIndex: "view",
       key: "updated_at",
@@ -107,17 +148,17 @@ const PackSalary = () => {
 
   const handleSearch = (value) => {
     setSearchText(value);
+    setCurrentPage(1);
   };
 
   const handleDateChange = (dates) => {
     setDateRange(dates);
   };
 
-  const filteredSource = source.filter((item) => {
-    const matchesSearch = item.nama_pekerja.toLowerCase().includes(searchText.toLowerCase());
-    const matchesDateRange = dateRange.length === 0 || (new Date(item.updated_at) >= dateRange[0] && new Date(item.updated_at) <= dateRange[1]);
-    return matchesSearch && matchesDateRange;
-  });
+  const handleTableChange = (pagination, filters, sorter) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
+  };
 
   return (
     <DashboardLayout>
@@ -147,7 +188,21 @@ const PackSalary = () => {
           </div>
         </div>
 
-        <Table columns={coloms} rowKey="id_gaji_pegawai" dataSource={filteredSource} className="mt-4 border border-gray-200 rounded-lg shadow-sm" />
+        <Table
+          columns={coloms}
+          rowKey="id_gaji_pegawai"
+          dataSource={source}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: `totalItems `,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `Total ${total} items`,
+          }}
+          onChange={handleTableChange}
+          className="mt-4 border border-gray-200 rounded-lg shadow-sm"
+        />
       </div>
     </DashboardLayout>
   );
