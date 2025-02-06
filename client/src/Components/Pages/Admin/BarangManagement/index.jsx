@@ -26,6 +26,8 @@ const AdminBarangSection = () => {
   const [isModalDetailOpen, setModalDetailOpen] = useState(false);
   const [resiId, setResiId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [form] = Form.useForm();
   const [resiDetail, setResiDetail] = useState([]);
 
@@ -173,7 +175,94 @@ const AdminBarangSection = () => {
       });
   };
 
-  const exportHandler = () => {};
+  const ImportFromExcelHandler = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".xlsx, .xls";
+
+    input.onchange = async (e) => {
+      try {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Check file extension
+        const fileExt = file.name.split(".").pop().toLowerCase();
+        if (!["xlsx", "xls"].includes(fileExt)) {
+          message.error("Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)");
+          return;
+        }
+
+        setImportLoading(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await axios.post("http://localhost:8080/api/v1/barang/import", formData, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        if (response.data?.success) {
+          message.success("Data berhasil diimport");
+          fetchBarang(currentPage);
+        }
+      } catch (error) {
+        console.error("Error importing file:", error);
+        message.error(error.response?.data?.message || "Gagal mengimport data");
+      } finally {
+        setImportLoading(false);
+      }
+    };
+
+    input.click();
+  };
+
+  const handleExport = async () => {
+    try {
+      setExportLoading(true);
+
+      // Build query parameters
+      const params = new URLSearchParams();
+
+      if (searchTerm?.trim()) {
+        params.append("search", searchTerm.trim());
+      }
+      if (activeButton !== "Semua") {
+        params.append("status", activeButton);
+      }
+      if (dateRange?.[0] && dateRange?.[1]) {
+        params.append("startDate", dateRange[0].format("YYYY-MM-DD"));
+        params.append("endDate", dateRange[1].format("YYYY-MM-DD"));
+      }
+
+      const response = await axios.get(`http://localhost:8080/api/v1/barang-export?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        responseType: "blob",
+        responseEncoding: "binary",
+      });
+
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const fileName = `barang_${moment().format("YYYY-MM-DD")}${activeButton !== "Semua" ? `_${activeButton}` : ""}.xlsx`;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      message.success("File berhasil diexport");
+    } catch (error) {
+      console.error("Error exporting file:", error);
+      message.error("Gagal mengexport file");
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -209,17 +298,38 @@ const AdminBarangSection = () => {
         </Modal>
         <div className="w-full h-auto bg-slate-50 rounded-md px-5 py-4">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <RangePicker onChange={handleDateChange} className="p-2 shadow-sm border border-gray-200 rounded-md" />
               <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nomor resi " className="w-full md:w-64" />
-              <div className="flex items-center gap-4 w-32">
-                <Button buttonStyle="flex items-center gap-2 bg-green-500 text-white px-6 py-2 rounded-lg transition-all duration-300 hover:bg-green-600 text-lg shadow-sm" onClick={exportHandler}>
-                  <PiMicrosoftExcelLogoFill />
-                  Export
+              <div className="flex items-center gap-2">
+                <Button buttonStyle="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-green-600 text-sm shadow-sm" onClick={ImportFromExcelHandler} disabled={importLoading}>
+                  {importLoading ? (
+                    <span className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Loading...
+                    </span>
+                  ) : (
+                    <>
+                      <PiMicrosoftExcelLogoFill />
+                      Import Excel
+                    </>
+                  )}
+                </Button>
+                <Button buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-sm" onClick={handleExport} disabled={exportLoading}>
+                  {exportLoading ? (
+                    <span className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Loading...
+                    </span>
+                  ) : (
+                    <>
+                      <PiMicrosoftExcelLogoFill />
+                      Export Excel
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
-
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex flex-wrap gap-3">
                 {["Semua", "Pending", "Picked", "Packed", "Shipped", "cancelled"].map((status) => (

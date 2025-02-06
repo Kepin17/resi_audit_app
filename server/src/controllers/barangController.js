@@ -1,5 +1,6 @@
 const mysqlPool = require("../config/db");
 const excelJS = require("exceljs");
+const moment = require("moment");
 
 const addNewBarang = async (req, res) => {
   try {
@@ -192,46 +193,220 @@ const cancelBarang = async (req, res) => {
   }
 };
 
-const exportBarang = async (req, res) => {
+const importResiFromExcel = async (req, res) => {
   try {
-    const [rows] = await mysqlPool.query("SELECT * FROM barang");
-
-    if (rows.length === 0) {
-      return res.status(404).send({
+    if (!req.files || !req.files.file) {
+      return res.status(400).send({
         success: false,
-        message: "Barang not found",
+        message: "No file uploaded",
       });
     }
 
-    // Create a new Excel workbook
+    const file = req.files.file;
+    const fileExt = file.name.split(".").pop().toLowerCase();
+
+    if (!["xlsx", "xls"].includes(fileExt)) {
+      return res.status(400).send({
+        success: false,
+        message: "Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)",
+      });
+    }
+
     const workbook = new excelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Barang");
+    const filePath = `./server/uploads/${file.name}`;
 
-    // Define the columns
-    worksheet.columns = [
-      { header: "Resi ID", key: "resi_id", width: 20 },
-      { header: "Status", key: "status_barang", width: 20 },
-      { header: "Created At", key: "created_at", width: 20 },
-    ];
+    file.mv(filePath, async (err) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).send({
+          success: false,
+          message: "Error when trying to upload file",
+          error: err.message,
+        });
+      }
 
-    // Populate the Excel worksheet with data
-    rows.forEach((row) => {
-      worksheet.addRow(row);
-    });
+      try {
+        await workbook.xlsx.readFile(filePath);
+        const worksheet = workbook.getWorksheet(1);
 
-    // Set the HTTP response headers
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", "attachment; filename=barang.xlsx");
+        const rows = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber !== 1) {
+            // Skip header row
+            const resi_id = row.getCell(1).value; // Column A
+            const status = row.getCell(2).value; // Column B
+            const created_at = row.getCell(3).value; // Column C
+            const updated_at = row.getCell(4).value; // Column D
+            const id_proses = row.getCell(5).value; // Column E
 
-    // Write the Excel workbook to the response
-    return workbook.xlsx.write(res).then(() => {
-      res.status(200).end();
+            rows.push([
+              resi_id,
+              status || "Pending", // Default status if not provided
+              created_at ? new Date(created_at) : new Date(),
+              updated_at ? new Date(updated_at) : new Date(),
+              id_proses || null,
+            ]);
+          }
+        });
+
+        // Handle each row with multiple columns
+        for (const row of rows) {
+          await mysqlPool.query(
+            `INSERT INTO barang (resi_id, status_barang, created_at, updated_at, id_proses) 
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE 
+             status_barang = VALUES(status_barang),
+             updated_at = VALUES(updated_at),
+             id_proses = VALUES(id_proses)`,
+            row
+          );
+        }
+
+        return res.status(200).send({
+          success: true,
+          message: "Data berhasil diimport dan diupdate",
+        });
+      } catch (error) {
+        console.error("Error processing Excel file:", error);
+        return res.status(500).send({
+          success: false,
+          message: "Error processing Excel file",
+          error: error.message,
+        });
+      }
     });
   } catch (error) {
     console.log(error);
     res.status(500).send({
       success: false,
-      message: "Error when trying to export barang",
+      message: "Error when trying to import resi",
+      error: error.message,
+    });
+  }
+};
+
+const exportBarang = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const offset = (page - 1) * limit;
+    const { search, status, startDate, endDate } = req.query;
+
+    // Build the WHERE clause dynamically
+    let whereConditions = [];
+    let queryParams = [];
+
+    // Updated search condition
+    if (search) {
+      whereConditions.push("(barang.resi_id LIKE ? OR barang.resi_id LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (status && status !== "Semua") {
+      whereConditions.push("status_barang = ?");
+      queryParams.push(status);
+    }
+
+    if (startDate && endDate) {
+      whereConditions.push("DATE(barang.created_at) BETWEEN ? AND ?");
+      queryParams.push(startDate, endDate);
+    }
+
+    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
+
+    const [countResult] = await mysqlPool.query(
+      `SELECT COUNT(*) as count 
+       FROM barang 
+       ${whereClause}`,
+      queryParams
+    );
+
+    const totalItems = countResult[0].count;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // Get data from database
+    const [rows] = await mysqlPool.query(
+      `
+      SELECT 
+        b.resi_id,
+        COALESCE(b.status_barang, 'Pending') as status_barang,
+        DATE_FORMAT(b.created_at, '%Y-%m-%d %H:%i:%s') as created_at,
+        DATE_FORMAT(b.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at,
+        COALESCE(pek.nama_pekerja, '-') as nama_pekerja,
+        CASE 
+          WHEN b.status_barang = 'Cancelled' THEN 'Dibatalkan'
+          WHEN b.status_barang = 'Pending' THEN 'Menunggu pickup'
+          WHEN b.status_barang = 'Picked' THEN 'Sudah dipickup'
+          WHEN b.status_barang = 'Packed' THEN 'Sudah dipacking'
+          WHEN b.status_barang = 'Shipped' THEN 'Dalam pengiriman'
+          ELSE 'Status tidak diketahui'
+        END as status_description
+      FROM barang b
+      LEFT JOIN proses p ON b.resi_id = p.resi_id
+      LEFT JOIN pekerja pek ON p.id_pekerja = pek.id_pekerja
+      ${whereClause}
+      ORDER BY b.created_at DESC
+    `,
+      [...queryParams, offset, limit]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "No data to export",
+      });
+    }
+
+    // Create workbook and worksheet
+    const workbook = new excelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Data Barang");
+
+    // Define columns
+    worksheet.columns = [
+      { header: "Nomor Resi", key: "resi_id", width: 20 },
+      { header: "Status", key: "status_description", width: 25 },
+      { header: "Tanggal Dibuat", key: "created_at", width: 25 },
+      { header: "Terakhir Update", key: "updated_at", width: 25 },
+      { header: "Pekerja", key: "nama_pekerja", width: 25 },
+    ];
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+
+    // Add rows
+    rows.forEach((row) => {
+      worksheet.addRow({
+        resi_id: row.resi_id,
+        status_description: row.status_description,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        nama_pekerja: row.nama_pekerja,
+      });
+    });
+
+    // Auto fit columns
+    worksheet.columns.forEach((column) => {
+      column.alignment = { vertical: "middle", horizontal: "left" };
+    });
+
+    // Set response headers
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=data_barang_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`);
+
+    // Write to response
+    await workbook.xlsx.write(res);
+
+    res.end();
+  } catch (error) {
+    console.error("Export error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error exporting data",
       error: error.message,
     });
   }
@@ -241,6 +416,7 @@ module.exports = {
   addNewBarang,
   showAllBarang,
   cancelBarang,
-  exportBarang,
   showDetailByResi,
+  importResiFromExcel,
+  exportBarang,
 };

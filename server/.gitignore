@@ -23,3 +23,8 @@ yarn-error.log*
 # OS generated files
 .DS_Store
 Thumbs.db
+
+
+# Path: server/uploads/.gitignore
+uploads/*
+!uploads/.gitkeep
