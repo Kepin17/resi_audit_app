@@ -3,10 +3,11 @@ import DashboardLayout from "../../../Layouts/DashboardLayout";
 import Title from "../../../Elements/Title";
 import { MdCancel, MdEdit } from "react-icons/md";
 import { GiConfirmed } from "react-icons/gi";
-import { Table, DatePicker, Input } from "antd";
+import { Table, DatePicker, Input, Modal } from "antd";
 import Form from "../../../Elements/Form";
 import InputFragment from "../../../Fragments/InputFragment";
 import axios from "axios";
+import { MdPayments } from "react-icons/md";
 
 const { RangePicker } = DatePicker;
 const { Search } = Input;
@@ -25,6 +26,9 @@ const PackSalary = () => {
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0); // Add this state
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     axios
@@ -96,6 +100,40 @@ const PackSalary = () => {
     });
   };
 
+  const handlePayment = async () => {
+    if (!selectedRecord) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.put(
+        `http://localhost:8080/api/v1/gaji/packing/${selectedRecord.id_gaji_pegawai}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (response.data?.success) {
+        Modal.success({
+          title: "Payment Success",
+          content: "The payment has been processed successfully",
+        });
+        fetchGajiPacking(currentPage, pageSize, searchText);
+      }
+    } catch (err) {
+      Modal.error({
+        title: "Payment Failed",
+        content: err.response?.data?.message || "An error occurred while processing the payment",
+      });
+    } finally {
+      setLoading(false);
+      setIsModalVisible(false);
+      setSelectedRecord(null);
+    }
+  };
+
   const coloms = [
     {
       title: "Nama Pekerja",
@@ -124,14 +162,25 @@ const PackSalary = () => {
       title: "Status dibayar",
       dataIndex: "is_dibayar",
       key: "is_dibayar",
-      render: (text) => (text ? "Sudah Dibayar" : "Belum Dibayar"),
+      render: (text) => (!text ? "Sudah Dibayar" : "Belum Dibayar"),
     },
 
     {
       title: "Action",
       dataIndex: "view",
       key: "updated_at",
-      render: (text, record) => <button className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg transition duration-300">View</button>,
+      render: (text, record) => (
+        <button
+          className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg transition duration-300 flex items-center gap-2"
+          onClick={() => {
+            setSelectedRecord(record);
+            setIsModalVisible(true);
+          }}
+          disabled={record.is_dibayar}
+        >
+          <MdPayments className="text-xl" /> Payment
+        </button>
+      ),
     },
   ];
 
@@ -163,6 +212,9 @@ const PackSalary = () => {
   return (
     <DashboardLayout>
       <div className="w-full h-full bg-white rounded-lg shadow-md p-6">
+        {/* <Modal title="Detail Gaji" visible={false} open={true} footer={null} onCancel={() => {}}>
+
+        </Modal> */}
         <div className="w-full h-auto border-2 border-gray-200 rounded-lg p-6 mb-6">
           <Title>Packing Salary</Title>
           <div className="flex gap-4 items-center mt-4">
@@ -187,6 +239,20 @@ const PackSalary = () => {
             <Search placeholder="Search by Nama Pekerja" onSearch={handleSearch} enterButton />
           </div>
         </div>
+
+        <Modal
+          title="Confirm Payment"
+          open={isModalVisible}
+          onOk={handlePayment}
+          onCancel={() => {
+            setIsModalVisible(false);
+            setSelectedRecord(null);
+          }}
+          confirmLoading={loading}
+        >
+          <p>Are you sure you want to process the payment for {selectedRecord?.nama_pekerja}?</p>
+          <p>Total amount: {selectedRecord ? formatRupiah(selectedRecord.gaji_total) : ""}</p>
+        </Modal>
 
         <Table
           columns={coloms}

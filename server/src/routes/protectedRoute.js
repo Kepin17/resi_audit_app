@@ -6,7 +6,7 @@ const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi } = requ
 const { addNewBarang, showAllBarang, cancelBarang, exportBarang, showDetailByResi } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
-const { getSalary, editGaji, getGajiPacking } = require("../controllers/SalaryController");
+const { getSalary, editGaji, getGajiPacking, payPackingStaff } = require("../controllers/SalaryController");
 
 const roles = {
   staff: "staff",
@@ -44,5 +44,6 @@ router.get("/bagian", authToken, roleMiddleware([roles.supadmin]), getBagian);
 router.get("/gaji", authToken, roleMiddleware([roles.supadmin]), getSalary);
 router.put("/gaji/:id_gaji", authToken, roleMiddleware([roles.supadmin]), editGaji);
 router.get("/gaji/packing", authToken, roleMiddleware([roles.supadmin]), getGajiPacking);
+router.put("/gaji/packing/:id_gaji_pegawai", authToken, roleMiddleware([roles.supadmin]), payPackingStaff);
 
 module.exports = router;
