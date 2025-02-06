@@ -98,13 +98,13 @@ const DashboardLayout = ({ children }) => {
                 <ul className="list-inside space-y-2">
                   <li className="hover:bg-blue-300 p-2 rounded">
                     <Link to="/admin/barang" className="text-blue-800 block">
-                      Data Barang
+                      Data Resi
                     </Link>
                   </li>
 
                   <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/admin/barang/bermasalah" className="text-blue-800 block">
-                      Data Barang Bermasalah
+                    <Link to="/admin/staff/packer-audit" className="text-blue-800 block">
+                      Data Resi Terpacking
                     </Link>
                   </li>
                 </ul>

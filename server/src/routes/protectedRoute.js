@@ -3,10 +3,11 @@ const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi } = require("../controllers/auditResiController");
-const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang } = require("../controllers/barangController");
+const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff } = require("../controllers/SalaryController");
+const { showResiTerpack } = require("../controllers/resiTerpackController");
 
 const roles = {
   staff: "staff",
@@ -15,8 +16,6 @@ const roles = {
 };
 
 // add staff area
-
-// , authToken, roleMiddleware([roles.supadmin])
 
 router.post("/auth/register", authToken, roleMiddleware([roles.supadmin]), RegisterHandler);
 router.get("/auth/show", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllStaff);
@@ -32,12 +31,16 @@ router.put("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.sup
 router.get("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDetailByResi);
 router.get("/barang-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportBarang);
 router.post("/barang/import", authToken, roleMiddleware([roles.admin, roles.supadmin]), importResiFromExcel);
+router.get("/barang-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupBarang);
 
 // audit resi
 router.post("/auditResi", authToken, roleMiddleware([roles.staff]), scaneHandler);
 router.get("/auditResi/activity", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllActiviy);
 router.get("/auditResi/activity/:username", authToken, getActivityByName);
 router.get("/auditResi/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDataByResi);
+router.get("/audit-packed", authToken, roleMiddleware([roles.admin, roles.supadmin]), showResiTerpack);
+
+router.get("/resi-terpack", showResiTerpack);
 
 router.get("/bagian", authToken, roleMiddleware([roles.supadmin]), getBagian);
 

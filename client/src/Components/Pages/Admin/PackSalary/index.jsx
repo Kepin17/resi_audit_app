@@ -162,7 +162,7 @@ const PackSalary = () => {
       title: "Status dibayar",
       dataIndex: "is_dibayar",
       key: "is_dibayar",
-      render: (text) => (!text ? "Sudah Dibayar" : "Belum Dibayar"),
+      render: (text) => (text ? "Sudah Dibayar" : "Belum Dibayar"),
     },
 
     {
