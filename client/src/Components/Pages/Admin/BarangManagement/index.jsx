@@ -198,6 +198,8 @@ const AdminBarangSection = () => {
         }
 
         setImportLoading(true);
+        message.loading({ content: "Mengimport data...", key: "import" });
+
         const formData = new FormData();
         formData.append("file", file);
 
@@ -209,12 +211,15 @@ const AdminBarangSection = () => {
         });
 
         if (response.data?.success) {
-          message.success("Data berhasil diimport");
+          message.success({ content: "Data berhasil diimport", key: "import" });
           fetchBarang(currentPage);
         }
       } catch (error) {
         console.error("Error importing file:", error);
-        message.error(error.response?.data?.message || "Gagal mengimport data");
+        message.error({
+          content: error.response?.data?.message || "Gagal mengimport data",
+          key: "import",
+        });
       } finally {
         setImportLoading(false);
       }
@@ -415,40 +420,15 @@ const AdminBarangSection = () => {
                 </Table>
               </Modal>
 
-              <ExcelActionModal isOpen={exportModal} onCancel={() => setExportModal(false)} title={"Aduit Data Action"} ImportFromExcelHandler={ImportFromExcelHandler} handleBackup={handleBackup} handleExport={handleExport} />
-              {/* <Modal className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 " open={exportModal} onCancel={() => setExportModal(false)} title="Export Data" footer={null}>
-                <div className="flex h-40">
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div
-                      className="flex items-center justify-center flex-col shadow-2xl rounded-2xl p-4 border-2 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white transition-all duration-300 ease-in-out cursor-pointer"
-                      onClick={ImportFromExcelHandler}
-                    >
-                      <FaBoxesPacking className=" text-5xl" />
-                      <span className="text-md">Import Resi</span>
-                    </div>
-                  </div>
-
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div
-                      className="flex items-center justify-center flex-col shadow-2xl rounded-2xl p-4 border-2 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white transition-all duration-300 ease-in-out cursor-pointer"
-                      onClick={handleBackup}
-                    >
-                      <MdBackup className=" text-5xl" />
-                      <span className="text-md">Backup data</span>
-                    </div>
-                  </div>
-
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div
-                      className="flex items-center justify-center flex-col shadow-2xl rounded-2xl p-4 border-2 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white transition-all duration-300 ease-in-out cursor-pointer"
-                      onClick={handleExport}
-                    >
-                      <FaFileExcel className=" text-5xl" />
-                      <span className="text-md">Export Data</span>
-                    </div>
-                  </div>
-                </div>
-              </Modal> */}
+              <ExcelActionModal
+                isOpen={exportModal}
+                onCancel={() => setExportModal(false)}
+                title={"Audit Data Action"}
+                ImportFromExcelHandler={ImportFromExcelHandler}
+                handleBackup={handleBackup}
+                handleExport={handleExport}
+                importLoading={importLoading}
+              />
 
               {barang.map((item) => {
                 return (

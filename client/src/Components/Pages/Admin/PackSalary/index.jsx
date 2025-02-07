@@ -3,14 +3,15 @@ import DashboardLayout from "../../../Layouts/DashboardLayout";
 import Title from "../../../Elements/Title";
 import { MdCancel, MdEdit } from "react-icons/md";
 import { GiConfirmed } from "react-icons/gi";
-import { Table, DatePicker, Input, Modal } from "antd";
+import { Table, DatePicker, Input, Modal, message, Button } from "antd";
 import Form from "../../../Elements/Form";
 import InputFragment from "../../../Fragments/InputFragment";
-import axios from "axios";
 import { MdPayments } from "react-icons/md";
-
 const { RangePicker } = DatePicker;
 const { Search } = Input;
+import moment from "moment";
+import axios from "axios";
+import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 
 const PackSalary = () => {
   const [isEdit, setisEdit] = useState(false);
@@ -23,12 +24,14 @@ const PackSalary = () => {
   const [dateRange, setDateRange] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0); // Add this state
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false); // Add this line
+  const [openModal, setOpenModal] = useState(false);
 
   useEffect(() => {
     axios
@@ -74,7 +77,7 @@ const PackSalary = () => {
       }
     } catch (err) {
       if (err.response) {
-        setError(err.response.data.message);
+        message.error(err.response.data.message);
         setSource([]);
         setTotalPages(1);
       }
@@ -204,17 +207,146 @@ const PackSalary = () => {
     setDateRange(dates);
   };
 
-  const handleTableChange = (pagination, filters, sorter) => {
+  const handleTableChange = (pagination) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
+  };
+
+  const handleExport = async () => {
+    try {
+      setExportLoading(true);
+
+      // Build query parameters
+      const params = new URLSearchParams();
+
+      if (searchText?.trim()) {
+        params.append("search", searchText.trim());
+      }
+
+      if (dateRange?.[0] && dateRange?.[1]) {
+        params.append("startDate", dateRange[0].format("YYYY-MM-DD"));
+        params.append("endDate", dateRange[1].format("YYYY-MM-DD"));
+      }
+
+      const response = await axios.get(`http://localhost:8080/api/v1/gaji/packing-export?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        responseType: "blob",
+        responseEncoding: "binary",
+      });
+
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const fileName = `gaji_packing_${moment().format("YYYY-MM-DD")}.xlsx`;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      message.success("File berhasil diexport");
+    } catch (error) {
+      console.error("Error exporting file:", error);
+      message.error("Gagal mengexport file");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleBackup = async () => {
+    try {
+      setExportLoading(true);
+      message.loading({ content: "Memproses backup...", key: "backup" });
+
+      const response = await axios.get("http://localhost:8080/api/v1/gaji/packing-backup", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        responseType: "blob",
+      });
+
+      // Handle the backup file download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const fileName = `backup_gaji_packing_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      message.success({
+        content: "Backup berhasil disimpan",
+        key: "backup",
+        duration: 3,
+      });
+    } catch (error) {
+      console.error("Error backing up data:", error);
+      message.error({
+        content: "Gagal melakukan backup: " + (error.response?.data?.message || "Terjadi kesalahan"),
+        key: "backup",
+        duration: 3,
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const ImportFromExcelHandler = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".xlsx, .xls";
+
+    input.onchange = async (e) => {
+      try {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Check file extension
+        const fileExt = file.name.split(".").pop().toLowerCase();
+        if (!["xlsx", "xls"].includes(fileExt)) {
+          message.error("Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)");
+          return;
+        }
+
+        setImportLoading(true);
+        message.loading({ content: "Mengimport data...", key: "import" });
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await axios.post("http://localhost:8080/api/v1/gaji/packing-import", formData, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        if (response.data?.success) {
+          message.success({ content: "Data berhasil diimport", key: "import" });
+          fetchGajiPacking(currentPage, pageSize, searchText); // Fixed function name
+        }
+      } catch (error) {
+        console.error("Error importing file:", error);
+        message.error({
+          content: error.response?.data?.message || "Gagal mengimport data",
+          key: "import",
+        });
+      } finally {
+        setImportLoading(false);
+      }
+    };
+
+    input.click();
   };
 
   return (
     <DashboardLayout>
       <div className="w-full h-full bg-white rounded-lg shadow-md p-6">
-        {/* <Modal title="Detail Gaji" visible={false} open={true} footer={null} onCancel={() => {}}>
-
-        </Modal> */}
         <div className="w-full h-auto border-2 border-gray-200 rounded-lg p-6 mb-6">
           <Title>Packing Salary</Title>
           <div className="flex gap-4 items-center mt-4">
@@ -233,6 +365,9 @@ const PackSalary = () => {
                 </button>
               )}
             </div>
+            <Button className="border-2 border-blue-500 p-4" onClick={() => setOpenModal(true)}>
+              Action
+            </Button>
           </div>
           <div className="mt-4 flex space-x-4 gap-2">
             <RangePicker onChange={handleDateChange} />
@@ -254,6 +389,7 @@ const PackSalary = () => {
           <p>Total amount: {selectedRecord ? formatRupiah(selectedRecord.gaji_total) : ""}</p>
         </Modal>
 
+        <ExcelActionModal isOpen={openModal} onCancel={() => setOpenModal(false)} ImportFromExcelHandler={ImportFromExcelHandler} handleExport={handleExport} handleBackup={handleBackup} />
         <Table
           columns={coloms}
           rowKey="id_gaji_pegawai"

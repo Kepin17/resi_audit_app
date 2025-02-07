@@ -101,12 +101,6 @@ const DashboardLayout = ({ children }) => {
                       Data Resi
                     </Link>
                   </li>
-
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/admin/staff/packer-audit" className="text-blue-800 block">
-                      Data Resi Terpacking
-                    </Link>
-                  </li>
                 </ul>
               </div>
             </li>

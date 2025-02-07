@@ -6,7 +6,7 @@ const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi } = requ
 const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
-const { getSalary, editGaji, getGajiPacking, payPackingStaff } = require("../controllers/SalaryController");
+const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel } = require("../controllers/SalaryController");
 const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExcel } = require("../controllers/resiTerpackController");
 
 const roles = {
@@ -57,5 +57,11 @@ router.get("/gaji", authToken, roleMiddleware([roles.supadmin]), getSalary);
 router.put("/gaji/:id_gaji", authToken, roleMiddleware([roles.supadmin]), editGaji);
 router.get("/gaji/packing", authToken, roleMiddleware([roles.supadmin]), getGajiPacking);
 router.put("/gaji/packing/:id_gaji_pegawai", authToken, roleMiddleware([roles.supadmin]), payPackingStaff);
+
+// audit gaji
+
+router.get("/gaji/packing-export", authToken, roleMiddleware([roles.supadmin]), exportGaji);
+router.get("/gaji/packing-backup", authToken, roleMiddleware([roles.supadmin]), backupGajiPacking);
+router.post("/gaji/packing-import", authToken, roleMiddleware([roles.supadmin]), importGajiFromExcel);
 
 module.exports = router;

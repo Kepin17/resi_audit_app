@@ -135,9 +135,25 @@ const StaffManagementPage = () => {
 
   const handleEdit = (staff) => {
     setEditingStaff(staff);
-    form.setFieldsValue(staff);
+    form.setFieldsValue({
+      username: staff.username,
+      nama_pekerja: staff.nama_pekerja,
+      id_bagian: staff.id_bagian,
+      role: staff.role,
+    });
     setIsModalVisible(true);
   };
+
+  useEffect(() => {
+    if (editingStaff) {
+      form.setFieldsValue({
+        username: editingStaff.username,
+        nama_pekerja: editingStaff.nama_pekerja,
+        id_bagian: editingStaff.id_bagian,
+        role: editingStaff.role,
+      });
+    }
+  }, [editingStaff, form]);
 
   const handleDelete = async (id_pekerja) => {
     try {
@@ -324,19 +340,25 @@ const StaffManagementPage = () => {
               <Input />
             </Form.Item>
 
-            <Form.Item name="id_bagian" label="Dapartement (Optional for admin)" rules={[{ required: true, message: "Please input staff department!" }]}>
+            <Form.Item
+              name="id_bagian"
+              label="Dapartement"
+              rules={[
+                {
+                  required: form.getFieldValue("role") !== "superadmin",
+                  message: "Please input staff department!",
+                },
+              ]}
+            >
               <Select
-                style={{ width: 200 }}
-                placeholder="Search to Select"
-                optionFilterProp="label"
-                value={form.getFieldValue("id_bagian") || ""}
-                filterSort={(optionA, optionB) => (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())}
-                options={[].concat(
-                  bagian.map((item) => ({
-                    label: item.jenis_pekerja,
-                    value: item.id_bagian,
-                  }))
-                )}
+                style={{ width: "100%" }}
+                placeholder="Select Department"
+                optionFilterProp="children"
+                value={form.getFieldValue("id_bagian")}
+                options={bagian.map((item) => ({
+                  label: item.jenis_pekerja,
+                  value: item.id_bagian,
+                }))}
               />
             </Form.Item>
 
