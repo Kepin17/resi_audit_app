@@ -399,37 +399,12 @@ const exportBarang = async (req, res) => {
 
 const backupBarang = async (req, res) => {
   try {
-    const { search, status, startDate, endDate } = req.query;
-
-    // Build the WHERE clause dynamically
-    let whereConditions = [];
-    let queryParams = [];
-
-    if (search) {
-      whereConditions.push("(barang.resi_id LIKE ? OR barang.resi_id LIKE ?)");
-      queryParams.push(`%${search}%`, `%${search}%`);
-    }
-
-    if (status && status !== "Semua") {
-      whereConditions.push("status_barang = ?");
-      queryParams.push(status);
-    }
-
-    if (startDate && endDate) {
-      whereConditions.push("DATE(barang.created_at) BETWEEN ? AND ?");
-      queryParams.push(startDate, endDate);
-    }
-
-    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
-
     // Get data from database
     const [rows] = await mysqlPool.query(
       `
       SELECT * FROM barang
-      ${whereClause}
       ORDER BY created_at DESC
-    `,
-      [...queryParams]
+    `
     );
 
     if (rows.length === 0) {

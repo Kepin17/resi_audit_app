@@ -7,7 +7,7 @@ const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiF
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff } = require("../controllers/SalaryController");
-const { showResiTerpack } = require("../controllers/resiTerpackController");
+const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExcel } = require("../controllers/resiTerpackController");
 
 const roles = {
   staff: "staff",
@@ -43,8 +43,13 @@ router.get("/auditResi/activity/:username", authToken, getActivityByName);
 router.get("/auditResi/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDataByResi);
 router.get("/audit-packed", authToken, roleMiddleware([roles.admin, roles.supadmin]), showResiTerpack);
 
+// audit packing
 router.get("/resi-terpack", showResiTerpack);
+router.get("/resi-terpack-export", exportPackToExcel);
+router.get("/resi-terpack-backup", backupPackToExcel);
+router.post("/resi-terpack-import", importPackFromExcel);
 
+// bagian
 router.get("/bagian", authToken, roleMiddleware([roles.supadmin]), getBagian);
 
 // gaji bos

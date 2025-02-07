@@ -208,7 +208,7 @@ const StaffManagementPage = () => {
         formData.append("file", file);
 
         const response = await axios.post("http://localhost:8080/api/v1/auth-import", formData, {
-          headers: {k
+          headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "Content-Type": "multipart/form-data",
           },

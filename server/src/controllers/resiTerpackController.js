@@ -1,67 +1,53 @@
 const mysqlPool = require("../config/db");
 const excelJS = require("exceljs");
+const moment = require("moment");
 
 const showResiTerpack = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
     const { search, startDate, endDate } = req.query;
 
-    let whereConditions = ["log_proses.status_proses = 'packing'"]; // Base condition
-    let queryParams = [];
-
-    if (search) {
-      whereConditions.push("(log_proses.resi_id LIKE ? OR pekerja.nama_pekerja LIKE ?)");
-      queryParams.push(`%${search}%`, `%${search}%`);
-    }
-
-    if (startDate && endDate) {
-      whereConditions.push("DATE(log_proses.created_at) BETWEEN ? AND ?");
-      queryParams.push(startDate, endDate);
-    }
-
-    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
-
-    // Get total count for pagination
-    const [countResult] = await mysqlPool.query(
-      `SELECT COUNT(DISTINCT log_proses.id_log) as total 
+    // Get today's count
+    const [todayCount] = await mysqlPool.query(
+      `SELECT COUNT(*) as today_count 
        FROM log_proses 
-       LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja 
-       ${whereClause}`,
-      queryParams
+       WHERE status_proses = 'packing' 
+       AND DATE(created_at) = CURDATE()`
     );
 
-    const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
-
-    // Main query with pagination
-    const [rows] = await mysqlPool.query(
-      `SELECT DISTINCT
+    let query = `
+      SELECT DISTINCT
         log_proses.id_log,
         log_proses.resi_id,
         log_proses.id_pekerja,
         log_proses.status_proses,
         log_proses.created_at,
         pekerja.nama_pekerja
-       FROM log_proses
-       LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-       ${whereClause}
-       ORDER BY log_proses.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset]
-    );
+      FROM log_proses
+      LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
+      WHERE log_proses.status_proses = 'packing'
+    `;
+
+    const params = [];
+
+    if (search) {
+      query += ` AND (log_proses.resi_id LIKE ? OR pekerja.nama_pekerja LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (startDate && endDate) {
+      query += ` AND DATE(log_proses.created_at) BETWEEN ? AND ?`;
+      params.push(startDate, endDate);
+    }
+
+    query += ` ORDER BY log_proses.created_at DESC`;
+
+    const [rows] = await mysqlPool.query(query, params);
 
     return res.status(200).json({
       success: true,
       message: "Data berhasil ditemukan!",
       data: rows,
-      pagination: {
-        currentPage: page,
-        totalPages: totalPages,
-        totalItems: totalItems,
-        limit: limit,
-      },
+      todayCount: todayCount[0].today_count,
     });
   } catch (err) {
     console.error("Error in showResiTerpack:", err);
@@ -73,6 +59,208 @@ const showResiTerpack = async (req, res) => {
   }
 };
 
+const exportPackToExcel = async (req, res) => {
+  try {
+    const workbook = new excelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Resi Packing");
+
+    worksheet.columns = [
+      { header: "Resi ID", key: "resi_id", width: 20 },
+      { header: "Staff Name", key: "nama_pekerja", width: 20 },
+      { header: "Status", key: "status_proses", width: 15 },
+      { header: "Pack Date", key: "created_at", width: 20 },
+    ];
+
+    const [rows] = await mysqlPool.query(`
+      SELECT 
+        log_proses.resi_id,
+        pekerja.nama_pekerja,
+        log_proses.status_proses,
+        log_proses.created_at
+      FROM log_proses
+      LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
+      WHERE log_proses.status_proses = 'packing'
+      ORDER BY log_proses.created_at DESC
+    `);
+
+    rows.forEach((row) => {
+      worksheet.addRow({
+        ...row,
+        created_at: moment(row.created_at).format("DD/MM/YYYY HH:mm:ss"),
+      });
+    });
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=resi_packing_${moment().format("DDMMYYYY")}.xlsx`);
+
+    return workbook.xlsx.write(res);
+  } catch (err) {
+    console.error("Error in exportToExcel:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to export data",
+      error: err.message,
+    });
+  }
+};
+
+const backupPackToExcel = async (req, res) => {
+  try {
+    const workbook = new excelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Backup_Resi_Packing");
+
+    worksheet.columns = [
+      { header: "ID", key: "id_log", width: 10 },
+      { header: "Resi ID", key: "resi_id", width: 20 },
+      { header: "ID Pekerja", key: "id_pekerja", width: 20 },
+      { header: "Status", key: "status_proses", width: 15 },
+      { header: "Pack Date", key: "created_at", width: 20 },
+      { header: "updated at", key: "updated_at", width: 20 },
+    ];
+
+    const [rows] = await mysqlPool.query(`
+      SELECT 
+       * 
+      FROM log_proses
+      WHERE log_proses.status_proses = 'packing'
+      ORDER BY log_proses.created_at DESC
+    `);
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+
+    // Add rows
+    rows.forEach((row) => {
+      worksheet.addRow({
+        id_log: row.id_log,
+        resi_id: row.resi_id,
+        id_pekerja: row.id_pekerja,
+        status_proses: row.status_proses,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      });
+    });
+
+    // Auto fit columns
+    worksheet.columns.forEach((column) => {
+      column.alignment = { vertical: "middle", horizontal: "left" };
+    });
+
+    // Set response headers
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=data_barang_${moment().format("YYYY-MM-DD_HH-mm")}_backup.xlsx`);
+
+    // Write to response
+    await workbook.xlsx.write(res);
+
+    res.end();
+  } catch (err) {
+    console.error("Error in backupToExcel:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create backup",
+      error: err.message,
+    });
+  }
+};
+
+const importPackFromExcel = async (req, res) => {
+  try {
+    if (!req.files || !req.files.file) {
+      return res.status(400).send({
+        success: false,
+        message: "No file uploaded",
+      });
+    }
+
+    const file = req.files.file;
+    const fileExt = file.name.split(".").pop().toLowerCase();
+
+    if (!["xlsx", "xls"].includes(fileExt)) {
+      return res.status(400).send({
+        success: false,
+        message: "Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)",
+      });
+    }
+
+    const workbook = new excelJS.Workbook();
+    const filePath = `./server/uploads/${file.name}`;
+
+    file.mv(filePath, async (err) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).send({
+          success: false,
+          message: "Error when trying to upload file",
+          error: err.message,
+        });
+      }
+
+      try {
+        await workbook.xlsx.readFile(filePath);
+        const worksheet = workbook.getWorksheet(1);
+
+        const rows = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber !== 1) {
+            // Skip header row
+            const id_log = row.getCell(1).value; // Column A
+            const resi_id = row.getCell(2).value; // Column B
+            const id_pekerja = row.getCell(3).value; // Column C
+            const status_proses = row.getCell(4).value; // Column D
+            const created_at = row.getCell(5).value; // Column E
+            const updated_at = row.getCell(6).value; // Column F
+
+            rows.push([id_log, resi_id, id_pekerja, status_proses, created_at ? new Date(created_at) : new Date(), updated_at ? new Date(updated_at) : new Date()]);
+          }
+        });
+
+        // Handle each row with multiple columns
+        for (const row of rows) {
+          await mysqlPool.query(
+            `INSERT INTO log_proses (id_log, resi_id, id_pekerja, status_proses, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE 
+             id_log = VALUES(id_log),
+             id_pekerja = VALUES(id_pekerja),
+             status_proses = VALUES(status_proses),
+             created_at = VALUES(created_at),
+             updated_at = VALUES(updated_at)`,
+            row
+          );
+        }
+
+        return res.status(200).send({
+          success: true,
+          message: "Data berhasil diimport dan diupdate",
+        });
+      } catch (error) {
+        console.error("Error processing Excel file:", error);
+        return res.status(500).send({
+          success: false,
+          message: "Error processing Excel file",
+          error: error.message,
+        });
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to import resi",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   showResiTerpack,
+  exportPackToExcel,
+  backupPackToExcel,
+  importPackFromExcel,
 };
