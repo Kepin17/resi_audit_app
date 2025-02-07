@@ -365,7 +365,7 @@ const exportGaji = async (req, res) => {
         key: "gaji_total",
         width: 25,
       },
-      {k
+      {
         header: "Tanggal Update",
         key: "updated_at",
         width: 25,
