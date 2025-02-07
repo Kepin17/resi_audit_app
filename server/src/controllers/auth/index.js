@@ -2,6 +2,9 @@ const mysqlPool = require("../../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const UAParser = require("ua-parser-js");
+const excelJS = require("exceljs");
+const moment = require("moment");
+const fs = require("fs");
 
 require("dotenv").config();
 const secretKey = process.env.SECRET_KEY;
@@ -496,4 +499,293 @@ const deleteStaff = async (req, res) => {
   }
 };
 
-module.exports = { RegisterHandler, loginHandler, logOutHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff };
+const importStaffFromExcel = async (req, res) => {
+  try {
+    if (!req.files || !req.files.file) {
+      return res.status(400).send({
+        success: false,
+        message: "No file uploaded",
+      });
+    }
+
+    const file = req.files.file;
+    const fileExt = file.name.split(".").pop().toLowerCase();
+
+    if (!["xlsx", "xls"].includes(fileExt)) {
+      return res.status(400).send({
+        success: false,
+        message: "Unsupported file format. Please use Excel (.xlsx or .xls)",
+      });
+    }
+
+    const workbook = new excelJS.Workbook();
+    const filePath = `./server/uploads/${file.name}`;
+
+    file.mv(filePath, async (err) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).send({
+          success: false,
+          message: "Error uploading file",
+          error: err.message,
+        });
+      }
+
+      try {
+        await workbook.xlsx.readFile(filePath);
+        const worksheet = workbook.getWorksheet(1);
+        const validRoles = ["superadmin", "admin", "staff"];
+        const rows = [];
+
+        // Skip header row and process each data row
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber > 1) {
+            // Skip header row
+            // Get values from correct columns
+            const id_pekerja = row.getCell(1).value;
+            const username = row.getCell(2).value?.toString().trim();
+            const nama_pekerja = row.getCell(3).value?.toString().trim();
+            const id_bagian = row.getCell(4).value?.toString().toUpperCase().trim();
+            const password = row.getCell(5).value?.toString().trim();
+            const role = row.getCell(6).value?.toString().toLowerCase().trim();
+
+            // Validate role
+            if (!validRoles.includes(role)) {
+              throw new Error(`Invalid role '${role}' at row ${rowNumber}. Valid roles are: ${validRoles.join(", ")}`);
+            }
+
+            rows.push({
+              id_pekerja,
+              username,
+              nama_pekerja,
+              id_bagian,
+              password,
+              role,
+            });
+          }
+        });
+
+        // Validate and insert data
+        for (const row of rows) {
+          const defaultPassword = await bcrypt.hash("password123", 10);
+
+          await mysqlPool.query(
+            `INSERT INTO pekerja (id_pekerja, username, nama_pekerja, id_bagian, password, role) 
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE 
+             nama_pekerja = VALUES(nama_pekerja),
+             id_bagian = VALUES(id_bagian),
+             role = VALUES(role)`,
+            [row.id_pekerja, row.username, row.nama_pekerja, row.id_bagian, defaultPassword, row.role]
+          );
+        }
+
+        // Clean up uploaded file
+        fs.unlinkSync(filePath);
+
+        return res.status(200).send({
+          success: true,
+          message: `Successfully imported ${rows.length} staff records`,
+          imported: rows.length,
+        });
+      } catch (error) {
+        // Clean up file on error
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        return res.status(400).send({
+          success: false,
+          message: "Error processing Excel file",
+          error: error.message,
+        });
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      success: false,
+      message: "Error importing staff data",
+      error: error.message,
+    });
+  }
+};
+
+const exportStaff = async (req, res) => {
+  try {
+    const { search, role } = req.query;
+
+    let whereConditions = [];
+    let queryParams = [];
+
+    if (search) {
+      whereConditions.push("(pekerja.nama_pekerja LIKE ? OR bagian.jenis_pekerja LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (role && role !== "all") {
+      whereConditions.push("pekerja.role = ?");
+      queryParams.push(role);
+    }
+
+    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
+
+    const [rows] = await mysqlPool.query(
+      `
+       SELECT pekerja.username,
+              pekerja.nama_pekerja,
+              bagian.jenis_pekerja,
+              pekerja.role,
+              pekerja.created_at
+        FROM pekerja
+        LEFT JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
+       ${whereClause}
+       ORDER BY pekerja.created_at DESC`,
+      queryParams
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "No data to export",
+      });
+    }
+
+    const workbook = new excelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Staff Data");
+
+    worksheet.columns = [
+      { header: "Username", key: "username", width: 20 },
+      { header: "Nama Pekerja", key: "nama_pekerja", width: 30 },
+      { header: "Bagian", key: "jenis_pekerja", width: 25 },
+      { header: "Role", key: "role", width: 15 },
+      { header: "Tanggal Bergabung", key: "created_at", width: 25 },
+    ];
+
+    // Add metadata row for filter information
+    worksheet.addRow([`Search: ${search || "None"} | Role: ${role || "All"}`]);
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+
+    worksheet.getRow(2).font = { bold: true };
+    worksheet.getRow(2).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+
+    // Add data rows
+    rows.forEach((row) => worksheet.addRow(row));
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=staff_data_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Export error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error exporting staff data",
+      error: error.message,
+    });
+  }
+};
+
+const backupStaff = async (req, res) => {
+  try {
+    // Get data from database
+    const [rows] = await mysqlPool.query(
+      `
+      SELECT * FROM pekerja
+      ORDER BY created_at DESC
+    `
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "No data to export",
+      });
+    }
+
+    // Create workbook and worksheet
+    const workbook = new excelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Data Barang");
+
+    // Define columns
+    worksheet.columns = [
+      { header: "id pekerja", key: "id_pekerja", width: 20 },
+      { header: "username", key: "username", width: 25 },
+      { header: "nama staff", key: "nama_pekerja", width: 25 },
+      { header: "ID Bagian", key: "id_bagian", width: 25 },
+      { header: "password", key: "password", width: 25 },
+      { header: "Role", key: "role", width: 25 },
+      { header: "Tanggal Dibuat", key: "created_at", width: 25 },
+      { header: "Terakhir Update", key: "updated_at", width: 25 },
+    ];
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+
+    // Add rows
+    rows.forEach((row) => {
+      worksheet.addRow({
+        id_pekerja: row.id_pekerja,
+        username: row.username,
+        nama_pekerja: row.nama_pekerja,
+        id_bagian: row.id_bagian,
+        password: row.password,
+        role: row.role,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      });
+    });
+
+    // Auto fit columns
+    worksheet.columns.forEach((column) => {
+      column.alignment = { vertical: "middle", horizontal: "left" };
+    });
+
+    // Set response headers
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=data_barang_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`);
+
+    // Write to response
+    await workbook.xlsx.write(res);
+
+    res.end();
+  } catch (error) {
+    console.error("Export error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error exporting data",
+      error: error.message,
+    });
+  }
+};
+
+// Update the module exports to include new functions
+module.exports = {
+  RegisterHandler,
+  loginHandler,
+  logOutHandler,
+  showAllStaff,
+  showStaffDetail,
+  editStaff,
+  deviceLog,
+  deleteStaff,
+  importStaffFromExcel,
+  exportStaff,
+  backupStaff,
+};

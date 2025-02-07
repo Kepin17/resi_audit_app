@@ -11,8 +11,7 @@ import { IoIosCreate } from "react-icons/io";
 import axios from "axios";
 import Modal from "antd/es/modal/Modal";
 import { PiMicrosoftExcelLogoFill } from "react-icons/pi";
-import { FaBoxesPacking, FaFileExcel } from "react-icons/fa6";
-import { MdBackup } from "react-icons/md";
+import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -271,37 +270,37 @@ const AdminBarangSection = () => {
   const handleBackup = async () => {
     try {
       setExportLoading(true);
-      message.loading({ content: 'Memproses backup...', key: 'backup' });
+      message.loading({ content: "Memproses backup...", key: "backup" });
 
       const response = await axios.get("http://localhost:8080/api/v1/barang-backup", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        responseType: 'blob',
+        responseType: "blob",
       });
 
       // Handle the backup file download
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      const fileName = `backup_barang_${moment().format('YYYY-MM-DD_HH-mm')}.xlsx`;
-      link.setAttribute('download', fileName);
+      const fileName = `backup_barang_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`;
+      link.setAttribute("download", fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
 
-      message.success({ 
-        content: 'Backup berhasil disimpan', 
-        key: 'backup', 
-        duration: 3 
+      message.success({
+        content: "Backup berhasil disimpan",
+        key: "backup",
+        duration: 3,
       });
     } catch (error) {
       console.error("Error backing up data:", error);
-      message.error({ 
-        content: 'Gagal melakukan backup: ' + (error.response?.data?.message || 'Terjadi kesalahan'), 
-        key: 'backup',
-        duration: 3 
+      message.error({
+        content: "Gagal melakukan backup: " + (error.response?.data?.message || "Terjadi kesalahan"),
+        key: "backup",
+        duration: 3,
       });
     } finally {
       setExportLoading(false);
@@ -347,25 +346,6 @@ const AdminBarangSection = () => {
                 <RangePicker onChange={handleDateChange} className="w-full sm:w-[280px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
                 <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nomor resi" className="w-full sm:w-[320px] shadow-sm" />
               </div>
-              <div className="flex items-center gap-2 lg:ml-auto w-full lg:w-auto">
-                <Button
-                  buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-5 py-2.5 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg w-full lg:w-auto justify-center"
-                  onClick={() => setExportModal(true)}
-                  disabled={exportLoading}
-                >
-                  {exportLoading ? (
-                    <span className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Loading...
-                    </span>
-                  ) : (
-                    <>
-                      <PiMicrosoftExcelLogoFill className="text-lg" />
-                      <span>Export Excel</span>
-                    </>
-                  )}
-                </Button>
-              </div>
             </div>
 
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -384,14 +364,34 @@ const AdminBarangSection = () => {
                   </Button>
                 ))}
               </div>
-              <Button
-                buttonStyle="bg-blue-500 flex items-center gap-2 text-white px-6 py-2.5 
+
+              <div className="flex items-center gap-2 lg:ml-auto w-full lg:w-auto">
+                <Button
+                  buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-5 py-2.5 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg w-full lg:w-auto justify-center"
+                  onClick={() => setExportModal(true)}
+                  disabled={exportLoading}
+                >
+                  {exportLoading ? (
+                    <span className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Loading...
+                    </span>
+                  ) : (
+                    <>
+                      <PiMicrosoftExcelLogoFill className="text-lg" />
+                      <span>Action</span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  buttonStyle="bg-blue-500 flex items-center gap-2 text-white px-6 py-2.5 
                 rounded-lg transition-all duration-300 hover:bg-blue-600 shadow-md hover:shadow-lg font-medium w-full lg:w-auto justify-center"
-                onClick={() => setIsModalOpen(true)}
-              >
-                <IoIosCreate className="text-lg" />
-                <span className="text-sm whitespace-nowrap">Buat Resi</span>
-              </Button>
+                  onClick={() => setIsModalOpen(true)}
+                >
+                  <IoIosCreate className="text-lg" />
+                  <span className="text-sm whitespace-nowrap">Buat Resi</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -413,7 +413,8 @@ const AdminBarangSection = () => {
                 </Table>
               </Modal>
 
-              <Modal className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 " open={exportModal} onCancel={() => setExportModal(false)} title="Export Data" footer={null}>
+              <ExcelActionModal isOpen={exportModal} onCancel={() => setExportModal(false)} title={"Aduit Data Action"} ImportFromExcelHandler={ImportFromExcelHandler} handleBackup={handleBackup} handleExport={handleExport} />
+              {/* <Modal className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 " open={exportModal} onCancel={() => setExportModal(false)} title="Export Data" footer={null}>
                 <div className="flex h-40">
                   <div className="w-full h-full flex items-center justify-center">
                     <div
@@ -445,7 +446,7 @@ const AdminBarangSection = () => {
                     </div>
                   </div>
                 </div>
-              </Modal>
+              </Modal> */}
 
               {barang.map((item) => {
                 return (

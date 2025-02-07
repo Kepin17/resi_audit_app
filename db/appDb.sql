@@ -75,6 +75,8 @@ CREATE TABLE status_logs (
 );
 
 
+-- drop table device_logs
+
 -- Create device_logs table
 CREATE TABLE device_logs (
     id_log INT PRIMARY KEY AUTO_INCREMENT,
@@ -82,7 +84,7 @@ CREATE TABLE device_logs (
     ip_address VARCHAR(45),
     device_info JSON,
     login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja)
+    FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 DELIMITER $$
@@ -100,25 +102,6 @@ END$$
 
 DELIMITER ;
 
-DELIMITER $$
-
--- Cleanup procedure for old logs
-CREATE PROCEDURE cleanup_old_logs()
-BEGIN
-    -- Keep last 30 days of logs
-    DELETE FROM device_logs 
-    WHERE logged_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
-    
-    DELETE FROM status_logs 
-    WHERE logged_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
-END$$
-
--- Schedule cleanup event
-CREATE EVENT evt_cleanup_logs
-ON SCHEDULE EVERY 1 DAY
-DO CALL cleanup_old_logs()$$
-
-DELIMITER ;
 
 
 -- DROP TABLE BARANG

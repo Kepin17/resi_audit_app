@@ -4,7 +4,7 @@ const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi } = require("../controllers/auditResiController");
 const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang } = require("../controllers/barangController");
-const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff } = require("../controllers/auth");
+const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff } = require("../controllers/SalaryController");
 const { showResiTerpack } = require("../controllers/resiTerpackController");
@@ -23,6 +23,9 @@ router.get("/auth/show/:id_pekerja", authToken, roleMiddleware([roles.supadmin])
 router.delete("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), deleteStaff);
 router.put("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), editStaff);
 router.get("/auth/log", authToken, roleMiddleware([roles.admin, roles.supadmin]), deviceLog);
+router.post("/auth-import", authToken, roleMiddleware([roles.admin, roles.supadmin]), importStaffFromExcel);
+router.get("/auth-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupStaff);
+router.get("/auth-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportStaff);
 
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllBarang);

@@ -287,44 +287,30 @@ const importResiFromExcel = async (req, res) => {
 
 const exportBarang = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 12;
-    const offset = (page - 1) * limit;
     const { search, status, startDate, endDate } = req.query;
 
     // Build the WHERE clause dynamically
     let whereConditions = [];
     let queryParams = [];
 
-    // Updated search condition
     if (search) {
-      whereConditions.push("(barang.resi_id LIKE ? OR barang.resi_id LIKE ?)");
+      whereConditions.push("(b.resi_id LIKE ? OR b.resi_id LIKE ?)");
       queryParams.push(`%${search}%`, `%${search}%`);
     }
 
     if (status && status !== "Semua") {
-      whereConditions.push("status_barang = ?");
+      whereConditions.push("b.status_barang = ?");
       queryParams.push(status);
     }
 
     if (startDate && endDate) {
-      whereConditions.push("DATE(barang.created_at) BETWEEN ? AND ?");
+      whereConditions.push("DATE(b.created_at) BETWEEN ? AND ?");
       queryParams.push(startDate, endDate);
     }
 
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
-    const [countResult] = await mysqlPool.query(
-      `SELECT COUNT(*) as count 
-       FROM barang 
-       ${whereClause}`,
-      queryParams
-    );
-
-    const totalItems = countResult[0].count;
-    const totalPages = Math.ceil(totalItems / limit);
-
-    // Get data from database
+    // Get filtered data from database
     const [rows] = await mysqlPool.query(
       `
       SELECT 
@@ -347,7 +333,7 @@ const exportBarang = async (req, res) => {
       ${whereClause}
       ORDER BY b.created_at DESC
     `,
-      [...queryParams, offset, limit]
+      queryParams
     );
 
     if (rows.length === 0) {
@@ -357,11 +343,9 @@ const exportBarang = async (req, res) => {
       });
     }
 
-    // Create workbook and worksheet
     const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet("Data Barang");
 
-    // Define columns
     worksheet.columns = [
       { header: "Nomor Resi", key: "resi_id", width: 20 },
       { header: "Status", key: "status_description", width: 25 },
@@ -370,15 +354,20 @@ const exportBarang = async (req, res) => {
       { header: "Pekerja", key: "nama_pekerja", width: 25 },
     ];
 
-    // Style the header row
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).fill = {
+    // Add metadata row for filter information
+    const filterInfo = [`Search: ${search || "None"}`, `Status: ${status || "All"}`, `Date Range: ${startDate || "None"} to ${endDate || "None"}`].join(" | ");
+    worksheet.addRow([filterInfo]);
+    worksheet.mergeCells(`A1:E1`);
+
+    // Style header rows
+    worksheet.getRow(2).font = { bold: true };
+    worksheet.getRow(2).fill = {
       type: "pattern",
       pattern: "solid",
       fgColor: { argb: "FFE0E0E0" },
     };
 
-    // Add rows
+    // Add data rows starting from row 3
     rows.forEach((row) => {
       worksheet.addRow({
         resi_id: row.resi_id,
@@ -389,18 +378,14 @@ const exportBarang = async (req, res) => {
       });
     });
 
-    // Auto fit columns
     worksheet.columns.forEach((column) => {
       column.alignment = { vertical: "middle", horizontal: "left" };
     });
 
-    // Set response headers
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename=data_barang_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`);
 
-    // Write to response
     await workbook.xlsx.write(res);
-
     res.end();
   } catch (error) {
     console.error("Export error:", error);
@@ -414,12 +399,37 @@ const exportBarang = async (req, res) => {
 
 const backupBarang = async (req, res) => {
   try {
+    const { search, status, startDate, endDate } = req.query;
+
+    // Build the WHERE clause dynamically
+    let whereConditions = [];
+    let queryParams = [];
+
+    if (search) {
+      whereConditions.push("(barang.resi_id LIKE ? OR barang.resi_id LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (status && status !== "Semua") {
+      whereConditions.push("status_barang = ?");
+      queryParams.push(status);
+    }
+
+    if (startDate && endDate) {
+      whereConditions.push("DATE(barang.created_at) BETWEEN ? AND ?");
+      queryParams.push(startDate, endDate);
+    }
+
+    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
+
     // Get data from database
     const [rows] = await mysqlPool.query(
       `
       SELECT * FROM barang
+      ${whereClause}
       ORDER BY created_at DESC
-    `
+    `,
+      [...queryParams]
     );
 
     if (rows.length === 0) {

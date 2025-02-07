@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
-import { Button, Table, Modal, Form, Input, Space, message, Select, Pagination } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { Button, Table, Modal, Form, Input, Space, message, Select, Pagination, Upload } from "antd";
+import { EditOutlined, DeleteOutlined, PlusOutlined, UploadOutlined, DownloadOutlined } from "@ant-design/icons";
 import axios from "axios";
 import "./staff.css";
 import { FaMoneyBill } from "react-icons/fa";
 import SearchFragment from "../../../Fragments/SearchFragment";
+import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 
 const StaffManagementPage = () => {
   const [staffList, setStaffList] = useState([]);
@@ -186,13 +187,103 @@ const StaffManagementPage = () => {
     debouncedSearch(value);
   };
 
+  const ImportFromExcelHandler = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".xlsx, .xls";
+
+    input.onchange = async (e) => {
+      try {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Check file extension
+        const fileExt = file.name.split(".").pop().toLowerCase();
+        if (!["xlsx", "xls"].includes(fileExt)) {
+          message.error("Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await axios.post("http://localhost:8080/api/v1/auth-import", formData, {
+          headers: {k
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        if (response.data?.success) {
+          message.success("Data berhasil diimport");
+          fetchStaff(currentPage);
+        }
+      } catch (error) {
+        console.error("Error importing file:", error);
+        message.error(error.response?.data?.message || "Gagal mengimport data");
+      }
+    };
+
+    input.click();
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await axios.get("http://localhost:8080/api/v1/auth-export", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `staff_data_${new Date().toISOString().split("T")[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      message.error("Failed to export staff data");
+    }
+  };
+
+  const handleBackup = async () => {
+    try {
+      const response = await axios.get("http://localhost:8080/api/v1/auth-backup", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `staff_data_${new Date().toISOString().split("T")[0]}_backup.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      message.error("Failed to backup staff data");
+    }
+  };
+
+  const [ExcelModalOpen, setExcelModalOpen] = useState(false);
+
   return (
     <DashboardLayout>
       <div style={{ padding: "24px" }}>
         <div style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between" }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            Add Staff
-          </Button>
+          <Space>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+              Add Staff
+            </Button>
+
+            <Button icon={<DownloadOutlined />} onClick={() => setExcelModalOpen(true)}>
+              Excel Action
+            </Button>
+          </Space>
           <SearchFragment onSearch={handleSearchInput} value={searchInput} placeholder="Search by name or role..." style={{ width: "250px" }} allowClear />
         </div>
 
@@ -212,6 +303,8 @@ const StaffManagementPage = () => {
             align="end"
           />
         </div>
+
+        <ExcelActionModal isOpen={ExcelModalOpen} onCancel={() => setExcelModalOpen(false)} ImportFromExcelHandler={ImportFromExcelHandler} handleBackup={handleBackup} handleExport={handleExport} />
 
         <Modal
           open={isModalVisible}
