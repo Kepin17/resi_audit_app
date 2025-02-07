@@ -162,7 +162,7 @@ const PackSalary = () => {
       title: "Status dibayar",
       dataIndex: "is_dibayar",
       key: "is_dibayar",
-      render: (text) => (text ? "Sudah Dibayar" : "Belum Dibayar"),
+      render: (text) => (text ? <span className="bg-green-200 p-2 rounded-md text-green-600 font-bold">Sudah Dibayar</span> : <span className="bg-red-200 p-2 rounded-md text-red-600 font-bold">Belum Dibayar</span>),
     },
 
     {
@@ -171,7 +171,7 @@ const PackSalary = () => {
       key: "updated_at",
       render: (text, record) => (
         <button
-          className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg transition duration-300 flex items-center gap-2"
+          className={`${record.is_dibayar ? "bg-gray-500 hover:bg-gray-600" : "bg-blue-500 hover:bg-blue-600"} text-white p-2 rounded-lg transition duration-300 flex items-center gap-2`}
           onClick={() => {
             setSelectedRecord(record);
             setIsModalVisible(true);

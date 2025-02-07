@@ -4,7 +4,7 @@ import SearchFragment from "../../../Fragments/SearchFragment";
 import moment from "moment";
 import { DatePicker, Form, Input, message, Table } from "antd";
 import Button from "../../../Elements/Button";
-import { MdOutlinePendingActions } from "react-icons/md";
+import { MdOutlinePendingActions, MdLocalShipping } from "react-icons/md";
 import Title from "../../../Elements/Title";
 import { MdCancelScheduleSend } from "react-icons/md";
 import { IoIosCreate } from "react-icons/io";
@@ -12,6 +12,8 @@ import axios from "axios";
 import Modal from "antd/es/modal/Modal";
 import { PiMicrosoftExcelLogoFill } from "react-icons/pi";
 import ExcelActionModal from "../../../Fragments/ExcelActionModal";
+import { TbCancel } from "react-icons/tb";
+import { FaBoxArchive, FaBoxesPacking } from "react-icons/fa6";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -476,7 +478,11 @@ const AdminBarangSection = () => {
                     <div className="flex items-start space-x-4">
                       <div className="flex-shrink-0">
                         <div className="w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center">
-                          <MdOutlinePendingActions className={`text-2xl ${item.status_barang === "pending" ? "text-yellow-500" : item.status === "picked" ? "text-blue-500" : item.status === "packed" ? "text-green-500" : "text-red-500"}`} />
+                          {item.status === "pending" && <MdOutlinePendingActions className="text-3xl text-yellow-500" />}
+                          {item.status === "cancelled" && <TbCancel className="text-3xl text-red-500" />}
+                          {item.status === "picked" && <FaBoxArchive className="text-3xl text-blue-500" />}
+                          {item.status === "packed" && <FaBoxesPacking className="text-3xl text-orange-500" />}
+                          {item.status === "shipped" && <MdLocalShipping className="text-3xl text-green-500" />}
                         </div>
                       </div>
                       <div className="flex-1">
