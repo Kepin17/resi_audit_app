@@ -127,25 +127,6 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-        <div className="status-card bg-blue-500 w-full md:w-1/3 p-4 rounded-lg">
-          <div className="status-card-content text-white flex items-center gap-3 md:gap-5">
-            <LuPackageCheck className="text-3xl md:text-5xl" />
-            <div>
-              <h1 className="text-2xl md:text-3xl font-semibold">{totalReadyForShipment}</h1>
-              <p className="text-base md:text-lg">Ready for shipment</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="status-card bg-blue-500 w-full md:w-1/3 p-4 rounded-lg">
-          <div className="status-card-content text-white flex items-center gap-3 md:gap-5">
-            <FaUserCheck className="text-3xl md:text-5xl" />
-            <div>
-              <h1 className="text-2xl md:text-3xl font-semibold">{totalReadyForShipment}</h1>
-              <p className="text-base md:text-lg">Total Staff</p>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="w-full h-full bg-white rounded-md p-5">
