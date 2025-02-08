@@ -7,6 +7,7 @@ import { IoIosCloseCircle } from "react-icons/io";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
+import PhotoCaptureFragment from "../../Fragments/PhotoCaptureFragment";
 
 const HomePage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -15,55 +16,65 @@ const HomePage = () => {
   const [mode, setMode] = useState("scanner");
   const [dataScan, setDataScan] = useState("");
   const [scanning, setScanning] = useState(true);
+  const [currentResi, setCurrentResi] = useState(null);
+  const [isPhotoMode, setIsPhotoMode] = useState(false);
 
-  const scanHandler = (err, result) => {
+  const scanHandler = async (err, result) => {
     if (result) {
       setDataScan(result.text);
       setScanning(false);
-      const token = localStorage.getItem("token");
-      const decodeToken = jwtDecode(token);
-      const user = decodeToken.id_pekerja;
-      axios
-        .post(
-          "http://localhost:8080/api/v1/auditResi",
-          {
-            resi_id: result.text,
-            id_pekerja: user,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        )
-        .then((res) => {
-          toast.success(res.data.message, {
-            position: "top-center",
-            autoClose: 2000,
-            hideProgressBar: false,
-            closeOnClick: false,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "dark",
-          });
-        })
-        .catch((err) => {
-          toast.error(err.response.data.message, {
-            position: "top-center",
-            autoClose: 2000,
-            hideProgressBar: false,
-            closeOnClick: false,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "dark",
-          });
-        });
+      setCurrentResi(result.text);
+
+      // Switch to photo capture mode
+      setIsPhotoMode(true);
     } else {
       setDataScan("Not Found");
       setScanning(true);
     }
+  };
+
+  const handlePhotoCapture = ({ photo }) => {
+    const token = localStorage.getItem("token");
+    const decodeToken = jwtDecode(token);
+    const user = decodeToken.id_pekerja;
+
+    // Convert base64 to blob
+    const base64Response = fetch(photo);
+    base64Response
+      .then((res) => res.blob())
+      .then((blob) => {
+        const formData = new FormData();
+        const photoFile = new File([blob], "photo.jpg", { type: "image/jpeg" });
+
+        formData.append("photo", photoFile);
+        formData.append("resi_id", currentResi);
+        formData.append("id_pekerja", user);
+
+        axios
+          .post("http://localhost:8080/api/v1/auditResi", formData, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "multipart/form-data",
+            },
+          })
+          .then((res) => {
+            toast.success("Process completed successfully");
+            setIsPhotoMode(false);
+            setIsBarcodeActive(true);
+            setScanning(true);
+            setCurrentResi(null);
+          })
+          .catch((err) => {
+            toast.error(err.response?.data?.message || "Failed to process");
+          });
+      });
+  };
+
+  const handlePhotoCancel = () => {
+    setIsPhotoMode(false);
+    setIsBarcodeActive(true);
+    setScanning(true);
+    setCurrentResi(null);
   };
 
   const formatDateTime = (dateTimeStr) => {
@@ -133,12 +144,19 @@ const HomePage = () => {
         </div>
       </div>
       <div className="w-full flex-1 p-5 space-y-5 mt-6">
-        {mode === "scanner" ? (
+        {isPhotoMode ? (
+          <div className="w-full h-auto py-2 max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="p-4 bg-gray-50 border-b">
+              <h3 className="text-lg font-medium">Foto Paket - {currentResi}</h3>
+            </div>
+            <PhotoCaptureFragment onPhotoCapture={handlePhotoCapture} onCancel={handlePhotoCancel} />
+          </div>
+        ) : (
           <>
             {isBarcodeActive && (
               <div className="w-full h-auto py-2 max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="p-4 bg-gray-50 border-b">
-                  <h3 className="text-lg font-medium">Scanner Resi </h3>
+                  <h3 className="text-lg font-medium">Scanner Resi</h3>
                 </div>
                 <div>
                   <BarcodeScannerFragment dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
@@ -164,41 +182,6 @@ const HomePage = () => {
                     <>
                       <CiBarcode />
                       Update Paket
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            {isBarcodeActive && (
-              <div className="w-full h-auto py-2 max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-4 bg-gray-50 border-b">
-                  <h3 className="text-lg font-medium">Scanner Resi </h3>
-                </div>
-                <div>{/* <FotoScannerFragment /> */}</div>
-              </div>
-            )}
-            <div className="w-full bg-white rounded-lg shadow-md p-4">
-              <div className=" h-32 flex items-center justify-between">
-                <h3 className="text-lg font-medium">Data Hari Ini</h3>
-                <Button
-                  buttonStyle={`${changeBtn ? "bg-red-500 hover:bg-red-600 " : "bg-blue-500 hover:bg-blue-600 "} p-2 rounded-md flex items-center gap-2 text-white transition-all duration-200`}
-                  onClick={() => {
-                    setIsBarcodeActive(!isBarcodeActive);
-                    setChangeBtn(!changeBtn);
-                  }}
-                >
-                  {isBarcodeActive ? (
-                    <>
-                      <IoIosCloseCircle />
-                      Tutup Scanner
-                    </>
-                  ) : (
-                    <>
-                      <CiBarcode />
-                      Foto Scan
                     </>
                   )}
                 </Button>

@@ -1,0 +1,3 @@
+ALTER TABLE proses
+ADD COLUMN photo_path VARCHAR(255),
+ADD COLUMN notes TEXT;

@@ -16,10 +16,13 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "50mb" }));
 
-app.use(fileUpload("server/uploads"));
+// Remove express-fileupload as we're using multer
+// app.use(fileUpload("server/uploads"));
+
+// Serve uploaded files
 app.use("/uploads", express.static("uploads"));
 
 app.use("/api/v1", routes);

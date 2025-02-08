@@ -33,6 +33,8 @@ const AdminBarangSection = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [form] = Form.useForm();
   const [resiDetail, setResiDetail] = useState([]);
+  const [Img, setImg] = useState("");
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
 
   const [exportModal, setExportModal] = useState(false);
 
@@ -411,15 +413,47 @@ const AdminBarangSection = () => {
             <div className="text-red-500 text-center py-4">{error}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 relative">
-              <Modal className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" open={isModalDetailOpen} onCancel={() => setModalDetailOpen(false)} title="Detail Resi" footer={null}>
+              <Modal className=" w-[100rem] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" open={isModalDetailOpen} onCancel={() => setModalDetailOpen(false)} title="Detail Resi" footer={null}>
                 <Table dataSource={resiDetail} pagination={false}>
                   <Table.Column title="Resi ID" dataIndex="resi_id" key="resi_id" />
                   <Table.Column title="Nama Pekerja" dataIndex="nama_pekerja" key="nama_pekerja" />
                   <Table.Column title="Status" dataIndex="jenis_pekerja" key="status_barang" />
                   <Table.Column title="Created At" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("DD/MM/YYYY HH:mm:ss")} />
-                  <Table.Column title="Images View" dataIndex="gambar_resi" key="gambar_resi" />
+                  <Table.Column
+                    title="Images View"
+                    dataIndex="gambar_resi"
+                    key="gambar_resi"
+                    render={(text) => {
+                      return (
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => {
+                              setImg(text);
+                              setModalDetailOpen(false);
+                              setIsImageViewerOpen(true);
+                            }}
+                          >
+                            View
+                          </Button>
+                        </div>
+                      );
+                    }}
+                  />
                 </Table>
               </Modal>
+
+              {isImageViewerOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onClick={() => setIsImageViewerOpen(false)}>
+                  <div className="relative max-w-4xl max-h-[90vh] w-full flex items-center justify-center">
+                    <button className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors" onClick={() => setIsImageViewerOpen(false)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <img src={`http://localhost:8080/${Img}`} alt="Detail" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                  </div>
+                </div>
+              )}
 
               <ExcelActionModal
                 isOpen={exportModal}

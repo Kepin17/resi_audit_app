@@ -2,12 +2,13 @@ const express = require("express");
 const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
-const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi } = require("../controllers/auditResiController");
+const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto } = require("../controllers/auditResiController");
 const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel } = require("../controllers/SalaryController");
 const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExcel } = require("../controllers/resiTerpackController");
+const upload = require("../config/multerConfig");
 
 const roles = {
   staff: "staff",
@@ -37,10 +38,17 @@ router.post("/barang/import", authToken, roleMiddleware([roles.admin, roles.supa
 router.get("/barang-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupBarang);
 
 // audit resi
-router.post("/auditResi", authToken, roleMiddleware([roles.staff]), scaneHandler);
+router.post(
+  "/auditResi",
+  authToken,
+  roleMiddleware([roles.staff]),
+  upload.single("photo"), // Add multer middleware
+  scaneHandler
+);
 router.get("/auditResi/activity", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllActiviy);
 router.get("/auditResi/activity/:username", authToken, getActivityByName);
 router.get("/auditResi/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDataByResi);
+router.post("/auditResi/photo", authToken, uploadPhoto);
 router.get("/audit-packed", authToken, roleMiddleware([roles.admin, roles.supadmin]), showResiTerpack);
 
 // audit packing

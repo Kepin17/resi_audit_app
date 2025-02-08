@@ -58,15 +58,27 @@ const showAllData = async (req, res) => {
 const scaneHandler = async (req, res) => {
   try {
     const { resi_id, id_pekerja } = req.body;
+    let photoPath = null;
+
+    // Check if file was uploaded
+    if (req.file) {
+      photoPath = req.file.path;
+    }
 
     // Validate required fields
     if (!resi_id || !id_pekerja) {
+      // Remove uploaded file if validation fails
+      if (photoPath) {
+        const fs = require("fs");
+        fs.unlinkSync(photoPath);
+      }
       return res.status(400).send({
         success: false,
         message: "resi_id and id_pekerja are required",
       });
     }
 
+    // Get worker data
     const [workerData] = await mysqlPool.query(
       `SELECT pekerja.id_bagian, pekerja.nama_pekerja, bagian.jenis_pekerja
        FROM pekerja 
@@ -75,8 +87,12 @@ const scaneHandler = async (req, res) => {
       [id_pekerja]
     );
 
-    // Add worker validation
+    // Worker validation
     if (!workerData || workerData.length === 0) {
+      if (photoPath) {
+        const fs = require("fs");
+        fs.unlinkSync(photoPath);
+      }
       return res.status(404).send({
         success: false,
         message: "Worker not found",
@@ -106,7 +122,12 @@ const scaneHandler = async (req, res) => {
           });
         }
 
-        await mysqlPool.query("INSERT INTO proses (resi_id, id_pekerja, status_proses) VALUES (?, ?,?)", [resi_id, id_pekerja, workerRole]);
+        // Add photo information to the process
+        const processQuery = photoPath ? "INSERT INTO proses (resi_id, id_pekerja, status_proses, gambar_resi) VALUES (?, ?, ?, ?)" : "INSERT INTO proses (resi_id, id_pekerja, status_proses) VALUES (?, ?, ?)";
+
+        const processValues = photoPath ? [resi_id, id_pekerja, workerRole, photoPath] : [resi_id, id_pekerja, workerRole];
+
+        await mysqlPool.query(processQuery, processValues);
       } else {
         // Check if trying to scan with same role
         if (prosesRows[0].status_proses === workerRole) {
@@ -135,10 +156,11 @@ const scaneHandler = async (req, res) => {
       // await mysqlPool.query("INSERT INTO log_proses (id_pekerja, resi_id, status_proses) VALUES (?, ?, ?)", [id_pekerja, resi_id, workerRole]);
       return res.status(200).send({
         success: true,
-        message: "Scan success and data updated",
+        message: "Scan and photo upload success",
         data: {
           nama_pekerja: workerData[0].nama_pekerja,
           proses_scan: workerRole,
+          gambar_resi: photoPath,
         },
       });
     }
@@ -148,14 +170,12 @@ const scaneHandler = async (req, res) => {
       message: "Resi not valid or not found",
     });
   } catch (error) {
-    if (error.code === "ER_DUP_ENTRY") {
-      return res.status(409).send({
-        success: false,
-        message: "Duplicate scan entry detected",
-        error: error.message,
-      });
+    // Remove uploaded file if any error occurs
+    if (req.file) {
+      const fs = require("fs");
+      fs.unlinkSync(req.file.path);
     }
-    handleError(error, res, "processing scan");
+    handleError(error, res, "processing scan and photo");
   }
 };
 
@@ -258,4 +278,67 @@ const showDataByResi = async (req, res) => {
   }
 };
 
-module.exports = { showAllData, scaneHandler, showAllActiviy, getActivityByName, showDataByResi };
+const uploadPhoto = async (req, res) => {
+  try {
+    const { resi_id, notes } = req.body;
+
+    if (!req.files || !req.files.photo) {
+      return res.status(400).json({
+        status: "error",
+        message: "No photo uploaded",
+      });
+    }
+
+    const photo = req.files.photo;
+    const fileExtension = photo.name.split(".").pop();
+    const fileName = `${resi_id}_${Date.now()}.${fileExtension}`;
+    const uploadPath = `uploads/${fileName}`;
+
+    // Move the photo to uploads directory
+    photo.mv(uploadPath, async (err) => {
+      if (err) {
+        return res.status(500).json({
+          status: "error",
+          message: "Error uploading file",
+          error: err,
+        });
+      }
+
+      try {
+        // Update the database with photo information
+        const query = `
+          UPDATE proses 
+          SET gambar_resi = ?
+          WHERE resi_id = ? 
+          ORDER BY updated_at DESC 
+          LIMIT 1
+        `;
+
+        await pool.query(query, [fileName, notes, resi_id]);
+
+        res.status(200).json({
+          status: "success",
+          message: "Photo uploaded successfully",
+          data: {
+            gambar_resi: fileName,
+            resi_id,
+          },
+        });
+      } catch (dbError) {
+        // If database update fails, remove the uploaded file
+        const fs = require("fs");
+        fs.unlinkSync(uploadPath);
+
+        throw dbError;
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { showAllData, scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto };
