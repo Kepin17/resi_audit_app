@@ -6,13 +6,65 @@ import BarcodeScannerFragment from "../../Fragments/BarcodeScannerFragment";
 import { IoIosCloseCircle } from "react-icons/io";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-import FotoScannerFragment from "../../Fragments/FotoScannerFragment";
+import { toast } from "react-toastify";
 
 const HomePage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
   const [changeBtn, setChangeBtn] = useState(false);
   const [data, setData] = useState([]);
   const [mode, setMode] = useState("scanner");
+  const [dataScan, setDataScan] = useState("");
+  const [scanning, setScanning] = useState(true);
+
+  const scanHandler = (err, result) => {
+    if (result) {
+      setDataScan(result.text);
+      setScanning(false);
+      const token = localStorage.getItem("token");
+      const decodeToken = jwtDecode(token);
+      const user = decodeToken.id_pekerja;
+      axios
+        .post(
+          "http://localhost:8080/api/v1/auditResi",
+          {
+            resi_id: result.text,
+            id_pekerja: user,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        )
+        .then((res) => {
+          toast.success(res.data.message, {
+            position: "top-center",
+            autoClose: 2000,
+            hideProgressBar: false,
+            closeOnClick: false,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "dark",
+          });
+        })
+        .catch((err) => {
+          toast.error(err.response.data.message, {
+            position: "top-center",
+            autoClose: 2000,
+            hideProgressBar: false,
+            closeOnClick: false,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "dark",
+          });
+        });
+    } else {
+      setDataScan("Not Found");
+      setScanning(true);
+    }
+  };
 
   const formatDateTime = (dateTimeStr) => {
     const date = new Date(dateTimeStr);
@@ -89,7 +141,7 @@ const HomePage = () => {
                   <h3 className="text-lg font-medium">Scanner Resi </h3>
                 </div>
                 <div>
-                  <BarcodeScannerFragment />
+                  <BarcodeScannerFragment dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
                 </div>
               </div>
             )}
@@ -125,9 +177,7 @@ const HomePage = () => {
                 <div className="p-4 bg-gray-50 border-b">
                   <h3 className="text-lg font-medium">Scanner Resi </h3>
                 </div>
-                <div>
-                  <FotoScannerFragment />
-                </div>
+                <div>{/* <FotoScannerFragment /> */}</div>
               </div>
             )}
             <div className="w-full bg-white rounded-lg shadow-md p-4">

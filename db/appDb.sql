@@ -75,7 +75,6 @@ CREATE TABLE status_logs (
 );
 
 
--- drop table device_logs
 
 -- Create device_logs table
 CREATE TABLE device_logs (
@@ -104,7 +103,7 @@ DELIMITER ;
 
 
 
--- DROP TABLE BARANG
+-- DROP TABLE barang, proses, log_proses, gaji_pegawai;
 
 CREATE TABLE barang (
   resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
@@ -112,6 +111,30 @@ CREATE TABLE barang (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+
+
+
+
+-- Create proses table
+CREATE TABLE proses (
+  id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,
+  resi_id VARCHAR(20),
+  id_pekerja VARCHAR(9),
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT FK_Pekerja_proses FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT FK_Proses_resi FOREIGN KEY (resi_id) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
+);
+-- Now add the foreign key to barang table
+ALTER TABLE barang
+ADD COLUMN id_proses INT NULL,
+ADD CONSTRAINT FK_PROSES_BARANG FOREIGN KEY (id_proses) REFERENCES proses(id_proses) ON UPDATE CASCADE ON DELETE SET NULL;
+
+ALTER TABLE proses ADD COLUMN gambar_resi VARCHAR(255) NULL ;
+
+
 DELIMITER $$
 
 -- Trigger for INSERT
@@ -136,33 +159,18 @@ END$$
 
 DELIMITER ;
 
--- Create proses table
-CREATE TABLE PROSES (
-  id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,
-  resi_id VARCHAR(20),
-  id_pekerja VARCHAR(8),
-  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout')),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT FK_Pekerja FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT FK_Proses FOREIGN KEY (resi_id) REFERENCES Barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
-);
-
--- Now add the foreign key to barang table
-ALTER TABLE barang
-ADD COLUMN id_proses INT NULL,
-ADD CONSTRAINT FK_PROSES_BARANG FOREIGN KEY (id_proses) REFERENCES proses(id_proses) ON UPDATE CASCADE ON DELETE SET NULL;
 
 
-CREATE TABLE LOG_PROSES (
+CREATE TABLE log_proses (
   id_log INT PRIMARY KEY AUTO_INCREMENT,
   resi_id VARCHAR(20),
-  id_pekerja VARCHAR(8),
+  id_pekerja VARCHAR(9), 
   status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT FK_PekerjaLog FOREIGN KEY (id_pekerja) REFERENCES PEKERJA(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT FK_BarangLog FOREIGN KEY (resi_id) REFERENCES Barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
+  gambar_resi VARCHAR(255) NULL,
+  CONSTRAINT FK_PekerjaLog FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT FK_BarangLog FOREIGN KEY (resi_id) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
 
@@ -170,7 +178,7 @@ CREATE TABLE LOG_PROSES (
 
 DELIMITER $$
 CREATE TRIGGER trigger_barang_status
-AFTER UPDATE ON PROSES
+AFTER UPDATE ON proses
 FOR EACH ROW
 
 BEGIN
@@ -196,14 +204,15 @@ DELIMITER ;
 
 DELIMITER $$
 
+-- DROP TRIGGER IF EXISTS trigger_inssert_log_proses;
 
 CREATE TRIGGER trigger_inssert_log_proses
-AFTER INSERT ON PROSES
+AFTER INSERT ON proses
 FOR EACH ROW
 BEGIN
     
-    INSERT INTO LOG_PROSES (resi_id, id_pekerja, status_proses)
-    VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_proses);
+    INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi)
+    VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_proses, NEW.gambar_resi);
 
       IF NEW.status_proses = "picker" THEN
         UPDATE barang
@@ -218,12 +227,12 @@ DELIMITER ;
 DELIMITER $$
 
 CREATE TRIGGER trigger_after_update_log_proses
-AFTER UPDATE ON PROSES
+AFTER UPDATE ON proses
 FOR EACH ROW
 BEGIN
     
-    INSERT INTO LOG_PROSES (resi_id, id_pekerja, status_proses)
-    VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_proses);
+    INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi)
+    VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_proses, NEW.gambar_resi);
 
 END$$
 
@@ -231,10 +240,6 @@ DELIMITER ;
 
 
 
-
-
--- DROP TABLE IF EXISTS gaji_pegawai;
--- DROP TABLE IF EXISTS gaji;
 
 CREATE TABLE gaji (
     id_gaji INT AUTO_INCREMENT PRIMARY KEY,
@@ -268,7 +273,7 @@ ALTER TABLE gaji_pegawai ADD COLUMN is_dibayar BOOLEAN DEFAULT FALSE;
 DELIMITER $$
 
 CREATE TRIGGER trigger_hitung_gaji
-AFTER INSERT ON LOG_PROSES
+AFTER INSERT ON log_proses
 FOR EACH ROW
 BEGIN
     DECLARE v_id_gaji INT;

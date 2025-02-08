@@ -417,6 +417,7 @@ const AdminBarangSection = () => {
                   <Table.Column title="Nama Pekerja" dataIndex="nama_pekerja" key="nama_pekerja" />
                   <Table.Column title="Status" dataIndex="jenis_pekerja" key="status_barang" />
                   <Table.Column title="Created At" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("DD/MM/YYYY HH:mm:ss")} />
+                  <Table.Column title="Images View" dataIndex="gambar_resi" key="gambar_resi" />
                 </Table>
               </Modal>
 
