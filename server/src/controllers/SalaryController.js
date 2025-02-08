@@ -213,92 +213,90 @@ const payPackingStaff = async (req, res) => {
 
 const importGajiFromExcel = async (req, res) => {
   try {
-    if (!req.files || !req.files.file) {
+    if (!req.file) {
       return res.status(400).send({
         success: false,
         message: "No file uploaded",
       });
     }
 
-    const file = req.files.file;
-    const fileExt = file.name.split(".").pop().toLowerCase();
-
-    if (!["xlsx", "xls"].includes(fileExt)) {
-      return res.status(400).send({
-        success: false,
-        message: "Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)",
-      });
-    }
-
     const workbook = new excelJS.Workbook();
-    const filePath = `./server/uploads/${file.name}`;
 
-    file.mv(filePath, async (err) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).send({
-          success: false,
-          message: "Error when trying to upload file",
-          error: err.message,
-        });
-      }
+    try {
+      await workbook.xlsx.readFile(req.file.path);
+      const worksheet = workbook.getWorksheet(1);
 
-      try {
-        await workbook.xlsx.readFile(filePath);
-        const worksheet = workbook.getWorksheet(1);
+      const rows = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber !== 1) {
+          // Skip header row
+          const id_gaji_pegawai = row.getCell(1).value;
+          const id_gaji = row.getCell(2).value;
+          const id_pekerja = row.getCell(3).value;
+          const jumlah_scan = row.getCell(4).value;
+          const gaji_total = row.getCell(5).value;
+          const created_at = row.getCell(6).value;
+          const updated_at = row.getCell(7).value;
+          const is_dibayar = row.getCell(8).value;
 
-        const rows = [];
-        worksheet.eachRow((row, rowNumber) => {
-          if (rowNumber !== 1) {
-            // Skip header row
-            const id_gaji_pegawai = row.getCell(1).value;
-            const id_gaji = row.getCell(2).value;
-            const id_pekerja = row.getCell(3).value;
-            const jumlah_scan = row.getCell(4).value;
-            const gaji_total = row.getCell(5).value;
-            const created_at = row.getCell(6).value;
-            const updated_at = row.getCell(7).value;
-            const is_dibayar = row.getCell(8).value;
+          rows.push([id_gaji_pegawai, id_gaji, id_pekerja, jumlah_scan, gaji_total, created_at, updated_at, is_dibayar]);
+        }
+      });
 
-            rows.push([id_gaji_pegawai, id_gaji, id_pekerja, jumlah_scan, gaji_total, created_at, updated_at, is_dibayar]);
-          }
-        });
+      // Insert/Update data into database
+      for (const row of rows) {
+        const [id_gaji_pegawai, ...otherFields] = row;
 
-        // Handle each row with multiple columns
-        for (const row of rows) {
+        // Check if record exists
+        const [existingRecord] = await mysqlPool.query("SELECT id_gaji_pegawai FROM gaji_pegawai WHERE id_gaji_pegawai = ?", [id_gaji_pegawai]);
+
+        if (existingRecord.length > 0) {
+          // Update existing record
           await mysqlPool.query(
-            `INSERT INTO gaji_pegawai (id_gaji_pegawai, id_gaji, id_pekerja, jumlah_scan, gaji_total,created_at, updated_at ,is_dibayar) 
-             VALUES (?, ?, ?, ?, ?, ?,?,?)
-             ON DUPLICATE KEY UPDATE 
-             id_gaji = VALUES(id_gaji),
-             id_pekerja = VALUES(id_pekerja),
-             jumlah_scan = VALUES(jumlah_scan),
-             gaji_total = VALUES(gaji_total),
-             created_at = VALUES(created_at),
-             updated_at = VALUES(updated_at),
-             is_dibayar = VALUES(is_dibayar)`,
+            `UPDATE gaji_pegawai 
+             SET id_gaji = ?, 
+                 id_pekerja = ?, 
+                 jumlah_scan = ?, 
+                 gaji_total = ?, 
+                 created_at = ?, 
+                 updated_at = ?, 
+                 is_dibayar = ?
+             WHERE id_gaji_pegawai = ?`,
+            [...otherFields, id_gaji_pegawai]
+          );
+        } else {
+          // Insert new record
+          await mysqlPool.query(
+            `INSERT INTO gaji_pegawai 
+             (id_gaji_pegawai, id_gaji, id_pekerja, jumlah_scan, gaji_total, created_at, updated_at, is_dibayar)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             row
           );
         }
-
-        return res.status(200).send({
-          success: true,
-          message: "Data berhasil diimport dan diupdate",
-        });
-      } catch (error) {
-        console.error("Error processing Excel file:", error);
-        return res.status(500).send({
-          success: false,
-          message: "Error processing Excel file",
-          error: error.message,
-        });
       }
-    });
+
+      // Clean up: delete the uploaded file
+      const fs = require("fs");
+      fs.unlinkSync(req.file.path);
+
+      return res.status(200).send({
+        success: true,
+        message: "Data berhasil diimport dan diupdate",
+        rowsProcessed: rows.length,
+      });
+    } catch (error) {
+      console.error("Error processing Excel file:", error);
+      return res.status(500).send({
+        success: false,
+        message: "Error processing Excel file",
+        error: error.message,
+      });
+    }
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).send({
       success: false,
-      message: "Error when trying to import resi",
+      message: "Error when trying to import gaji data",
       error: error.message,
     });
   }

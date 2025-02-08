@@ -24,7 +24,13 @@ router.get("/auth/show/:id_pekerja", authToken, roleMiddleware([roles.supadmin])
 router.delete("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), deleteStaff);
 router.put("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), editStaff);
 router.get("/auth/log", authToken, roleMiddleware([roles.admin, roles.supadmin]), deviceLog);
-router.post("/auth-import", authToken, roleMiddleware([roles.admin, roles.supadmin]), importStaffFromExcel);
+router.post(
+  "/auth-import",
+  authToken,
+  roleMiddleware([roles.admin, roles.supadmin]),
+  upload.single("file"), // Changed from excel to file
+  importStaffFromExcel
+);
 router.get("/auth-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupStaff);
 router.get("/auth-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportStaff);
 
@@ -34,7 +40,13 @@ router.post("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]),
 router.put("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), cancelBarang);
 router.get("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDetailByResi);
 router.get("/barang-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportBarang);
-router.post("/barang/import", authToken, roleMiddleware([roles.admin, roles.supadmin]), importResiFromExcel);
+router.post(
+  "/barang/import",
+  authToken,
+  roleMiddleware([roles.admin, roles.supadmin]),
+  upload.single("file"), // Changed from 'excel' to 'file'
+  importResiFromExcel
+);
 router.get("/barang-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupBarang);
 
 // audit resi
@@ -52,13 +64,13 @@ router.post("/auditResi/photo", authToken, uploadPhoto);
 router.get("/audit-packed", authToken, roleMiddleware([roles.admin, roles.supadmin]), showResiTerpack);
 
 // audit packing
-router.get("/resi-terpack", showResiTerpack);
-router.get("/resi-terpack-export", exportPackToExcel);
-router.get("/resi-terpack-backup", backupPackToExcel);
-router.post("/resi-terpack-import", importPackFromExcel);
+router.get("/resi-terpack", authToken, roleMiddleware([roles.admin, roles.supadmin]), showResiTerpack);
+router.get("/resi-terpack-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportPackToExcel);
+router.get("/resi-terpack-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupPackToExcel);
+router.post("/resi-terpack-import", authToken, roleMiddleware([roles.admin, roles.supadmin]), upload.single("file"), importPackFromExcel);
 
 // bagian
-router.get("/bagian", authToken, roleMiddleware([roles.supadmin]), getBagian);
+router.get("/bagian", authToken, roleMiddleware([roles.supadmin]), upload.single("file"), getBagian);
 
 // gaji bos
 router.get("/gaji", authToken, roleMiddleware([roles.supadmin]), getSalary);
@@ -70,6 +82,6 @@ router.put("/gaji/packing/:id_gaji_pegawai", authToken, roleMiddleware([roles.su
 
 router.get("/gaji/packing-export", authToken, roleMiddleware([roles.supadmin]), exportGaji);
 router.get("/gaji/packing-backup", authToken, roleMiddleware([roles.supadmin]), backupGajiPacking);
-router.post("/gaji/packing-import", authToken, roleMiddleware([roles.supadmin]), importGajiFromExcel);
+router.post("/gaji/packing-import", authToken, roleMiddleware([roles.supadmin]), upload.single("file"), importGajiFromExcel);
 
 module.exports = router;

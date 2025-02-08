@@ -192,10 +192,16 @@ const AdminBarangSection = () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Check file extension
+        // File validation
         const fileExt = file.name.split(".").pop().toLowerCase();
         if (!["xlsx", "xls"].includes(fileExt)) {
           message.error("Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)");
+          return;
+        }
+
+        // File size validation (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          message.error("Ukuran file terlalu besar. Maksimal 5MB");
           return;
         }
 
@@ -203,7 +209,7 @@ const AdminBarangSection = () => {
         message.loading({ content: "Mengimport data...", key: "import" });
 
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", file); // Changed field name to 'file'
 
         const response = await axios.post("http://localhost:8080/api/v1/barang/import", formData, {
           headers: {
@@ -213,17 +219,25 @@ const AdminBarangSection = () => {
         });
 
         if (response.data?.success) {
-          message.success({ content: "Data berhasil diimport", key: "import" });
+          message.success({
+            content: "Data berhasil diimport",
+            key: "import",
+            duration: 3,
+          });
           fetchBarang(currentPage);
+        } else {
+          throw new Error(response.data?.message || "Gagal mengimport data");
         }
       } catch (error) {
         console.error("Error importing file:", error);
         message.error({
-          content: error.response?.data?.message || "Gagal mengimport data",
+          content: error.response?.data?.message || "Gagal mengimport data. Pastikan format file sesuai template.",
           key: "import",
+          duration: 4,
         });
       } finally {
         setImportLoading(false);
+        input.value = "";
       }
     };
 
@@ -233,49 +247,56 @@ const AdminBarangSection = () => {
   const handleExport = async () => {
     try {
       setExportLoading(true);
+      message.loading({ content: "Mengexport data...", key: "export" });
 
-      // Build query parameters
-      const params = new URLSearchParams();
-
-      if (searchTerm?.trim()) {
-        params.append("search", searchTerm.trim());
-      }
-      if (activeButton !== "Semua") {
-        params.append("status", activeButton);
-      }
-      if (dateRange?.[0] && dateRange?.[1]) {
-        params.append("startDate", dateRange[0].format("YYYY-MM-DD"));
-        params.append("endDate", dateRange[1].format("YYYY-MM-DD"));
-      }
-
-      const response = await axios.get(`http://localhost:8080/api/v1/barang-export?${params.toString()}`, {
+      const response = await axios.get("http://localhost:8080/api/v1/barang-export", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        responseType: "blob",
-        responseEncoding: "binary",
+        responseType: "blob", // Penting! Menandakan response sebagai binary
       });
 
-      // Create a download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      // Cek apakah response adalah file Excel
+      const contentType = response.headers["content-type"];
+      if (!contentType || !contentType.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
+        throw new Error("Response bukan file Excel");
+      }
+
+      // Buat blob dari response
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      // Buat URL untuk download
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const fileName = `barang_${moment().format("YYYY-MM-DD")}${activeButton !== "Semua" ? `_${activeButton}` : ""}.xlsx`;
-      link.setAttribute("download", fileName);
+      link.download = `data_barang_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+      // Trigger download
       document.body.appendChild(link);
       link.click();
-      link.remove();
+
+      // Cleanup
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      message.success("File berhasil diexport");
+      message.success({
+        content: "Data berhasil diexport",
+        key: "export",
+        duration: 3,
+      });
     } catch (error) {
-      console.error("Error exporting file:", error);
-      message.error("Gagal mengexport file");
+      console.error("Error exporting data:", error);
+      message.error({
+        content: "Gagal mengexport data",
+        key: "export",
+        duration: 3,
+      });
     } finally {
       setExportLoading(false);
     }
   };
-
   const handleBackup = async () => {
     try {
       setExportLoading(true);
@@ -444,13 +465,13 @@ const AdminBarangSection = () => {
 
               {isImageViewerOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onClick={() => setIsImageViewerOpen(false)}>
-                  <div className="relative max-w-4xl max-h-[90vh] w-full flex items-center justify-center">
+                  <div className="relative w-[1280px] h-[720px] flex items-center justify-center">
                     <button className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors" onClick={() => setIsImageViewerOpen(false)}>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
-                    <img src={`http://localhost:8080/${Img}`} alt="Detail" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                    <img src={`http://localhost:8080/${Img}`} alt="Detail" className=" object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} width={"80%"} />
                   </div>
                 </div>
               )}

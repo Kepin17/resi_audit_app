@@ -501,110 +501,67 @@ const deleteStaff = async (req, res) => {
 
 const importStaffFromExcel = async (req, res) => {
   try {
-    if (!req.files || !req.files.file) {
+    if (!req.file) {
       return res.status(400).send({
         success: false,
         message: "No file uploaded",
       });
     }
 
-    const file = req.files.file;
-    const fileExt = file.name.split(".").pop().toLowerCase();
+    const workbook = new excelJS.Workbook();
 
-    if (!["xlsx", "xls"].includes(fileExt)) {
-      return res.status(400).send({
+    try {
+      await workbook.xlsx.readFile(req.file.path);
+      const worksheet = workbook.getWorksheet(1);
+
+      const rows = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber !== 1) {
+          // Skip header row
+          const id_pekerja = row.getCell(1).value;
+          const nama_pekerja = row.getCell(2).value;
+          const username = row.getCell(3).value;
+          const id_bagian = row.getCell(4).value;
+
+          rows.push([id_pekerja, nama_pekerja, username, id_bagian]);
+        }
+      });
+
+      // Insert data into database
+      for (const row of rows) {
+        await mysqlPool.query(
+          `INSERT INTO pekerja (id_pekerja, nama_pekerja, username, id_bagian) 
+           VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+           nama_pekerja = VALUES(nama_pekerja),
+           username = VALUES(username),
+           id_bagian = VALUES(id_bagian)`,
+          row
+        );
+      }
+
+      // Clean up: delete the uploaded file
+      const fs = require("fs");
+      fs.unlinkSync(req.file.path);
+
+      return res.status(200).send({
+        success: true,
+        message: "Data staff berhasil diimport",
+        rowsProcessed: rows.length,
+      });
+    } catch (error) {
+      console.error("Error processing Excel file:", error);
+      return res.status(500).send({
         success: false,
-        message: "Unsupported file format. Please use Excel (.xlsx or .xls)",
+        message: "Error processing Excel file",
+        error: error.message,
       });
     }
-
-    const workbook = new excelJS.Workbook();
-    const filePath = `./server/uploads/${file.name}`;
-
-    file.mv(filePath, async (err) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).send({
-          success: false,
-          message: "Error uploading file",
-          error: err.message,
-        });
-      }
-
-      try {
-        await workbook.xlsx.readFile(filePath);
-        const worksheet = workbook.getWorksheet(1);
-        const validRoles = ["superadmin", "admin", "staff"];
-        const rows = [];
-
-        // Skip header row and process each data row
-        worksheet.eachRow((row, rowNumber) => {
-          if (rowNumber > 1) {
-            // Skip header row
-            // Get values from correct columns
-            const id_pekerja = row.getCell(1).value;
-            const username = row.getCell(2).value?.toString().trim();
-            const nama_pekerja = row.getCell(3).value?.toString().trim();
-            const id_bagian = row.getCell(4).value?.toString().toUpperCase().trim();
-            const password = row.getCell(5).value?.toString().trim();
-            const role = row.getCell(6).value?.toString().toLowerCase().trim();
-
-            // Validate role
-            if (!validRoles.includes(role)) {
-              throw new Error(`Invalid role '${role}' at row ${rowNumber}. Valid roles are: ${validRoles.join(", ")}`);
-            }
-
-            rows.push({
-              id_pekerja,
-              username,
-              nama_pekerja,
-              id_bagian,
-              password,
-              role,
-            });
-          }
-        });
-
-        // Validate and insert data
-        for (const row of rows) {
-          const defaultPassword = await bcrypt.hash("password123", 10);
-
-          await mysqlPool.query(
-            `INSERT INTO pekerja (id_pekerja, username, nama_pekerja, id_bagian, password, role) 
-             VALUES (?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE 
-             nama_pekerja = VALUES(nama_pekerja),
-             id_bagian = VALUES(id_bagian),
-             role = VALUES(role)`,
-            [row.id_pekerja, row.username, row.nama_pekerja, row.id_bagian, defaultPassword, row.role]
-          );
-        }
-
-        // Clean up uploaded file
-        fs.unlinkSync(filePath);
-
-        return res.status(200).send({
-          success: true,
-          message: `Successfully imported ${rows.length} staff records`,
-          imported: rows.length,
-        });
-      } catch (error) {
-        // Clean up file on error
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-        return res.status(400).send({
-          success: false,
-          message: "Error processing Excel file",
-          error: error.message,
-        });
-      }
-    });
   } catch (error) {
     console.error(error);
     res.status(500).send({
       success: false,
-      message: "Error importing staff data",
+      message: "Error when trying to import staff",
       error: error.message,
     });
   }

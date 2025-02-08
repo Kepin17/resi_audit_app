@@ -4,14 +4,13 @@ const moment = require("moment");
 
 const showResiTerpack = async (req, res) => {
   try {
-    const { search, startDate, endDate } = req.query;
+    const { search, startDate, endDate, status } = req.query;
 
     // Get today's count
     const [todayCount] = await mysqlPool.query(
       `SELECT COUNT(*) as today_count 
        FROM log_proses 
-       WHERE status_proses = 'packing' 
-       AND DATE(created_at) = CURDATE()`
+       WHERE DATE(created_at) = CURDATE()`
     );
 
     let query = `
@@ -24,10 +23,16 @@ const showResiTerpack = async (req, res) => {
         pekerja.nama_pekerja
       FROM log_proses
       LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE log_proses.status_proses = 'packing'
+      WHERE 1=1
     `;
 
     const params = [];
+
+    // Add status filter
+    if (status && status !== "all") {
+      query += ` AND log_proses.status_proses = ?`;
+      params.push(status);
+    }
 
     if (search) {
       query += ` AND (log_proses.resi_id LIKE ? OR pekerja.nama_pekerja LIKE ?)`;
@@ -61,8 +66,9 @@ const showResiTerpack = async (req, res) => {
 
 const exportPackToExcel = async (req, res) => {
   try {
+    const { status } = req.query;
     const workbook = new excelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Resi Packing");
+    const worksheet = workbook.addWorksheet("Resi Report");
 
     worksheet.columns = [
       { header: "Resi ID", key: "resi_id", width: 20 },
@@ -71,7 +77,7 @@ const exportPackToExcel = async (req, res) => {
       { header: "Pack Date", key: "created_at", width: 20 },
     ];
 
-    const [rows] = await mysqlPool.query(`
+    let query = `
       SELECT 
         log_proses.resi_id,
         pekerja.nama_pekerja,
@@ -79,9 +85,19 @@ const exportPackToExcel = async (req, res) => {
         log_proses.created_at
       FROM log_proses
       LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE log_proses.status_proses = 'packing'
-      ORDER BY log_proses.created_at DESC
-    `);
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (status && status !== "all") {
+      query += ` AND log_proses.status_proses = ?`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY log_proses.created_at DESC`;
+
+    const [rows] = await mysqlPool.query(query, params);
 
     rows.forEach((row) => {
       worksheet.addRow({
@@ -90,8 +106,18 @@ const exportPackToExcel = async (req, res) => {
       });
     });
 
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+
+    const fileName = status && status !== "all" ? `resi_${status}_${moment().format("DDMMYYYY")}.xlsx` : `resi_all_${moment().format("DDMMYYYY")}.xlsx`;
+
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename=resi_packing_${moment().format("DDMMYYYY")}.xlsx`);
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
 
     return workbook.xlsx.write(res);
   } catch (err) {
@@ -122,7 +148,6 @@ const backupPackToExcel = async (req, res) => {
       SELECT 
        * 
       FROM log_proses
-      WHERE log_proses.status_proses = 'packing'
       ORDER BY log_proses.created_at DESC
     `);
 
@@ -171,85 +196,66 @@ const backupPackToExcel = async (req, res) => {
 
 const importPackFromExcel = async (req, res) => {
   try {
-    if (!req.files || !req.files.file) {
+    if (!req.file) {
       return res.status(400).send({
         success: false,
         message: "No file uploaded",
       });
     }
 
-    const file = req.files.file;
-    const fileExt = file.name.split(".").pop().toLowerCase();
+    const workbook = new excelJS.Workbook();
 
-    if (!["xlsx", "xls"].includes(fileExt)) {
-      return res.status(400).send({
+    try {
+      await workbook.xlsx.readFile(req.file.path);
+      const worksheet = workbook.getWorksheet(1);
+
+      const rows = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber !== 1) {
+          // Skip header row
+          const id_log = row.getCell(1).value;
+          const resi_id = row.getCell(2).value;
+          const id_pekerja = row.getCell(3).value;
+          const status_proses = row.getCell(4).value;
+          const created_at = row.getCell(5).value;
+          const updated_at = row.getCell(6).value;
+
+          rows.push([id_log, resi_id, id_pekerja, status_proses, created_at, updated_at]);
+        }
+      });
+
+      // Insert data into database
+      for (const row of rows) {
+        await mysqlPool.query(
+          `INSERT INTO log_proses (id_log, resi_id, id_pekerja, status_proses, created_at, updated_at) 
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+           status_proses = VALUES(status_proses),
+           updated_at = VALUES(updated_at),
+           id_pekerja = VALUES(id_pekerja)`,
+          row
+        );
+      }
+
+      // Clean up: delete the uploaded file
+      const fs = require("fs");
+      fs.unlinkSync(req.file.path);
+
+      return res.status(200).send({
+        success: true,
+        message: "Data berhasil diimport dan diupdate",
+        rowsProcessed: rows.length,
+      });
+    } catch (error) {
+      console.error("Error processing Excel file:", error);
+      return res.status(500).send({
         success: false,
-        message: "Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)",
+        message: "Error processing Excel file",
+        error: error.message,
       });
     }
-
-    const workbook = new excelJS.Workbook();
-    const filePath = `./server/uploads/${file.name}`;
-
-    file.mv(filePath, async (err) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).send({
-          success: false,
-          message: "Error when trying to upload file",
-          error: err.message,
-        });
-      }
-
-      try {
-        await workbook.xlsx.readFile(filePath);
-        const worksheet = workbook.getWorksheet(1);
-
-        const rows = [];
-        worksheet.eachRow((row, rowNumber) => {
-          if (rowNumber !== 1) {
-            // Skip header row
-            const id_log = row.getCell(1).value; // Column A
-            const resi_id = row.getCell(2).value; // Column B
-            const id_pekerja = row.getCell(3).value; // Column C
-            const status_proses = row.getCell(4).value; // Column D
-            const created_at = row.getCell(5).value; // Column E
-            const updated_at = row.getCell(6).value; // Column F
-
-            rows.push([id_log, resi_id, id_pekerja, status_proses, created_at ? new Date(created_at) : new Date(), updated_at ? new Date(updated_at) : new Date()]);
-          }
-        });
-
-        // Handle each row with multiple columns
-        for (const row of rows) {
-          await mysqlPool.query(
-            `INSERT INTO log_proses (id_log, resi_id, id_pekerja, status_proses, created_at, updated_at) 
-             VALUES (?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE 
-             id_log = VALUES(id_log),
-             id_pekerja = VALUES(id_pekerja),
-             status_proses = VALUES(status_proses),
-             created_at = VALUES(created_at),
-             updated_at = VALUES(updated_at)`,
-            row
-          );
-        }
-
-        return res.status(200).send({
-          success: true,
-          message: "Data berhasil diimport dan diupdate",
-        });
-      } catch (error) {
-        console.error("Error processing Excel file:", error);
-        return res.status(500).send({
-          success: false,
-          message: "Error processing Excel file",
-          error: error.message,
-        });
-      }
-    });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).send({
       success: false,
       message: "Error when trying to import resi",

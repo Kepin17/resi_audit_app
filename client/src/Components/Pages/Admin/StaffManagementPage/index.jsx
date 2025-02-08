@@ -245,7 +245,7 @@ const StaffManagementPage = () => {
 
   const handleExport = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/v1/auth-export", {
+      const response = await axios.get("http://localhost:8080/api/v1/barang-export", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -255,7 +255,7 @@ const StaffManagementPage = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `staff_data_${new Date().toISOString().split("T")[0]}.xlsx`);
+      link.setAttribute("download", `barang_data_${new Date().toISOString().split("T")[0]}.xlsx`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

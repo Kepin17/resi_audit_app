@@ -19,16 +19,23 @@ const PhotoCaptureFragment = ({ onPhotoCapture, onCancel }) => {
     setImgSrc(null);
   };
 
+  const videoConstraints = {
+    width: "1920px",
+    height: "1080px",
+    facingMode: "user",
+    screenshotQuality: 1,
+  };
+
   return (
     <div className="p-4 space-y-4">
       {!imgSrc ? (
         <>
-          <Webcam ref={webcamRef} screenshotFormat="image/jpeg" className="w-full rounded-lg" />
-          <div className="flex justify-between gap-2">
-            <Button buttonStyle="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg w-full" onClick={capture}>
+          <Webcam ref={webcamRef} screenshotFormat="image/jpeg" className="w-full rounded-lg" videoConstraints={videoConstraints} />
+          <div className="flex justify-between gap-2 font-bold text-lg">
+            <Button buttonStyle="bg-blue-500 hover:bg-blue-600 text-white px-4 py-10 rounded-lg w-full" onClick={capture}>
               Capture
             </Button>
-            <Button buttonStyle="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg w-full" onClick={onCancel}>
+            <Button buttonStyle="bg-red-500 hover:bg-red-600 text-white px-4 py-10 rounded-lg w-full" onClick={onCancel}>
               Cancel
             </Button>
           </div>
@@ -36,11 +43,11 @@ const PhotoCaptureFragment = ({ onPhotoCapture, onCancel }) => {
       ) : (
         <div className="space-y-4">
           <img src={imgSrc} alt="captured" className="w-full rounded-lg" />
-          <div className="flex justify-between gap-2">
-            <Button buttonStyle="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg w-full" onClick={retake}>
+          <div className="flex justify-between gap-2 font-bold text-lg">
+            <Button buttonStyle="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-10 rounded-lg w-full" onClick={retake}>
               Retake
             </Button>
-            <Button buttonStyle="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg w-full" onClick={handleSubmit}>
+            <Button buttonStyle="bg-green-500 hover:bg-green-600 text-white px-4 py-10 rounded-lg w-full" onClick={handleSubmit}>
               Submit
             </Button>
           </div>

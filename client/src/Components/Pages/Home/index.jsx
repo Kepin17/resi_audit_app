@@ -18,6 +18,7 @@ const HomePage = () => {
   const [scanning, setScanning] = useState(true);
   const [currentResi, setCurrentResi] = useState(null);
   const [isPhotoMode, setIsPhotoMode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(true);
 
   const scanHandler = async (err, result) => {
     if (result) {
@@ -129,81 +130,89 @@ const HomePage = () => {
 
   return (
     <MainLayout>
-      <div className="w-full h-16 flex items-center justify-start px-5 border-b">
-        <div className="w-[20rem] absolute top-[5rem] flex items-center space-x-4">
-          <button onClick={() => setMode("scanner")} className={`px-4 py-2 rounded-lg transition-all duration-200 ${mode === "scanner" ? "bg-blue-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-            <div className="flex items-center space-x-2">
-              <span>Scanner Mode</span>
-            </div>
-          </button>
-          {/* <button onClick={() => setMode("photo")} className={`px-4 py-2 rounded-lg transition-all duration-200 ${mode === "photo" ? "bg-blue-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-            <div className="flex items-center space-x-2">
-              <span>Foto Mode</span>
-            </div>
-          </button> */}
-        </div>
-      </div>
-      <div className="w-full flex-1 p-5 space-y-5 mt-6">
-        {isPhotoMode ? (
-          <div className="w-full h-auto py-2 max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="p-4 bg-gray-50 border-b">
-              <h3 className="text-lg font-medium">Foto Paket - {currentResi}</h3>
-            </div>
-            <PhotoCaptureFragment onPhotoCapture={handlePhotoCapture} onCancel={handlePhotoCancel} />
-          </div>
-        ) : (
-          <>
-            {isBarcodeActive && (
-              <div className="w-full h-auto py-2 max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-4 bg-gray-50 border-b">
-                  <h3 className="text-lg font-medium">Scanner Resi</h3>
+      {isPhotoMode || isBarcodeActive ? (
+        <div className="fixed inset-0 bg-black z-50">
+          <div className="w-full h-full flex flex-col">
+            {isPhotoMode ? (
+              <>
+                <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Foto Paket - {currentResi}</h3>
+                  <button onClick={handlePhotoCancel} className="text-white bg-red-500 px-4 py-2 rounded-lg">
+                    Close
+                  </button>
                 </div>
-                <div>
+                <div className="flex-1">
+                  <PhotoCaptureFragment onPhotoCapture={handlePhotoCapture} onCancel={handlePhotoCancel} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Scanner Resi</h3>
+                  <button
+                    onClick={() => {
+                      setIsBarcodeActive(false);
+                      setChangeBtn(false);
+                    }}
+                    className="text-white bg-red-500 px-4 py-2 rounded-lg"
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="flex-1">
                   <BarcodeScannerFragment dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
                 </div>
-              </div>
+              </>
             )}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="w-full h-16 flex items-center justify-start px-5 border-b">
+            <div className="w-[20rem] absolute top-[5rem] flex items-center space-x-4">
+              <button
+                onClick={() => setMode("scanner")}
+                className={`px-4 py-2 rounded-lg transition-all duration-200 ${mode === "scanner" ? "bg-blue-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+              >
+                <div className="flex items-center space-x-2">
+                  <span>Scanner Mode</span>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div className="w-full flex-1 p-5 space-y-5 mt-6">
             <div className="w-full bg-white rounded-lg shadow-md p-4">
-              <div className=" h-32 flex items-center justify-between">
+              <div className="h-32 flex items-center justify-between">
                 <h3 className="text-lg font-medium">Data Hari Ini</h3>
                 <Button
-                  buttonStyle={`${changeBtn ? "bg-red-500 hover:bg-red-600 " : "bg-blue-500 hover:bg-blue-600 "} p-2 rounded-md flex items-center gap-2 text-white transition-all duration-200`}
+                  buttonStyle={`bg-blue-500 hover:bg-blue-600 p-2 rounded-md flex items-center gap-2 text-white transition-all duration-200`}
                   onClick={() => {
-                    setIsBarcodeActive(!isBarcodeActive);
-                    setChangeBtn(!changeBtn);
+                    setIsBarcodeActive(true);
+                    setChangeBtn(true);
                   }}
                 >
-                  {isBarcodeActive ? (
-                    <>
-                      <IoIosCloseCircle />
-                      Tutup Scanner
-                    </>
-                  ) : (
-                    <>
-                      <CiBarcode />
-                      Update Paket
-                    </>
-                  )}
+                  <CiBarcode />
+                  Update Paket
                 </Button>
               </div>
             </div>
-          </>
-        )}
-        <div className="today-data-wrapper">
-          {data.map((item, index) => (
-            <div key={index} className="today-data-item bg-gray-50 p-5 mb-2 rounded-lg flex items-center justify-between">
-              <div>
-                <p className="text-md font-medium">{item.nama_pekerja}</p>
-                <p className="text-sm text-gray-500">{item.resi}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{formatDateTime(item.proses_scan)}</p>
-                <p className={`text-sm ${item.status === "success" ? "text-green-500" : "text-red-500"}`}>{item.status}</p>
-              </div>
+            <div className="today-data-wrapper">
+              {data.map((item, index) => (
+                <div key={index} className="today-data-item bg-gray-50 p-5 mb-2 rounded-lg flex items-center justify-between">
+                  <div>
+                    <p className="text-md font-medium">{item.nama_pekerja}</p>
+                    <p className="text-sm text-gray-500">{item.resi}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">{formatDateTime(item.proses_scan)}</p>
+                    <p className={`text-sm ${item.status === "success" ? "text-green-500" : "text-red-500"}`}>{item.status}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
     </MainLayout>
   );
 };

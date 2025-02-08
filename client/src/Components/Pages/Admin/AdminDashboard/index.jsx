@@ -14,7 +14,13 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [importStatus, setImportStatus] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [statusCounts, setStatusCounts] = useState({
+    picker: 0,
+    packing: 0,
+    pickout: 0,
+  });
 
   const fetchData = async () => {
     try {
@@ -22,6 +28,7 @@ const AdminDashboard = () => {
       if (searchQuery) params.append("search", searchQuery);
       if (startDate) params.append("startDate", startDate);
       if (endDate) params.append("endDate", endDate);
+      if (selectedStatus !== "all") params.append("status", selectedStatus);
 
       const response = await axios.get(`http://localhost:8080/api/v1/resi-terpack?${params.toString()}`, {
         headers: {
@@ -30,20 +37,33 @@ const AdminDashboard = () => {
       });
       setData(response.data.data);
       setTodayCount(response.data.todayCount);
+
+      // Calculate status counts
+      const counts = response.data.data.reduce((acc, item) => {
+        acc[item.status_proses] = (acc[item.status_proses] || 0) + 1;
+        return acc;
+      }, {});
+      setStatusCounts(counts);
     } catch (err) {
       console.log(err);
+      message.error("Failed to fetch data");
     }
   };
 
   useEffect(() => {
     fetchData();
-  }, [searchQuery, startDate, endDate]);
+  }, [searchQuery, startDate, endDate, selectedStatus]);
 
   const totalReadyForShipment = data.filter((order) => order.status_barang === "pending for shipment").length;
 
   const handleExport = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/v1/resi-terpack-export", {
+      const params = new URLSearchParams();
+      if (selectedStatus !== "all") {
+        params.append("status", selectedStatus);
+      }
+
+      const response = await axios.get(`http://localhost:8080/api/v1/resi-terpack-export?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -53,12 +73,14 @@ const AdminDashboard = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `resi_packing_${moment().format("DDMMYYYY")}.xlsx`);
+      const fileName = selectedStatus !== "all" ? `resi_${selectedStatus}_${moment().format("DDMMYYYY")}.xlsx` : `resi_all_${moment().format("DDMMYYYY")}.xlsx`;
+      link.setAttribute("download", fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (err) {
       console.error("Export failed:", err);
+      message.error("Failed to export data");
     }
   };
 
@@ -83,17 +105,26 @@ const AdminDashboard = () => {
     }
   };
 
-  const ImportFromExcelHandler = async (e) => {
-    try {
-      const file = e.target.files[0];
-      if (!file) return;
+  const ImportFromExcelHandler = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-      // Check file extension
-      const fileExt = file.name.split(".").pop().toLowerCase();
-      if (!["xlsx", "xls"].includes(fileExt)) {
-        message.error("Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)");
-        return;
-      }
+    // File validation
+    const fileExt = file.name.split(".").pop().toLowerCase();
+    if (!["xlsx", "xls"].includes(fileExt)) {
+      message.error("Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)");
+      return;
+    }
+
+    // File size validation (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      message.error("Ukuran file terlalu besar. Maksimal 5MB");
+      return;
+    }
+
+    try {
+      setImportLoading(true);
+      message.loading({ content: "Mengimport data...", key: "import" });
 
       const formData = new FormData();
       formData.append("file", file);
@@ -106,24 +137,55 @@ const AdminDashboard = () => {
       });
 
       if (response.data?.success) {
-        message.success("Data berhasil diimport");
-        await fetchData(); // Refresh data after successful import
+        message.success({
+          content: "Data berhasil diimport",
+          key: "import",
+          duration: 3,
+        });
+        fetchData(); // Use fetchData instead of fetchBarang
+      } else {
+        throw new Error(response.data?.message || "Gagal mengimport data");
       }
     } catch (error) {
       console.error("Error importing file:", error);
-      message.error(error.response?.data?.message || "Gagal mengimport data");
+      message.error({
+        content: error.response?.data?.message || "Gagal mengimport data. Pastikan format file sesuai template.",
+        key: "import",
+        duration: 4,
+      });
+    } finally {
+      setImportLoading(false);
+      event.target.value = ""; // Reset file input
     }
   };
 
   return (
     <DashboardLayout>
-      <div className="status-card-wrapper w-full flex flex-col md:flex-row gap-3 md:gap-5 justify-center items-stretch p-2 md:p-0">
-        <div className="status-card bg-blue-500 w-full md:w-1/3 p-4 rounded-lg">
-          <div className="status-card-content text-white flex items-center gap-3 md:gap-5">
-            <FaClipboardCheck className="text-3xl md:text-5xl" />
+      <div className="status-card-wrapper w-full flex flex-wrap gap-3 justify-center items-stretch p-2 md:p-0">
+        <div className="status-card bg-blue-500 w-full md:w-1/4 p-4 rounded-lg">
+          <div className="status-card-content text-white flex items-center gap-3">
+            <FaClipboardCheck className="text-3xl" />
             <div>
-              <h1 className="text-2xl md:text-3xl font-semibold">{todayCount}</h1>
-              <p className="text-base md:text-lg">Total Packing Today</p>
+              <h1 className="text-2xl font-semibold">{statusCounts.picker || 0}</h1>
+              <p>Picker</p>
+            </div>
+          </div>
+        </div>
+        <div className="status-card bg-green-500 w-full md:w-1/4 p-4 rounded-lg">
+          <div className="status-card-content text-white flex items-center gap-3">
+            <LuPackageCheck className="text-3xl" />
+            <div>
+              <h1 className="text-2xl font-semibold">{statusCounts.packing || 0}</h1>
+              <p>Packing</p>
+            </div>
+          </div>
+        </div>
+        <div className="status-card bg-purple-500 w-full md:w-1/4 p-4 rounded-lg">
+          <div className="status-card-content text-white flex items-center gap-3">
+            <FaUserCheck className="text-3xl" />
+            <div>
+              <h1 className="text-2xl font-semibold">{statusCounts.pickout || 0}</h1>
+              <p>Pickout</p>
             </div>
           </div>
         </div>
@@ -139,6 +201,22 @@ const AdminDashboard = () => {
                 <input type="date" className="p-2 border rounded-md" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
             </div>
+
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => setSelectedStatus("all")} className={`px-4 py-2 rounded-md ${selectedStatus === "all" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}>
+                All
+              </button>
+              <button onClick={() => setSelectedStatus("picker")} className={`px-4 py-2 rounded-md ${selectedStatus === "picker" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}>
+                Picker
+              </button>
+              <button onClick={() => setSelectedStatus("packing")} className={`px-4 py-2 rounded-md ${selectedStatus === "packing" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}>
+                Packing
+              </button>
+              <button onClick={() => setSelectedStatus("pickout")} className={`px-4 py-2 rounded-md ${selectedStatus === "pickout" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}>
+                Pickout
+              </button>
+            </div>
+
             <div className="flex gap-2">
               <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">
                 <FaFileExport /> Export
@@ -146,16 +224,20 @@ const AdminDashboard = () => {
               <button onClick={handleBackup} className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
                 <FaDatabase /> Backup
               </button>
-              <label className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 cursor-pointer">
+              <label className={`flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 cursor-pointer ${importLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
                 <FaFileImport />
-                Import
-                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={ImportFromExcelHandler} />
+                {importLoading ? "Importing..." : "Import"}
+                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={ImportFromExcelHandler} disabled={importLoading} />
               </label>
             </div>
           </div>
-          {importStatus && <div className={`p-4 mb-4 rounded-md ${importStatus.success ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{importStatus.message}</div>}
         </div>
-        <h2 className="text-2xl font-semibold mb-4">Packed Orders</h2>
+        <h2 className="text-2xl font-semibold mb-4">
+          {selectedStatus === "picker" && <span>Picked Orders</span>}
+          {selectedStatus === "packing" && <span>Packed Orders</span>}
+          {selectedStatus === "all" && <span>All Orders</span>}
+          {selectedStatus === "pickout" && <span>Pickout Orders</span>}
+        </h2>
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="bg-gray-100">
@@ -172,7 +254,12 @@ const AdminDashboard = () => {
                   <td className="px-6 py-4 whitespace-nowrap">{!order.resi_id ? "Telah dihapus / bermasalah" : order.resi_id}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{order.nama_pekerja}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Packed</span>
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${order.status_proses === "picker" ? "bg-blue-100 text-blue-800" : order.status_proses === "packing" ? "bg-green-100 text-green-800" : "bg-purple-100 text-purple-800"}`}
+                    >
+                      {order.status_proses}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">{moment(order.created_at).format("DD/MM/YY | HH:MM:SS")}</td>
                 </tr>

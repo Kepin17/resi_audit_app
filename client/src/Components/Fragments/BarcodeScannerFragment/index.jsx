@@ -16,7 +16,7 @@ const BarcodeScannerFragment = ({ scanning, dataScan, scanHandler }) => {
             <div className="line"></div>
           </div>
         )}
-        <BarcodeScannerComponent delay={1000} width={500} height={500} onUpdate={scanHandler} />
+        <BarcodeScannerComponent delay={1000} width={"100%"} height={"100%"} onUpdate={scanHandler} />
         <div className="p-4 relative">
           <div className="w-full flex flex-col items-center justify-center absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 "></div>
           <div className={`mt-5 ${dataScan === "Not Found" ? "text-red-500" : "text-green-700"}`}>

@@ -196,88 +196,65 @@ const cancelBarang = async (req, res) => {
 
 const importResiFromExcel = async (req, res) => {
   try {
-    if (!req.files || !req.files.file) {
+    if (!req.file) {
       return res.status(400).send({
         success: false,
         message: "No file uploaded",
       });
     }
 
-    const file = req.files.file;
-    const fileExt = file.name.split(".").pop().toLowerCase();
+    const workbook = new excelJS.Workbook();
 
-    if (!["xlsx", "xls"].includes(fileExt)) {
-      return res.status(400).send({
+    try {
+      await workbook.xlsx.readFile(req.file.path);
+      const worksheet = workbook.getWorksheet(1);
+
+      const rows = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber !== 1) {
+          // Skip header row
+          const resi_id = row.getCell(1).value;
+          const status = row.getCell(2).value;
+          const created_at = row.getCell(3).value;
+          const updated_at = row.getCell(4).value;
+          const id_proses = row.getCell(5).value;
+
+          rows.push([resi_id, status || "Pending", created_at ? new Date(created_at) : new Date(), updated_at ? new Date(updated_at) : new Date(), id_proses || null]);
+        }
+      });
+
+      // Insert data into database
+      for (const row of rows) {
+        await mysqlPool.query(
+          `INSERT INTO barang (resi_id, status_barang, created_at, updated_at, id_proses) 
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+           status_barang = VALUES(status_barang),
+           updated_at = VALUES(updated_at),
+           id_proses = VALUES(id_proses)`,
+          row
+        );
+      }
+
+      // Clean up: delete the uploaded file
+      const fs = require("fs");
+      fs.unlinkSync(req.file.path);
+
+      return res.status(200).send({
+        success: true,
+        message: "Data berhasil diimport dan diupdate",
+        rowsProcessed: rows.length,
+      });
+    } catch (error) {
+      console.error("Error processing Excel file:", error);
+      return res.status(500).send({
         success: false,
-        message: "Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)",
+        message: "Error processing Excel file",
+        error: error.message,
       });
     }
-
-    const workbook = new excelJS.Workbook();
-    const filePath = `./server/uploads/${file.name}`;
-
-    file.mv(filePath, async (err) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).send({
-          success: false,
-          message: "Error when trying to upload file",
-          error: err.message,
-        });
-      }
-
-      try {
-        await workbook.xlsx.readFile(filePath);
-        const worksheet = workbook.getWorksheet(1);
-
-        const rows = [];
-        worksheet.eachRow((row, rowNumber) => {
-          if (rowNumber !== 1) {
-            // Skip header row
-            const resi_id = row.getCell(1).value; // Column A
-            const status = row.getCell(2).value; // Column B
-            const created_at = row.getCell(3).value; // Column C
-            const updated_at = row.getCell(4).value; // Column D
-            const id_proses = row.getCell(5).value; // Column E
-
-            rows.push([
-              resi_id,
-              status || "Pending", // Default status if not provided
-              created_at ? new Date(created_at) : new Date(),
-              updated_at ? new Date(updated_at) : new Date(),
-              id_proses || null,
-            ]);
-          }
-        });
-
-        // Handle each row with multiple columns
-        for (const row of rows) {
-          await mysqlPool.query(
-            `INSERT INTO barang (resi_id, status_barang, created_at, updated_at, id_proses) 
-             VALUES (?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE 
-             status_barang = VALUES(status_barang),
-             updated_at = VALUES(updated_at),
-             id_proses = VALUES(id_proses)`,
-            row
-          );
-        }
-
-        return res.status(200).send({
-          success: true,
-          message: "Data berhasil diimport dan diupdate",
-        });
-      } catch (error) {
-        console.error("Error processing Excel file:", error);
-        return res.status(500).send({
-          success: false,
-          message: "Error processing Excel file",
-          error: error.message,
-        });
-      }
-    });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).send({
       success: false,
       message: "Error when trying to import resi",
@@ -358,7 +335,6 @@ const exportBarang = async (req, res) => {
     // Add metadata row for filter information
     const filterInfo = [`Search: ${search || "None"}`, `Status: ${status || "All"}`, `Date Range: ${startDate || "None"} to ${endDate || "None"}`].join(" | ");
     worksheet.addRow([filterInfo]);
-    worksheet.mergeCells(`A1:E1`);
 
     // Style header rows
     worksheet.getRow(2).font = { bold: true };

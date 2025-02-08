@@ -1,8 +1,7 @@
 import React from "react";
 import Form from "../Elements/Form";
 import SubTitle from "../Elements/SubTitle";
-import Button from "../Elements/Button";
-import { CiLogin } from "react-icons/ci";
+
 import { FaDoorClosed } from "react-icons/fa";
 
 const AuthLayout = ({ children, onSubmit }) => {
@@ -21,10 +20,6 @@ const AuthLayout = ({ children, onSubmit }) => {
           </SubTitle>
         </div>
         {children}
-        <Button>
-          <CiLogin className="text-xl" />
-          Masuk
-        </Button>
       </Form>
     </div>
   );

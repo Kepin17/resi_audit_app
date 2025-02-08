@@ -16,14 +16,14 @@ const storage = multer.diskStorage({
     // Get resi_id from form data or use timestamp if not available
     const resiId = req.body.resi_id || Date.now();
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `${resiId}_${uniqueSuffix}${path.extname(file.originalname) || ".jpg"}`);
+    cb(null, `${resiId}_${uniqueSuffix}${path.extname(file.originalname)}`);
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  // Accept only image files
-  if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-    return cb(new Error("Only image files are allowed!"), false);
+  // Accept image files and Excel files
+  if (!file.originalname.match(/\.(jpg|jpeg|png|gif|xlsx|xls)$/)) {
+    return cb(new Error("Only image files and Excel files are allowed!"), false);
   }
   cb(null, true);
 };
