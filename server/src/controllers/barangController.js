@@ -140,7 +140,8 @@ const showDetailByResi = async (req, res) => {
         log_proses.resi_id,
         log_proses.created_at,
         pekerja.nama_pekerja,
-        bagian.jenis_pekerja
+        bagian.jenis_pekerja,
+        log_proses.gambar_resi
       FROM log_proses
       LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
       LEFT JOIN bagian ON pekerja.id_bagian = bagian.id_bagian

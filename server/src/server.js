@@ -20,6 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.use(fileUpload("server/uploads"));
+app.use("/uploads", express.static("uploads"));
 
 app.use("/api/v1", routes);
 app.use("/api/v1", protectedRoute);
