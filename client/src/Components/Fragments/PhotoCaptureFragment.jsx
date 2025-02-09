@@ -32,22 +32,21 @@ const PhotoCaptureFragment = ({ onPhotoCapture, onCancel }) => {
         <>
           <Webcam ref={webcamRef} screenshotFormat="image/jpeg" className="w-full rounded-lg" videoConstraints={videoConstraints} />
           <div className="flex justify-between gap-2 font-bold text-lg">
-            <Button buttonStyle="bg-blue-500 hover:bg-blue-600 text-white px-4 py-10 rounded-lg w-full" onClick={capture}>
-              Capture
-            </Button>
-            <Button buttonStyle="bg-red-500 hover:bg-red-600 text-white px-4 py-10 rounded-lg w-full" onClick={onCancel}>
-              Cancel
-            </Button>
+            <div className="relative w-full flex justify-center -top-[7rem] left-0">
+              <button className=" w-20 h-20 bg-transparent border-4 border-white rounded-full relative" onClick={capture}>
+                <div className="absolute  inset-2 bg-white rounded-full"></div>
+              </button>
+            </div>
           </div>
         </>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 absolute inset-0 flex flex-col justify-between items-center p-4 bg-white bg-opacity-90 rounded-lg">
           <img src={imgSrc} alt="captured" className="w-full rounded-lg" />
-          <div className="flex justify-between gap-2 font-bold text-lg">
-            <Button buttonStyle="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-10 rounded-lg w-full" onClick={retake}>
+          <div className="flex items-center justify-between gap-2 font-bold text-lg">
+            <Button buttonStyle="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-5 rounded-lg w-full" onClick={retake}>
               Retake
             </Button>
-            <Button buttonStyle="bg-green-500 hover:bg-green-600 text-white px-4 py-10 rounded-lg w-full" onClick={handleSubmit}>
+            <Button buttonStyle="bg-green-500 hover:bg-green-600 text-white px-4 py-5 rounded-lg w-full" onClick={handleSubmit}>
               Submit
             </Button>
           </div>

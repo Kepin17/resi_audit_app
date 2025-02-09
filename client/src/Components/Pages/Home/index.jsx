@@ -144,6 +144,7 @@ const HomePage = () => {
         })
         .then((res) => {
           setData(res.data.data);
+          
         })
         .catch((err) => {
           console.error(err.response.data.message);
