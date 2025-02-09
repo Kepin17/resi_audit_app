@@ -20,9 +20,9 @@ const PhotoCaptureFragment = ({ onPhotoCapture, onCancel }) => {
   };
 
   const videoConstraints = {
-    width: "1920px",
-    height: "1080px",
-    facingMode: "user",
+    width: 1920,
+    height: 1080,
+    facingMode: "environment",
     screenshotQuality: 1,
   };
 

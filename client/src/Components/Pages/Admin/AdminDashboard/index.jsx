@@ -4,9 +4,9 @@ import { FaClipboardCheck } from "react-icons/fa";
 import { LuPackageCheck } from "react-icons/lu";
 import { FaUserCheck, FaFileExport, FaDatabase, FaFileImport } from "react-icons/fa";
 import { message } from "antd";
-
 import moment from "moment";
 import axios from "axios";
+import urlApi from "../../../../utils/url";
 
 const AdminDashboard = () => {
   const [data, setData] = useState([]);
@@ -21,22 +21,38 @@ const AdminDashboard = () => {
     packing: 0,
     pickout: 0,
   });
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    perPage: 12,
+  });
 
   const fetchData = async () => {
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.append("search", searchQuery);
-      if (startDate) params.append("startDate", startDate);
-      if (endDate) params.append("endDate", endDate);
+      if (startDate) {
+        // Tambahkan waktu awal hari (00:00:00) untuk startDate
+        const formattedStartDate = startDate + " 00:00:00";
+        params.append("startDate", formattedStartDate);
+      }
+      if (endDate) {
+        // Tambahkan waktu akhir hari (23:59:59) untuk endDate
+        const formattedEndDate = endDate + " 23:59:59";
+        params.append("endDate", formattedEndDate);
+      }
       if (selectedStatus !== "all") params.append("status", selectedStatus);
+      params.append("page", pagination.currentPage);
 
-      const response = await axios.get(`http://localhost:8080/api/v1/resi-terpack?${params.toString()}`, {
+      const response = await axios.get(`${urlApi}/api/v1/resi-terpack?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
       setData(response.data.data);
       setTodayCount(response.data.todayCount);
+      setPagination(response.data.pagination);
 
       // Calculate status counts
       const counts = response.data.data.reduce((acc, item) => {
@@ -52,7 +68,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchData();
-  }, [searchQuery, startDate, endDate, selectedStatus]);
+  }, [searchQuery, startDate, endDate, selectedStatus, pagination.currentPage]);
 
   const totalReadyForShipment = data.filter((order) => order.status_barang === "pending for shipment").length;
 
@@ -63,7 +79,7 @@ const AdminDashboard = () => {
         params.append("status", selectedStatus);
       }
 
-      const response = await axios.get(`http://localhost:8080/api/v1/resi-terpack-export?${params.toString()}`, {
+      const response = await axios.get(`${urlApi}/api/v1/resi-terpack-export?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -86,7 +102,7 @@ const AdminDashboard = () => {
 
   const handleBackup = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/v1/resi-terpack-backup", {
+      const response = await axios.get(`${urlApi}/api/v1/resi-terpack-backup`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -129,7 +145,7 @@ const AdminDashboard = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await axios.post("http://localhost:8080/api/v1/resi-terpack-import", formData, {
+      const response = await axios.post(`${urlApi}/api/v1/resi-terpack-import`, formData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "multipart/form-data",
@@ -157,6 +173,30 @@ const AdminDashboard = () => {
       setImportLoading(false);
       event.target.value = ""; // Reset file input
     }
+  };
+
+  const handlePageChange = (page) => {
+    setPagination((prev) => ({ ...prev, currentPage: page }));
+  };
+
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5; // Show maximum 5 page numbers
+    const currentPage = pagination.currentPage;
+    const totalPages = pagination.totalPages;
+
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(start + maxVisible - 1, totalPages);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    return pages;
   };
 
   return (
@@ -266,6 +306,49 @@ const AdminDashboard = () => {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="mt-4 flex justify-end items-center gap-2 px-6">
+          <button
+            onClick={() => handlePageChange(1)}
+            disabled={pagination.currentPage === 1}
+            className={`px-3 py-1 rounded-md ${pagination.currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white hover:bg-blue-600"}`}
+          >
+            First
+          </button>
+
+          <button
+            onClick={() => handlePageChange(pagination.currentPage - 1)}
+            disabled={pagination.currentPage === 1}
+            className={`px-3 py-1 rounded-md ${pagination.currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white hover:bg-blue-600"}`}
+          >
+            Prev
+          </button>
+
+          {generatePageNumbers().map((pageNum) => (
+            <button key={pageNum} onClick={() => handlePageChange(pageNum)} className={`px-3 py-1 rounded-md ${pagination.currentPage === pageNum ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-blue-100"}`}>
+              {pageNum}
+            </button>
+          ))}
+
+          <button
+            onClick={() => handlePageChange(pagination.currentPage + 1)}
+            disabled={pagination.currentPage === pagination.totalPages}
+            className={`px-3 py-1 rounded-md ${pagination.currentPage === pagination.totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white hover:bg-blue-600"}`}
+          >
+            Next
+          </button>
+
+          <button
+            onClick={() => handlePageChange(pagination.totalPages)}
+            disabled={pagination.currentPage === pagination.totalPages}
+            className={`px-3 py-1 rounded-md ${pagination.currentPage === pagination.totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white hover:bg-blue-600"}`}
+          >
+            Last
+          </button>
+
+          <span className="text-gray-600 ml-4">
+            Page {pagination.currentPage} of {pagination.totalPages}
+          </span>
         </div>
       </div>
     </DashboardLayout>

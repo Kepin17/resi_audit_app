@@ -70,16 +70,20 @@ const DashboardLayout = ({ children }) => {
               </div>
               <div className={`transition-all duration-300 overflow-hidden ${isAuthDropdownOpen ? "h-30 mt-2" : "h-0"}`}>
                 <ul className="list-inside space-y-2">
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/admin/staff" className="text-blue-800 block">
-                      Data Staff
-                    </Link>
-                  </li>
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/admin/staff/log-login" className="text-blue-800 block">
-                      log login Staff
-                    </Link>
-                  </li>
+                  {user.role === "superadmin" && (
+                    <>
+                      <li className="hover:bg-blue-300 p-2 rounded">
+                        <Link to="/admin/staff" className="text-blue-800 block">
+                          Data Staff
+                        </Link>
+                      </li>
+                      <li className="hover:bg-blue-300 p-2 rounded">
+                        <Link to="/admin/staff/log-login" className="text-blue-800 block">
+                          log login Staff
+                        </Link>
+                      </li>
+                    </>
+                  )}
                   <li className="hover:bg-blue-300 p-2 rounded">
                     <Link to="/admin/staff/packer-salary" className="text-blue-800 block">
                       Packer Salary Staff

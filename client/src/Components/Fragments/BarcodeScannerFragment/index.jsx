@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import BarcodeScannerComponent from "react-qr-barcode-scanner";
 import "./scan.css";
-import { ToastContainer, toast } from "react-toastify";
 
 const BarcodeScannerFragment = ({ scanning, dataScan, scanHandler }) => {
   return (
     <>
-      <ToastContainer />
       <div className="relative ">
         {scanning && (
           <div

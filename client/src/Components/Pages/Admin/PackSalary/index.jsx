@@ -12,6 +12,8 @@ const { Search } = Input;
 import moment from "moment";
 import axios from "axios";
 import ExcelActionModal from "../../../Fragments/ExcelActionModal";
+import urlApi from "../../../../utils/url";
+import { jwtDecode } from "jwt-decode";
 
 const PackSalary = () => {
   const [isEdit, setisEdit] = useState(false);
@@ -32,23 +34,35 @@ const PackSalary = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false); // Add this line
   const [openModal, setOpenModal] = useState(false);
+  const [user, setUser] = useState(null);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:8080/api/v1/gaji", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
-      .then((res) => {
-        console.log(res.data.data);
-        setForm({ ...form, total_gaji_per_scan: res.data.data[0].total_gaji_per_scan });
-      });
+    const token = localStorage.getItem("token");
+    const user = jwtDecode(token);
+    setUser(user);
   }, []);
+
+  useEffect(() => {
+    if (user?.role === "superadmin") {
+      axios
+        .get(`${urlApi}/api/v1/gaji`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        })
+        .then((res) => {
+          setForm({ ...form, total_gaji_per_scan: res.data.data[0].total_gaji_per_scan });
+        })
+        .catch((err) => {
+          message.error("Failed to fetch salary data");
+        });
+    }
+  }, [user]);
 
   const fetchGajiPacking = async (page, pageSize, searchValue) => {
     try {
-      let url = new URL("http://localhost:8080/api/v1/gaji/packing");
+      let url = new URL(`${urlApi}/api/v1/gaji/packing`);
 
       const params = new URLSearchParams();
       params.append("page", page);
@@ -58,8 +72,11 @@ const PackSalary = () => {
         params.append("search", searchValue.trim());
       }
       if (dateRange?.[0] && dateRange?.[1]) {
-        params.append("startDate", dateRange[0].toISOString());
-        params.append("endDate", dateRange[1].toISOString());
+        // Set the time to start of day for start date and end of day for end date
+        const startDate = dateRange[0].startOf("day").toISOString();
+        const endDate = dateRange[1].endOf("day").toISOString();
+        params.append("startDate", startDate);
+        params.append("endDate", endDate);
       }
 
       url.search = params.toString();
@@ -109,7 +126,7 @@ const PackSalary = () => {
     setLoading(true);
     try {
       const response = await axios.put(
-        `http://localhost:8080/api/v1/gaji/packing/${selectedRecord.id_gaji_pegawai}`,
+        `${urlApi}/api/v1/gaji/packing/${selectedRecord.id_gaji_pegawai}`,
         {},
         {
           headers: {
@@ -187,10 +204,33 @@ const PackSalary = () => {
     },
   ];
 
+  const handleSalaryUpdate = async () => {
+    if (!user?.role === "superadmin") return;
+
+    setUpdateLoading(true);
+    try {
+      await axios.put(
+        `${urlApi}/api/v1/gaji`,
+        { total_gaji_per_scan: form.total_gaji_per_scan },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      message.success("Salary updated successfully");
+      setisEdit(false);
+    } catch (error) {
+      message.error("Failed to update salary");
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log(form);
-    setisEdit(false);
+    handleSalaryUpdate();
   };
 
   const handleInputChange = (e) => {
@@ -228,7 +268,7 @@ const PackSalary = () => {
         params.append("endDate", dateRange[1].format("YYYY-MM-DD"));
       }
 
-      const response = await axios.get(`http://localhost:8080/api/v1/gaji/packing-export?${params.toString()}`, {
+      const response = await axios.get(`${urlApi}/api/v1/gaji/packing-export?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -261,7 +301,7 @@ const PackSalary = () => {
       setExportLoading(true);
       message.loading({ content: "Memproses backup...", key: "backup" });
 
-      const response = await axios.get("http://localhost:8080/api/v1/gaji/packing-backup", {
+      const response = await axios.get(`${urlApi}/api/v1/gaji/packing-backup`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -319,7 +359,7 @@ const PackSalary = () => {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await axios.post("http://localhost:8080/api/v1/gaji/packing-import", formData, {
+        const response = await axios.post(`${urlApi}/api/v1/gaji/packing-import`, formData, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "Content-Type": "multipart/form-data",
@@ -350,27 +390,31 @@ const PackSalary = () => {
         <div className="w-full h-auto border-2 border-gray-200 rounded-lg p-6 mb-6">
           <Title>Packing Salary</Title>
           <div className="flex gap-4 items-center mt-4">
-            <Form onSubmit={handleSubmit} className="flex-grow">
-              <InputFragment htmlFor={"total_gaji_per_scan"} InputType="number" isJustNumber={true} inputName={"total_gaji_per_scan"} inputValue={form.total_gaji_per_scan} isDisabled={!isEdit} inputOnChange={handleInputChange}>
-                Salary
-              </InputFragment>
-            </Form>
-            <div className="flex items-center text-white">
-              <button className={`bg-${isEdit ? "red-500" : "blue-500"} hover:bg-${isEdit ? "red-600" : "blue-600"} p-3 rounded-lg mr-2 transition duration-300`} onClick={() => setisEdit(!isEdit)}>
-                {!isEdit ? <MdEdit /> : <MdCancel />}
-              </button>
-              {isEdit && (
-                <button className="bg-green-500 hover:bg-green-600 p-3 rounded-lg transition duration-300" onClick={handleSubmit}>
-                  <GiConfirmed />
-                </button>
-              )}
-            </div>
+            {user?.role === "superadmin" && (
+              <>
+                <Form onSubmit={handleSubmit} className="flex-grow">
+                  <InputFragment htmlFor={"total_gaji_per_scan"} InputType="number" isJustNumber={true} inputName={"total_gaji_per_scan"} inputValue={form.total_gaji_per_scan} isDisabled={!isEdit} inputOnChange={handleInputChange}>
+                    Salary
+                  </InputFragment>
+                </Form>
+                <div className="flex items-center text-white">
+                  <button className={`bg-${isEdit ? "red-500" : "blue-500"} hover:bg-${isEdit ? "red-600" : "blue-600"} p-3 rounded-lg mr-2 transition duration-300`} onClick={() => setisEdit(!isEdit)} disabled={updateLoading}>
+                    {!isEdit ? <MdEdit /> : <MdCancel />}
+                  </button>
+                  {isEdit && (
+                    <button className="bg-green-500 hover:bg-green-600 p-3 rounded-lg transition duration-300" onClick={handleSubmit} disabled={updateLoading}>
+                      <GiConfirmed />
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
             <Button className="border-2 border-blue-500 p-4" onClick={() => setOpenModal(true)}>
               Action
             </Button>
           </div>
           <div className="mt-4 flex space-x-4 gap-2">
-            <RangePicker onChange={handleDateChange} />
+            <RangePicker onChange={handleDateChange} showTime={false} allowSame={true} format="YYYY-MM-DD" />
             <Search placeholder="Search by Nama Pekerja" onSearch={handleSearch} enterButton />
           </div>
         </div>
@@ -397,7 +441,7 @@ const PackSalary = () => {
           pagination={{
             current: currentPage,
             pageSize: pageSize,
-            total: `totalItems `,
+            total: totalItems,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total) => `Total ${total} items`,

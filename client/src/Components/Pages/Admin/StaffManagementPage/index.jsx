@@ -7,7 +7,7 @@ import "./staff.css";
 import { FaMoneyBill } from "react-icons/fa";
 import SearchFragment from "../../../Fragments/SearchFragment";
 import ExcelActionModal from "../../../Fragments/ExcelActionModal";
-
+import urlApi from "../../../../utils/url";
 const StaffManagementPage = () => {
   const [staffList, setStaffList] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -33,7 +33,7 @@ const StaffManagementPage = () => {
   const fetchStaff = async (page = 1, search = "") => {
     try {
       setIsLoading(true);
-      let url = new URL("http://localhost:8080/api/v1/auth/show");
+      let url = new URL(`${urlApi}/api/v1/auth/show`);
 
       const params = new URLSearchParams();
       params.append("page", page);
@@ -79,7 +79,7 @@ const StaffManagementPage = () => {
 
   useEffect(() => {
     axios
-      .get("http://localhost:8080/api/v1/bagian", {
+      .get(`${urlApi}/api/v1/bagian`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -157,7 +157,7 @@ const StaffManagementPage = () => {
 
   const handleDelete = async (id_pekerja) => {
     try {
-      await axios.delete(`http://localhost:8080/api/v1/auth/${id_pekerja}`, {
+      await axios.delete(`${urlApi}/api/v1/auth/${id_pekerja}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -172,7 +172,7 @@ const StaffManagementPage = () => {
   const handleSubmit = async (values) => {
     try {
       if (editingStaff) {
-        await axios.put(`http://localhost:8080/api/v1/auth/${editingStaff.id_pekerja}`, values, {
+        await axios.put(`${urlApi}/api/v1/auth/${editingStaff.id_pekerja}`, values, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -223,7 +223,7 @@ const StaffManagementPage = () => {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await axios.post("http://localhost:8080/api/v1/auth-import", formData, {
+        const response = await axios.post(`${urlApi}/api/v1/auth-import`, formData, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "Content-Type": "multipart/form-data",
@@ -245,7 +245,7 @@ const StaffManagementPage = () => {
 
   const handleExport = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/v1/barang-export", {
+      const response = await axios.get(`${urlApi}/api/v1/barang-export`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -266,7 +266,7 @@ const StaffManagementPage = () => {
 
   const handleBackup = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/v1/auth-backup", {
+      const response = await axios.get(`${urlApi}/api/v1/auth-backup`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -316,6 +316,8 @@ const StaffManagementPage = () => {
             style={{ marginTop: "16px", textAlign: "right" }}
             nextIcon="Next"
             prevIcon="Previous"
+            showQuickJumper
+            showLessItems={false}
             align="end"
           />
         </div>

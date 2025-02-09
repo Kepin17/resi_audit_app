@@ -1,13 +1,11 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
-import { Card, DatePicker, Input } from "antd";
-import moment from "moment";
+import { Card, DatePicker } from "antd";
 import SearchFragment from "../../../Fragments/SearchFragment";
+import urlApi from "../../../../utils/url";
 
 const { RangePicker } = DatePicker;
-const { Search } = Input;
-
 const LogLoginPage = () => {
   const formatDate = (date) => {
     const d = new Date(date);
@@ -31,7 +29,7 @@ const LogLoginPage = () => {
         setLoading(true);
         setError(null);
         try {
-          let url = new URL("http://localhost:8080/api/v1/auth/log");
+          let url = new URL(`${urlApi}/api/v1/auth/log`);
 
           // Add query parameters
           const params = new URLSearchParams();
@@ -43,8 +41,11 @@ const LogLoginPage = () => {
           }
 
           if (dateRange?.[0] && dateRange?.[1]) {
-            params.append("startDate", dateRange[0].format("YYYY-MM-DD"));
-            params.append("endDate", dateRange[1].format("YYYY-MM-DD"));
+            // Add time to dates to capture full day
+            const startDate = dateRange[0].startOf("day").format("YYYY-MM-DD HH:mm:ss");
+            const endDate = dateRange[1].endOf("day").format("YYYY-MM-DD HH:mm:ss");
+            params.append("startDate", startDate);
+            params.append("endDate", endDate);
           }
 
           url.search = params.toString();
@@ -116,7 +117,7 @@ const LogLoginPage = () => {
     <DashboardLayout>
       <div className="w-full h-[84vh] bg-slate-200 rounded-md p-4 overflow-y-scroll">
         <div className="mb-4 flex space-x-4">
-          <RangePicker onChange={handleDateChange} format="YYYY-MM-DD" />
+          <RangePicker onChange={handleDateChange} format="YYYY-MM-DD HH:mm:ss" showTime={{ format: "HH:mm:ss" }} />
           <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nama " className="w-full md:w-64" />
         </div>
 
@@ -160,13 +161,34 @@ const LogLoginPage = () => {
             );
           })}
         {totalPages > 1 && (
-          <div className="pagination flex items-center justify-end gap-4 my-5">
+          <div className="pagination flex items-center justify-end gap-2 my-5">
             <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600 transition-all duration-300 disabled:opacity-50">
               Previous
             </button>
-            <span className="text-gray-600">
-              Page {currentPage} of {totalPages}
-            </span>
+
+            {[...Array(totalPages)].map((_, index) => {
+              const pageNumber = index + 1;
+              // Only show 5 page numbers around current page
+              if (pageNumber === 1 || pageNumber === totalPages || (pageNumber >= currentPage - 2 && pageNumber <= currentPage + 2)) {
+                return (
+                  <button
+                    key={pageNumber}
+                    onClick={() => handlePageChange(pageNumber)}
+                    className={`px-3 py-1 rounded-md ${currentPage === pageNumber ? "bg-blue-600 text-white" : "bg-white text-blue-600 hover:bg-blue-50"} border border-blue-500 transition-all duration-300`}
+                  >
+                    {pageNumber}
+                  </button>
+                );
+              } else if (pageNumber === currentPage - 3 || pageNumber === currentPage + 3) {
+                return (
+                  <span key={pageNumber} className="px-2">
+                    ...
+                  </span>
+                );
+              }
+              return null;
+            })}
+
             <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600 transition-all duration-300 disabled:opacity-50">
               Next
             </button>

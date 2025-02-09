@@ -14,6 +14,7 @@ import { PiMicrosoftExcelLogoFill } from "react-icons/pi";
 import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 import { TbCancel } from "react-icons/tb";
 import { FaBoxArchive, FaBoxesPacking } from "react-icons/fa6";
+import urlApi from "../../../../utils/url";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -35,6 +36,7 @@ const AdminBarangSection = () => {
   const [resiDetail, setResiDetail] = useState([]);
   const [Img, setImg] = useState("");
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [getJenisPekerja, setJenisPekerja] = useState("");
 
   const [exportModal, setExportModal] = useState(false);
 
@@ -65,7 +67,7 @@ const AdminBarangSection = () => {
     setLoading(true);
     setError(null);
     try {
-      let url = new URL("http://localhost:8080/api/v1/barang");
+      let url = new URL(`${urlApi}/api/v1/barang`);
 
       // Add query parameters
       const params = new URLSearchParams();
@@ -133,7 +135,7 @@ const AdminBarangSection = () => {
       const values = resiId;
 
       const response = await axios.post(
-        "http://localhost:8080/api/v1/barang",
+        `${urlApi}/api/v1/barang`,
         {
           resi_id: values,
         },
@@ -163,7 +165,7 @@ const AdminBarangSection = () => {
 
   const handleCancelOrder = async (resi_id) => {
     axios
-      .put("http://localhost:8080/api/v1/barang/" + resi_id, "", {
+      .put(`${urlApi}/api/v1/barang/` + resi_id, "", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -211,7 +213,7 @@ const AdminBarangSection = () => {
         const formData = new FormData();
         formData.append("file", file); // Changed field name to 'file'
 
-        const response = await axios.post("http://localhost:8080/api/v1/barang/import", formData, {
+        const response = await axios.post(`${urlApi}/api/v1/barang/import`, formData, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "Content-Type": "multipart/form-data",
@@ -249,7 +251,7 @@ const AdminBarangSection = () => {
       setExportLoading(true);
       message.loading({ content: "Mengexport data...", key: "export" });
 
-      const response = await axios.get("http://localhost:8080/api/v1/barang-export", {
+      const response = await axios.get(`${urlApi}/api/v1/barang-export`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -302,7 +304,7 @@ const AdminBarangSection = () => {
       setExportLoading(true);
       message.loading({ content: "Memproses backup...", key: "backup" });
 
-      const response = await axios.get("http://localhost:8080/api/v1/barang-backup", {
+      const response = await axios.get(`${urlApi}/api/v1/barang-backup`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -438,28 +440,39 @@ const AdminBarangSection = () => {
                 <Table dataSource={resiDetail} pagination={false}>
                   <Table.Column title="Resi ID" dataIndex="resi_id" key="resi_id" />
                   <Table.Column title="Nama Pekerja" dataIndex="nama_pekerja" key="nama_pekerja" />
-                  <Table.Column title="Status" dataIndex="jenis_pekerja" key="status_barang" />
-                  <Table.Column title="Created At" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("DD/MM/YYYY HH:mm:ss")} />
                   <Table.Column
-                    title="Images View"
-                    dataIndex="gambar_resi"
-                    key="gambar_resi"
+                    title="Status"
+                    dataIndex="jenis_pekerja"
+                    key="status_barang"
                     render={(text) => {
-                      return (
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => {
-                              setImg(text);
-                              setModalDetailOpen(false);
-                              setIsImageViewerOpen(true);
-                            }}
-                          >
-                            View
-                          </Button>
-                        </div>
-                      );
+                      setJenisPekerja(text);
+
+                      return <span>{text === "picker" ? "Pickup" : text === "packing" ? "Packing" : text === "pickout" ? "Shipper" : "Admin"}</span>;
                     }}
                   />
+                  <Table.Column title="Created At" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("DD/MM/YYYY HH:mm:ss")} />
+                  {getJenisPekerja === "picker" && (
+                    <Table.Column
+                      title="Images View"
+                      dataIndex="gambar_resi"
+                      key="gambar_resi"
+                      render={(text) => {
+                        return (
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => {
+                                setImg(text);
+                                setModalDetailOpen(false);
+                                setIsImageViewerOpen(true);
+                              }}
+                            >
+                              View
+                            </Button>
+                          </div>
+                        );
+                      }}
+                    />
+                  )}
                 </Table>
               </Modal>
 
@@ -471,7 +484,7 @@ const AdminBarangSection = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
-                    <img src={`http://localhost:8080/${Img}`} alt="Detail" className=" object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} width={"80%"} />
+                    <img src={`${urlApi}/${Img}`} alt="Detail" className=" object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} width={"500"} />
                   </div>
                 </div>
               )}
@@ -490,20 +503,20 @@ const AdminBarangSection = () => {
                 return (
                   <div
                     key={item.resi_id}
-                    className="card bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-all cursor-pointer "
+                    className="card bg-white p-5 rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
                     onClick={() => {
-                      setModalDetailOpen(true);
+                      if (item.status === "pending" || item.status === "cancelled") return;
 
                       axios
-                        .get("http://localhost:8080/api/v1/barang/" + item.resi_id, {
+                        .get("http://192.168.1.14:8080/api/v1/barang/" + item.resi_id, {
                           headers: {
                             Authorization: `Bearer ${localStorage.getItem("token")}`,
                           },
                         })
                         .then((response) => {
                           if (response.data?.success) {
-                            console.log(response.data.data);
                             setResiDetail(response.data.data);
+                            setModalDetailOpen(true);
                           }
                         })
                         .catch((error) => {
@@ -511,36 +524,82 @@ const AdminBarangSection = () => {
                         });
                     }}
                   >
-                    <div className="flex items-start space-x-4">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center">
-                          {item.status === "pending" && <MdOutlinePendingActions className="text-3xl text-yellow-500" />}
-                          {item.status === "cancelled" && <TbCancel className="text-3xl text-red-500" />}
-                          {item.status === "picked" && <FaBoxArchive className="text-3xl text-blue-500" />}
-                          {item.status === "packed" && <FaBoxesPacking className="text-3xl text-orange-500" />}
-                          {item.status === "shipped" && <MdLocalShipping className="text-3xl text-green-500" />}
+                    <div className="flex flex-col space-y-4">
+                      {/* Header with Status Icon */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center 
+              ${item.status === "pending" ? "bg-yellow-100" : item.status === "cancelled" ? "bg-red-100" : item.status === "picked" ? "bg-blue-100" : item.status === "packed" ? "bg-orange-100" : "bg-green-100"}`}
+                          >
+                            {item.status === "pending" && <MdOutlinePendingActions className="text-2xl text-yellow-600" />}
+                            {item.status === "cancelled" && <TbCancel className="text-2xl text-red-600" />}
+                            {item.status === "picked" && <FaBoxArchive className="text-2xl text-blue-600" />}
+                            {item.status === "packed" && <FaBoxesPacking className="text-2xl text-orange-600" />}
+                            {item.status === "shipped" && <MdLocalShipping className="text-2xl text-green-600" />}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{item.resi_id}</h3>
+                            <span
+                              className={`text-sm px-2.5 py-1 rounded-full inline-block mt-1
+                ${
+                  item.status === "pending"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : item.status === "cancelled"
+                    ? "bg-red-100 text-red-800"
+                    : item.status === "picked"
+                    ? "bg-blue-100 text-blue-800"
+                    : item.status === "packed"
+                    ? "bg-orange-100 text-orange-800"
+                    : "bg-green-100 text-green-800"
+                }`}
+                            >
+                              {item.status}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex-1">
-                        <div className="mb-2">
-                          <Title titleStyle="text-lg font-bold text-gray-800">{item.resi_id}</Title>
-                          <span className="text-sm text-gray-500">
-                            {item.status_description} {item.status !== "pending" && item.status !== "cancelled" ? "oleh" : ""} {item.nama_pekerja}
+
+                      {/* Content */}
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-600">
+                          {item.status_description} {item.status !== "pending" && item.status !== "cancelled" ? <span className="font-medium text-gray-900">• {item.nama_pekerja}</span> : ""}
+                        </p>
+                        <div className="flex items-center text-xs text-gray-500">
+                          <span className="flex items-center">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Create at: {moment(item.created_at).format("DD/MM/YYYY")}
                           </span>
                         </div>
-                        <div className="flex items-center mt-2">
-                          <span className="text-xs text-gray-500">Last Scan : {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("DD/MM/YYYY")}</span>
+
+                        <div className="flex items-center text-xs text-gray-500">
+                          <span className="flex items-center">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Last Scan: {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("DD/MM/YYYY")}
+                          </span>
                         </div>
                       </div>
+
+                      {/* Cancel Button */}
+                      {item.status === "pending" && (
+                        <div className="pt-3 mt-3 border-t border-gray-100">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelOrder(item.resi_id);
+                            }}
+                            className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 py-2 rounded-lg transition-all duration-300"
+                          >
+                            <MdCancelScheduleSend className="text-lg" />
+                            <span className="text-sm font-medium">Cancel Order</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {item.status === "pending" && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <button onClick={() => handleCancelOrder(item.resi_id)} className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 py-1 rounded-md transition-colors">
-                          <MdCancelScheduleSend className="text-lg" />
-                          <span className="text-sm font-medium">Cancel Order</span>
-                        </button>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -548,17 +607,46 @@ const AdminBarangSection = () => {
           )}
 
           {!loading && !error && totalPages > 1 && (
-            <div className="pagination flex items-center justify-end gap-4 my-5">
-              <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600 transition-all duration-300 disabled:opacity-50">
+            <div className="pagination flex items-center justify-end gap-2 my-5">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="bg-blue-500 text-white px-3 py-2 rounded-md shadow-sm hover:bg-blue-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Previous
               </button>
-              <span className="text-gray-600">
-                Page {currentPage} of {totalPages}
-              </span>
+
+              <div className="flex gap-1">
+                {[...Array(totalPages)].map((_, index) => {
+                  const pageNumber = index + 1;
+                  // Show first page, last page, current page, and one page before and after current
+                  if (pageNumber === 1 || pageNumber === totalPages || (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)) {
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => handlePageChange(pageNumber)}
+                        className={`px-3 py-2 rounded-md transition-all duration-300 min-w-[40px]
+                          ${currentPage === pageNumber ? "bg-blue-600 text-white" : "bg-white text-blue-600 hover:bg-blue-50"} border border-blue-500`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  } else if (pageNumber === currentPage - 2 || pageNumber === currentPage + 2) {
+                    // Show ellipsis
+                    return (
+                      <span key={pageNumber} className="px-2 py-1">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600 transition-all duration-300 disabled:opacity-50"
+                className="bg-blue-500 text-white px-3 py-2 rounded-md shadow-sm hover:bg-blue-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>

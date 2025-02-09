@@ -3,22 +3,19 @@ import Button from "../../Elements/Button";
 import MainLayout from "../../Layouts/MainLayout";
 import React, { useEffect, useState } from "react";
 import BarcodeScannerFragment from "../../Fragments/BarcodeScannerFragment";
-import { IoIosCloseCircle } from "react-icons/io";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-import { toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import PhotoCaptureFragment from "../../Fragments/PhotoCaptureFragment";
+import urlApi from "../../../utils/url";
 
 const HomePage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
-  const [changeBtn, setChangeBtn] = useState(false);
   const [data, setData] = useState([]);
-  const [mode, setMode] = useState("scanner");
   const [dataScan, setDataScan] = useState("");
   const [scanning, setScanning] = useState(true);
   const [currentResi, setCurrentResi] = useState(null);
   const [isPhotoMode, setIsPhotoMode] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(true);
 
   const scanHandler = async (err, result) => {
     if (result) {
@@ -26,8 +23,38 @@ const HomePage = () => {
       setScanning(false);
       setCurrentResi(result.text);
 
-      // Switch to photo capture mode
-      setIsPhotoMode(true);
+      const token = localStorage.getItem("token");
+      const decodeToken = jwtDecode(token);
+      const user = decodeToken.id_pekerja;
+      const role = decodeToken.bagian;
+
+      if (role === "picker") {
+        // Picker role: switch to photo mode immediately
+        setIsPhotoMode(true);
+        setIsBarcodeActive(false);
+      } else {
+        // Other roles: submit directly without photo
+        const formData = new FormData();
+        formData.append("resi_id", result.text);
+        formData.append("id_pekerja", user);
+
+        axios
+          .post(`${urlApi}/api/v1/auditResi`, formData, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "multipart/form-data",
+            },
+          })
+          .then((res) => {
+            toast.success("Process completed successfully");
+            setIsBarcodeActive(false);
+            setScanning(true);
+            setCurrentResi(null);
+          })
+          .catch((err) => {
+            toast.error(err.response?.data?.message || "Failed to process");
+          });
+      }
     } else {
       setDataScan("Not Found");
       setScanning(true);
@@ -35,6 +62,11 @@ const HomePage = () => {
   };
 
   const handlePhotoCapture = ({ photo }) => {
+    if (!photo) {
+      toast.error("Photo is required for picker role");
+      return;
+    }
+
     const token = localStorage.getItem("token");
     const decodeToken = jwtDecode(token);
     const user = decodeToken.id_pekerja;
@@ -52,7 +84,7 @@ const HomePage = () => {
         formData.append("id_pekerja", user);
 
         axios
-          .post("http://localhost:8080/api/v1/auditResi", formData, {
+          .post(`${urlApi}/api/v1/auditResi`, formData, {
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "multipart/form-data",
@@ -105,7 +137,7 @@ const HomePage = () => {
       }
 
       axios
-        .get(`http://localhost:8080/api/v1/auditResi/activity/${username}`, {
+        .get(`${urlApi}/api/v1/auditResi/activity/${username}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -130,6 +162,8 @@ const HomePage = () => {
 
   return (
     <MainLayout>
+      <ToastContainer />
+
       {isPhotoMode || isBarcodeActive ? (
         <div className="fixed inset-0 bg-black z-50">
           <div className="w-full h-full flex flex-col">
@@ -152,7 +186,6 @@ const HomePage = () => {
                   <button
                     onClick={() => {
                       setIsBarcodeActive(false);
-                      setChangeBtn(false);
                     }}
                     className="text-white bg-red-500 px-4 py-2 rounded-lg"
                   >
@@ -168,18 +201,7 @@ const HomePage = () => {
         </div>
       ) : (
         <>
-          <div className="w-full h-16 flex items-center justify-start px-5 border-b">
-            <div className="w-[20rem] absolute top-[5rem] flex items-center space-x-4">
-              <button
-                onClick={() => setMode("scanner")}
-                className={`px-4 py-2 rounded-lg transition-all duration-200 ${mode === "scanner" ? "bg-blue-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-              >
-                <div className="flex items-center space-x-2">
-                  <span>Scanner Mode</span>
-                </div>
-              </button>
-            </div>
-          </div>
+          <div className="w-full h-16 flex items-center justify-start px-5 border-b"></div>
           <div className="w-full flex-1 p-5 space-y-5 mt-6">
             <div className="w-full bg-white rounded-lg shadow-md p-4">
               <div className="h-32 flex items-center justify-between">
@@ -188,7 +210,6 @@ const HomePage = () => {
                   buttonStyle={`bg-blue-500 hover:bg-blue-600 p-2 rounded-md flex items-center gap-2 text-white transition-all duration-200`}
                   onClick={() => {
                     setIsBarcodeActive(true);
-                    setChangeBtn(true);
                   }}
                 >
                   <CiBarcode />

@@ -6,7 +6,7 @@ import { FaSpinner } from "react-icons/fa";
 import SubChapter from "../../Elements/SubChapter";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-
+import urlApi from "../../../utils/url";
 const LoginPage = () => {
   const [loginData, setLoginData] = React.useState({
     username: "",
@@ -22,7 +22,7 @@ const LoginPage = () => {
     setError("");
 
     axios
-      .post("http://localhost:8080/api/v1/auth/login", loginData)
+      .post(`${urlApi}/api/v1/auth/login`, loginData)
       .then((res) => {
         setSuccess(true);
         const getToken = res.data.yourToken;
