@@ -508,7 +508,7 @@ const AdminBarangSection = () => {
                       if (item.status === "pending" || item.status === "cancelled") return;
 
                       axios
-                        .get("http://192.168.1.14:8080/api/v1/barang/" + item.resi_id, {
+                        .get(`${urlApi}/api/v1/barang/` + item.resi_id, {
                           headers: {
                             Authorization: `Bearer ${localStorage.getItem("token")}`,
                           },

@@ -52,7 +52,11 @@ const PackSalary = () => {
           },
         })
         .then((res) => {
-          setForm({ ...form, total_gaji_per_scan: res.data.data[0].total_gaji_per_scan });
+          setForm({
+            ...form,
+            total_gaji_per_scan: res.data.data[0].total_gaji_per_scan,
+            id_gaji: res.data.data[0].id_gaji, // Add this line
+          });
         })
         .catch((err) => {
           message.error("Failed to fetch salary data");
@@ -210,7 +214,7 @@ const PackSalary = () => {
     setUpdateLoading(true);
     try {
       await axios.put(
-        `${urlApi}/api/v1/gaji`,
+        `${urlApi}/api/v1/gaji/${form.id_gaji}`, // Updated endpoint with id_gaji
         { total_gaji_per_scan: form.total_gaji_per_scan },
         {
           headers: {
@@ -222,7 +226,8 @@ const PackSalary = () => {
       message.success("Salary updated successfully");
       setisEdit(false);
     } catch (error) {
-      message.error("Failed to update salary");
+      console.error("Salary update error:", error);
+      message.error(error.response?.data?.message || "Failed to update salary");
     } finally {
       setUpdateLoading(false);
     }
