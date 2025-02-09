@@ -75,13 +75,13 @@ router.get("/bagian", authToken, roleMiddleware([roles.supadmin]), upload.single
 // gaji bos
 router.get("/gaji", authToken, roleMiddleware([roles.supadmin]), getSalary);
 router.put("/gaji/:id_gaji", authToken, roleMiddleware([roles.supadmin]), editGaji);
-router.get("/gaji/packing", authToken, roleMiddleware([roles.supadmin]), getGajiPacking);
+router.get("/gaji/packing", authToken, roleMiddleware([roles.supadmin, roles.admin]), getGajiPacking);
 router.put("/gaji/packing/:id_gaji_pegawai", authToken, roleMiddleware([roles.supadmin]), payPackingStaff);
 
 // audit gaji
 
-router.get("/gaji/packing-export", authToken, roleMiddleware([roles.supadmin]), exportGaji);
-router.get("/gaji/packing-backup", authToken, roleMiddleware([roles.supadmin]), backupGajiPacking);
-router.post("/gaji/packing-import", authToken, roleMiddleware([roles.supadmin]), upload.single("file"), importGajiFromExcel);
+router.get("/gaji/packing-export", authToken, roleMiddleware([roles.supadmin, roles.admin]), exportGaji);
+router.get("/gaji/packing-backup", authToken, roleMiddleware([roles.supadmin, roles.admin]), backupGajiPacking);
+router.post("/gaji/packing-import", authToken, roleMiddleware([roles.supadmin, roles.admin]), upload.single("file"), importGajiFromExcel);
 
 module.exports = router;

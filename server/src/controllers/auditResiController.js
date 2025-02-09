@@ -58,19 +58,12 @@ const showAllData = async (req, res) => {
 const scaneHandler = async (req, res) => {
   try {
     const { resi_id, id_pekerja } = req.body;
-    let photoPath = null;
-
-    // Check if file was uploaded
-    if (req.file) {
-      photoPath = req.file.path;
-    }
 
     // Validate required fields
     if (!resi_id || !id_pekerja) {
-      // Remove uploaded file if validation fails
-      if (photoPath) {
+      if (req.file) {
         const fs = require("fs");
-        fs.unlinkSync(photoPath);
+        fs.unlinkSync(req.file.path);
       }
       return res.status(400).send({
         success: false,
@@ -89,9 +82,9 @@ const scaneHandler = async (req, res) => {
 
     // Worker validation
     if (!workerData || workerData.length === 0) {
-      if (photoPath) {
+      if (req.file) {
         const fs = require("fs");
-        fs.unlinkSync(photoPath);
+        fs.unlinkSync(req.file.path);
       }
       return res.status(404).send({
         success: false,
@@ -100,6 +93,23 @@ const scaneHandler = async (req, res) => {
     }
 
     const workerRole = workerData[0].jenis_pekerja;
+
+    // Validate photo requirement for picker role
+    if (workerRole === "picker" && !req.file) {
+      return res.status(400).send({
+        success: false,
+        message: "Photo is required for picker role",
+      });
+    }
+
+    // Only process photo if worker is picker
+    let photoPath = null;
+    if (req.file && workerRole === "picker") {
+      photoPath = req.file.path;
+    } else if (req.file) {
+      const fs = require("fs");
+      fs.unlinkSync(req.file.path);
+    }
 
     const [checkBarangRow] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
 
@@ -122,14 +132,14 @@ const scaneHandler = async (req, res) => {
           });
         }
 
-        // Add photo information to the process
+        // Add photo information to the process only for picker
         const processQuery = photoPath ? "INSERT INTO proses (resi_id, id_pekerja, status_proses, gambar_resi) VALUES (?, ?, ?, ?)" : "INSERT INTO proses (resi_id, id_pekerja, status_proses) VALUES (?, ?, ?)";
 
         const processValues = photoPath ? [resi_id, id_pekerja, workerRole, photoPath] : [resi_id, id_pekerja, workerRole];
 
         await mysqlPool.query(processQuery, processValues);
       } else {
-        // Check if trying to scan with same role
+        // Rest of the workflow checks...
         if (prosesRows[0].status_proses === workerRole) {
           return res.status(400).send({
             success: false,
@@ -137,12 +147,10 @@ const scaneHandler = async (req, res) => {
           });
         }
 
-        // Define valid workflow sequence
         const workflow = ["picker", "packing", "pickout"];
         const currentIndex = workflow.indexOf(prosesRows[0].status_proses);
         const nextIndex = workflow.indexOf(workerRole);
 
-        // Check if the update follows linear workflow
         if (nextIndex !== currentIndex + 1) {
           return res.status(400).send({
             success: false,
@@ -153,14 +161,13 @@ const scaneHandler = async (req, res) => {
         await mysqlPool.query("UPDATE proses SET id_pekerja = ?, status_proses = ? WHERE resi_id = ?", [id_pekerja, workerRole, resi_id]);
       }
 
-      // await mysqlPool.query("INSERT INTO log_proses (id_pekerja, resi_id, status_proses) VALUES (?, ?, ?)", [id_pekerja, resi_id, workerRole]);
       return res.status(200).send({
         success: true,
-        message: "Scan and photo upload success",
+        message: "Scan " + (photoPath ? "and photo upload " : "") + "success",
         data: {
           nama_pekerja: workerData[0].nama_pekerja,
           proses_scan: workerRole,
-          gambar_resi: photoPath,
+          ...(photoPath && { gambar_resi: photoPath }),
         },
       });
     }
@@ -170,7 +177,6 @@ const scaneHandler = async (req, res) => {
       message: "Resi not valid or not found",
     });
   } catch (error) {
-    // Remove uploaded file if any error occurs
     if (req.file) {
       const fs = require("fs");
       fs.unlinkSync(req.file.path);
@@ -213,8 +219,7 @@ const getActivityByName = async (req, res) => {
       FROM log_proses 
       JOIN proses ON log_proses.resi_id = proses.resi_id 
       JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE pekerja.username = ?
-    `,
+      WHERE pekerja.username = ?`,
       [username]
     );
     if (rows.length === 0) {
@@ -256,8 +261,7 @@ const showDataByResi = async (req, res) => {
       JOIN proses ON log_proses.resi_id = proses.resi_id 
       JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
       WHERE log_proses.resi_id = ?
-      ORDER BY log_proses.created_at ASC
-    `,
+      ORDER BY log_proses.created_at ASC`,
       [resi_id]
     );
 
@@ -311,8 +315,7 @@ const uploadPhoto = async (req, res) => {
           SET gambar_resi = ?
           WHERE resi_id = ? 
           ORDER BY updated_at DESC 
-          LIMIT 1
-        `;
+          LIMIT 1`;
 
         await pool.query(query, [fileName, notes, resi_id]);
 

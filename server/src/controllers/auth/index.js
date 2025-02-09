@@ -146,7 +146,7 @@ const loginHandler = async (req, res) => {
     const passcordValidation = await bcrypt.compare(password, pekerja.password);
     const [bagianData] = await mysqlPool.query("SELECT * FROM bagian WHERE id_bagian = ?", [pekerja.id_bagian]);
 
-    const divisi = bagianData[0] ? bagianData[0].nama_bagian : "admin";
+    const divisi = bagianData[0] ? bagianData[0].jenis_pekerja : "admin";
 
     await mysqlPool.query(
       `INSERT INTO device_logs (id_pekerja, ip_address, device_info)

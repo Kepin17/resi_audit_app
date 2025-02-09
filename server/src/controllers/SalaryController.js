@@ -269,7 +269,10 @@ const importGajiFromExcel = async (req, res) => {
           await mysqlPool.query(
             `INSERT INTO gaji_pegawai 
              (id_gaji_pegawai, id_gaji, id_pekerja, jumlah_scan, gaji_total, created_at, updated_at, is_dibayar)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+             updated_at = VALUES(updated_at)
+             `,
             row
           );
         }

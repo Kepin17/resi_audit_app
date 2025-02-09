@@ -229,9 +229,7 @@ const importResiFromExcel = async (req, res) => {
           `INSERT INTO barang (resi_id, status_barang, created_at, updated_at, id_proses) 
            VALUES (?, ?, ?, ?, ?)
            ON DUPLICATE KEY UPDATE 
-           status_barang = VALUES(status_barang),
-           updated_at = VALUES(updated_at),
-           id_proses = VALUES(id_proses)`,
+           updated_at = VALUES(updated_at)`,
           row
         );
       }

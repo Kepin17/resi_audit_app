@@ -4,7 +4,9 @@ const moment = require("moment");
 
 const showResiTerpack = async (req, res) => {
   try {
-    const { search, startDate, endDate, status } = req.query;
+    const { search, startDate, endDate, status, page = 1 } = req.query;
+    const limit = 12;
+    const offset = (page - 1) * limit;
 
     // Get today's count
     const [todayCount] = await mysqlPool.query(
@@ -13,7 +15,14 @@ const showResiTerpack = async (req, res) => {
        WHERE DATE(created_at) = CURDATE()`
     );
 
-    let query = `
+    let countQuery = `
+      SELECT COUNT(DISTINCT log_proses.id_log) as total
+      FROM log_proses
+      LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
+      WHERE 1=1
+    `;
+
+    let dataQuery = `
       SELECT DISTINCT
         log_proses.id_log,
         log_proses.resi_id,
@@ -27,32 +36,52 @@ const showResiTerpack = async (req, res) => {
     `;
 
     const params = [];
+    const countParams = [];
 
     // Add status filter
     if (status && status !== "all") {
-      query += ` AND log_proses.status_proses = ?`;
+      const statusCondition = ` AND log_proses.status_proses = ?`;
+      dataQuery += statusCondition;
+      countQuery += statusCondition;
       params.push(status);
+      countParams.push(status);
     }
 
     if (search) {
-      query += ` AND (log_proses.resi_id LIKE ? OR pekerja.nama_pekerja LIKE ?)`;
+      const searchCondition = ` AND (log_proses.resi_id LIKE ? OR pekerja.nama_pekerja LIKE ?)`;
+      dataQuery += searchCondition;
+      countQuery += searchCondition;
       params.push(`%${search}%`, `%${search}%`);
+      countParams.push(`%${search}%`, `%${search}%`);
     }
 
     if (startDate && endDate) {
-      query += ` AND DATE(log_proses.created_at) BETWEEN ? AND ?`;
+      const dateCondition = ` AND DATE(log_proses.created_at) BETWEEN ? AND ?`;
+      dataQuery += dateCondition;
+      countQuery += dateCondition;
       params.push(startDate, endDate);
+      countParams.push(startDate, endDate);
     }
 
-    query += ` ORDER BY log_proses.created_at DESC`;
+    dataQuery += ` ORDER BY log_proses.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
 
-    const [rows] = await mysqlPool.query(query, params);
+    const [rows] = await mysqlPool.query(dataQuery, params);
+    const [countResult] = await mysqlPool.query(countQuery, countParams);
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
 
     return res.status(200).json({
       success: true,
       message: "Data berhasil ditemukan!",
       data: rows,
       todayCount: todayCount[0].today_count,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalItems,
+        perPage: limit,
+      },
     });
   } catch (err) {
     console.error("Error in showResiTerpack:", err);
@@ -230,9 +259,7 @@ const importPackFromExcel = async (req, res) => {
           `INSERT INTO log_proses (id_log, resi_id, id_pekerja, status_proses, created_at, updated_at) 
            VALUES (?, ?, ?, ?, ?, ?)
            ON DUPLICATE KEY UPDATE 
-           status_proses = VALUES(status_proses),
-           updated_at = VALUES(updated_at),
-           id_pekerja = VALUES(id_pekerja)`,
+           updated_at = VALUES(updated_at)`,
           row
         );
       }

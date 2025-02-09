@@ -5,7 +5,6 @@ const dotenv = require("dotenv");
 const mysqlPool = require("./config/db");
 const protectedRoute = require("./routes/protectedRoute");
 const cors = require("cors");
-const fileUpload = require("express-fileupload");
 
 dotenv.config();
 
