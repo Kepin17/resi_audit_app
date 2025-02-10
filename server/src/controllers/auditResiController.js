@@ -55,6 +55,146 @@ const showAllData = async (req, res) => {
   }
 };
 
+const checkStatusResi = async (req, res) => {
+  try {
+    const { resi_id } = req.params;
+    const { id_pekerja } = req.body;
+
+    if (!resi_id) {
+      return res.status(400).send({
+        success: false,
+        message: "Resi ID is required",
+      });
+    }
+
+    if (!id_pekerja) {
+      return res.status(400).send({
+        success: false,
+        message: "Worker ID is required",
+      });
+    }
+
+    // Get worker data
+    const [workerData] = await mysqlPool.query(
+      `SELECT pekerja.*, bagian.jenis_pekerja
+       FROM pekerja 
+       JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
+       WHERE pekerja.id_pekerja = ?`,
+      [id_pekerja]
+    );
+
+    if (!workerData || workerData.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Worker not found",
+      });
+    }
+
+    const workerRole = workerData[0].jenis_pekerja;
+    const nama_pekerja = workerData[0].nama_pekerja;
+
+    // Check if resi exists in barang
+    const [checkBarangRow] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
+
+    if (checkBarangRow.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Resi not found",
+      });
+    }
+
+    if (checkBarangRow[0].status_barang === "cancelled") {
+      return res.status(400).send({
+        success: false,
+        status: "cancelled",
+        message: "Resi has been cancelled",
+      });
+    }
+
+    const [prosesRows] = await mysqlPool.query(
+      `SELECT proses.status_proses, proses.created_at, pekerja.nama_pekerja 
+       FROM proses 
+       LEFT JOIN pekerja pekerja ON pekerja.id_pekerja = proses.id_pekerja
+       WHERE proses.resi_id = ?`,
+      [resi_id]
+    );
+
+    // Check if this is a new resi
+    if (!prosesRows || prosesRows.length === 0) {
+      if (workerRole !== "picker") {
+        return res.status(400).send({
+          success: false,
+          message: "This resi must be processed by picker first",
+        });
+      }
+      return res.status(200).send({
+        success: true,
+        status: "new",
+        message: "Resi is ready for picker process",
+      });
+    }
+
+    const currentStatus = prosesRows[0]?.status_proses;
+    const workflow = ["picker", "packing", "pickout"];
+
+    // Check if worker tries to process their own role again
+    if (workerRole === currentStatus) {
+      return res.status(400).send({
+        success: false,
+        message: `Resi ini sudah diproses ${workerRole} oleh ${nama_pekerja} pada ${new Date(prosesRows[0].created_at).toLocaleString("id-ID")}`,
+      });
+    }
+
+    // Validate if status_proses exists
+    if (!currentStatus) {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid process status",
+      });
+    }
+
+    const currentIndex = workflow.indexOf(currentStatus);
+    const expectedRole = workflow[currentIndex + 1];
+
+    // Check if all processes are completed
+    if (currentIndex === workflow.length - 1) {
+      return res.status(400).send({
+        success: true,
+        status: "completed",
+        message: "Resi has completed all processes",
+        lastProcess: {
+          status: currentStatus,
+          worker: prosesRows[0].nama_pekerja,
+          timestamp: prosesRows[0].created_at,
+        },
+      });
+    }
+
+    // Check if the worker role matches the expected next process
+    if (workerRole !== expectedRole) {
+      return res.status(400).send({
+        success: false,
+        message: `This resi must be processed by ${expectedRole} first`,
+      });
+    }
+
+    const processTime = new Date(prosesRows[0].created_at).toLocaleString("id-ID");
+
+    return res.status(200).send({
+      success: true,
+      status: expectedRole,
+      message: `Resi is ready for ${expectedRole} process`,
+      lastProcess: {
+        status: currentStatus,
+        worker: prosesRows[0].nama_pekerja,
+        timestamp: processTime,
+      },
+    });
+  } catch (error) {
+    handleError(error, res, "checking resi status");
+  }
+};
+
 const scaneHandler = async (req, res) => {
   try {
     const { resi_id, id_pekerja } = req.body;
@@ -71,6 +211,27 @@ const scaneHandler = async (req, res) => {
       });
     }
 
+    // First, check the status
+    const statusCheck = await checkStatusResi(
+      {
+        params: { resi_id },
+        body: { id_pekerja },
+      },
+      {
+        status: () => ({ send: () => null }),
+        send: () => null,
+      }
+    );
+
+    // If status check returns error, don't proceed
+    if (statusCheck?.success === false) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).send(statusCheck);
+    }
+
     // Get worker data
     const [workerData] = await mysqlPool.query(
       `SELECT pekerja.id_bagian, pekerja.nama_pekerja, bagian.jenis_pekerja
@@ -80,31 +241,10 @@ const scaneHandler = async (req, res) => {
       [id_pekerja]
     );
 
-    // Worker validation
-    if (!workerData || workerData.length === 0) {
-      if (req.file) {
-        const fs = require("fs");
-        fs.unlinkSync(req.file.path);
-      }
-      return res.status(404).send({
-        success: false,
-        message: "Worker not found",
-      });
-    }
-
     const workerRole = workerData[0].jenis_pekerja;
 
-    // Validate photo requirement for picker role
-    if (workerRole === "picker" && !req.file) {
-      return res.status(400).send({
-        success: false,
-        message: "Photo is required for picker role",
-      });
-    }
-
-    // Only process photo if worker is picker
     let photoPath = null;
-    if (req.file && workerRole === "picker") {
+    if (req.file && workerRole !== "operator") {
       photoPath = req.file.path;
     } else if (req.file) {
       const fs = require("fs");
@@ -117,53 +257,19 @@ const scaneHandler = async (req, res) => {
       const [prosesRows] = await mysqlPool.query("SELECT * FROM proses WHERE resi_id = ?", [resi_id]);
 
       if (prosesRows.length === 0) {
-        // For new entry, only picker role is allowed
-        if (workerRole !== "picker") {
-          return res.status(400).send({
-            success: false,
-            message: "New resi must start with picker process",
-          });
-        }
-
-        if (checkBarangRow[0].status_pengiriman === "cancelled") {
-          return res.status(400).send({
-            success: false,
-            message: "Resi has been cancelled",
-          });
-        }
-
-        // Add photo information to the process only for picker
         const processQuery = photoPath ? "INSERT INTO proses (resi_id, id_pekerja, status_proses, gambar_resi) VALUES (?, ?, ?, ?)" : "INSERT INTO proses (resi_id, id_pekerja, status_proses) VALUES (?, ?, ?)";
-
         const processValues = photoPath ? [resi_id, id_pekerja, workerRole, photoPath] : [resi_id, id_pekerja, workerRole];
 
         await mysqlPool.query(processQuery, processValues);
       } else {
-        // Rest of the workflow checks...
-        if (prosesRows[0].status_proses === workerRole) {
-          return res.status(400).send({
-            success: false,
-            message: `This resi is already processed for ${workerRole}`,
-          });
-        }
-
-        const workflow = ["picker", "packing", "pickout"];
-        const currentIndex = workflow.indexOf(prosesRows[0].status_proses);
-        const nextIndex = workflow.indexOf(workerRole);
-
-        if (nextIndex !== currentIndex + 1) {
-          return res.status(400).send({
-            success: false,
-            message: `Invalid workflow sequence. Current: ${prosesRows[0].status_proses}, Expected next: ${workflow[currentIndex + 1]}`,
-          });
-        }
-
-        await mysqlPool.query("UPDATE proses SET id_pekerja = ?, status_proses = ? WHERE resi_id = ?", [id_pekerja, workerRole, resi_id]);
+        const processQuery = photoPath ? "UPDATE proses SET status_proses = ?, gambar_resi = ? WHERE resi_id = ? ORDER BY updated_at DESC LIMIT 1" : "UPDATE proses SET status_proses = ? WHERE resi_id = ? ORDER BY updated_at DESC LIMIT 1";
+        const processValues = photoPath ? [workerRole, photoPath, resi_id] : [workerRole, resi_id];
+        await mysqlPool.query(processQuery, processValues);
       }
 
       return res.status(200).send({
         success: true,
-        message: "Scan " + (photoPath ? "and photo upload " : "") + "success",
+        message: "Resi berhasil di scan",
         data: {
           nama_pekerja: workerData[0].nama_pekerja,
           proses_scan: workerRole,
@@ -344,4 +450,4 @@ const uploadPhoto = async (req, res) => {
   }
 };
 
-module.exports = { showAllData, scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto };
+module.exports = { showAllData, scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, checkStatusResi };

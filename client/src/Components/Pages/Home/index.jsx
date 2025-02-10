@@ -16,49 +16,65 @@ const HomePage = () => {
   const [scanning, setScanning] = useState(true);
   const [currentResi, setCurrentResi] = useState(null);
   const [isPhotoMode, setIsPhotoMode] = useState(false);
+  const [showPhotoConfirm, setShowPhotoConfirm] = useState(false);
 
   const scanHandler = async (err, result) => {
     if (result) {
       setDataScan(result.text);
       setScanning(false);
       setCurrentResi(result.text);
-
       const token = localStorage.getItem("token");
-      const decodeToken = jwtDecode(token);
-      const user = decodeToken.id_pekerja;
-      const role = decodeToken.bagian;
 
-      if (role === "picker") {
-        // Picker role: switch to photo mode immediately
-        setIsPhotoMode(true);
-        setIsBarcodeActive(false);
-      } else {
-        // Other roles: submit directly without photo
-        const formData = new FormData();
-        formData.append("resi_id", result.text);
-        formData.append("id_pekerja", user);
-
-        axios
-          .post(`${urlApi}/api/v1/auditResi`, formData, {
+      axios
+        .post(
+          `${urlApi}/api/v1/auditResi/check/${result.text}`,
+          {
+            id_pekerja: jwtDecode(token).id_pekerja,
+          },
+          {
             headers: {
               Authorization: `Bearer ${token}`,
-              "Content-Type": "multipart/form-data",
             },
-          })
-          .then((res) => {
-            toast.success("Process completed successfully");
-            setIsBarcodeActive(false);
-            setScanning(true);
-            setCurrentResi(null);
-          })
-          .catch((err) => {
-            toast.error(err.response?.data?.message || "Failed to process");
-          });
-      }
+          }
+        )
+        .then((res) => {
+          setShowPhotoConfirm(true);
+          setIsBarcodeActive(false);
+        })
+        .catch((err) => {
+          toast.error(err.response?.data?.message || "Failed to check resi");
+        });
     } else {
       setDataScan("Not Found");
       setScanning(true);
     }
+  };
+
+  const handleSubmitWithoutPhoto = () => {
+    const token = localStorage.getItem("token");
+    const decodeToken = jwtDecode(token);
+    const user = decodeToken.id_pekerja;
+
+    const formData = new FormData();
+    formData.append("resi_id", currentResi);
+    formData.append("id_pekerja", user);
+
+    axios
+      .post(`${urlApi}/api/v1/auditResi`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      .then((res) => {
+        toast.success("Process completed successfully");
+        setShowPhotoConfirm(false);
+        setScanning(true);
+        setCurrentResi(null);
+      })
+      .catch((err) => {
+        toast.error(err.response?.data?.message || "Failed to process");
+      });
   };
 
   const handlePhotoCapture = ({ photo }) => {
@@ -77,7 +93,7 @@ const HomePage = () => {
       .then((res) => res.blob())
       .then((blob) => {
         const formData = new FormData();
-        const photoFile = new File([blob], "photo.jpg", { type: "image/jpeg" });
+        const photoFile = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" });
 
         formData.append("photo", photoFile);
         formData.append("resi_id", currentResi);
@@ -96,6 +112,7 @@ const HomePage = () => {
             setIsBarcodeActive(true);
             setScanning(true);
             setCurrentResi(null);
+            photo = ""; // Reset the photo
           })
           .catch((err) => {
             toast.error(err.response?.data?.message || "Failed to process");
@@ -144,7 +161,6 @@ const HomePage = () => {
         })
         .then((res) => {
           setData(res.data.data);
-          
         })
         .catch((err) => {
           console.error(err.response.data.message);
@@ -164,6 +180,34 @@ const HomePage = () => {
   return (
     <MainLayout>
       <ToastContainer />
+
+      {showPhotoConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-medium mb-4">Would you like to add a photo?</h3>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  setShowPhotoConfirm(false);
+                  handleSubmitWithoutPhoto();
+                }}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+              >
+                No
+              </button>
+              <button
+                onClick={() => {
+                  setShowPhotoConfirm(false);
+                  setIsPhotoMode(true);
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isPhotoMode || isBarcodeActive ? (
         <div className="fixed inset-0 bg-black z-50">

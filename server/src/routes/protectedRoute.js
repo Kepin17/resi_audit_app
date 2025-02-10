@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
-const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto } = require("../controllers/auditResiController");
+const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, checkStatusResi } = require("../controllers/auditResiController");
 const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
@@ -57,6 +57,8 @@ router.post(
   upload.single("photo"), // Add multer middleware
   scaneHandler
 );
+
+router.post("/auditResi/check/:resi_id", authToken, roleMiddleware([roles.staff, roles.admin, roles.supadmin]), checkStatusResi);
 router.get("/auditResi/activity", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllActiviy);
 router.get("/auditResi/activity/:username", authToken, getActivityByName);
 router.get("/auditResi/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDataByResi);

@@ -13,6 +13,7 @@ const PhotoCaptureFragment = ({ onPhotoCapture, onCancel }) => {
 
   const handleSubmit = () => {
     onPhotoCapture({ photo: imgSrc });
+    setImgSrc(null);
   };
 
   const retake = () => {

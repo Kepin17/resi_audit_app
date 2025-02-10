@@ -451,35 +451,39 @@ const AdminBarangSection = () => {
                     }}
                   />
                   <Table.Column title="Created At" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("DD/MM/YYYY HH:mm:ss")} />
-                  {getJenisPekerja === "picker" && (
-                    <Table.Column
-                      title="Images View"
-                      dataIndex="gambar_resi"
-                      key="gambar_resi"
-                      render={(text) => {
-                        return (
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => {
-                                setImg(text);
-                                setModalDetailOpen(false);
-                                setIsImageViewerOpen(true);
-                              }}
-                            >
-                              View
-                            </Button>
-                          </div>
-                        );
-                      }}
-                    />
-                  )}
+                  <Table.Column
+                    title="Images View"
+                    dataIndex="gambar_resi"
+                    key="gambar_resi"
+                    render={(text) => {
+                      return (
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => {
+                              setImg(text);
+                              setModalDetailOpen(false);
+                              setIsImageViewerOpen(true);
+                            }}
+                          >
+                            View
+                          </Button>
+                        </div>
+                      );
+                    }}
+                  />
                 </Table>
               </Modal>
 
               {isImageViewerOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onClick={() => setIsImageViewerOpen(false)}>
                   <div className="relative w-[1280px] h-[720px] flex items-center justify-center">
-                    <button className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors" onClick={() => setIsImageViewerOpen(false)}>
+                    <button
+                      className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+                      onClick={() => {
+                        setIsImageViewerOpen(false);
+                        setImg("");
+                      }}
+                    >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
@@ -585,7 +589,7 @@ const AdminBarangSection = () => {
                       </div>
 
                       {/* Cancel Button */}
-                      {item.status === "pending" && (
+                      {item.status !== "shipped" && item.status !== "cancelled" && (
                         <div className="pt-3 mt-3 border-t border-gray-100">
                           <button
                             onClick={(e) => {
