@@ -13,7 +13,7 @@ import Modal from "antd/es/modal/Modal";
 import { PiMicrosoftExcelLogoFill } from "react-icons/pi";
 import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 import { TbCancel } from "react-icons/tb";
-import { FaBoxArchive, FaBoxesPacking } from "react-icons/fa6";
+import { FaBoxArchive, FaBoxesPacking, FaRotate } from "react-icons/fa6";
 import urlApi from "../../../../utils/url";
 
 const AdminBarangSection = () => {
@@ -37,7 +37,7 @@ const AdminBarangSection = () => {
   const [Img, setImg] = useState("");
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [getJenisPekerja, setJenisPekerja] = useState("");
-
+  const [totalDeg, setTotalDeg] = useState(0);
   const [exportModal, setExportModal] = useState(false);
 
   const { RangePicker } = DatePicker;
@@ -475,20 +475,35 @@ const AdminBarangSection = () => {
               </Modal>
 
               {isImageViewerOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onClick={() => setIsImageViewerOpen(false)}>
+                <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
                   <div className="relative w-[1280px] h-[720px] flex items-center justify-center">
-                    <button
-                      className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
-                      onClick={() => {
-                        setIsImageViewerOpen(false);
-                        setImg("");
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                    <img src={`${urlApi}/${Img}`} alt="Detail" className=" object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} width={"500"} />
+                    <div className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors flex items-center gap-2 z-50">
+                      <button
+                        onClick={() => {
+                          setIsImageViewerOpen(true);
+                          if (totalDeg === 0) setTotalDeg(90);
+                          else setTotalDeg(0);
+
+                          console.log(totalDeg);
+                        }}
+                      >
+                        <FaRotate className="text-4xl text-orange-500" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsImageViewerOpen(false);
+                          setImg("");
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <img src={`${urlApi}/${Img}`} alt={Img} className={`object-contain rounded-lg shadow-2xl rotate-[${totalDeg}deg]`} onClick={(e) => e.stopPropagation()} width={"500"} id="imagedetail" />
+                    </div>
                   </div>
                 </div>
               )}

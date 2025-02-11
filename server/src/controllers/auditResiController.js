@@ -1,4 +1,5 @@
 const mysqlPool = require("../config/db");
+const audioPlayer = require("../utils/AudioPlayer");
 
 const handleError = (error, res, operation) => {
   console.error(`Error in ${operation}:`, error);
@@ -205,6 +206,7 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
+      audioPlayer.playError();
       return res.status(400).send({
         success: false,
         message: "resi_id and id_pekerja are required",
@@ -229,6 +231,7 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
+      audioPlayer.playError();
       return res.status(400).send(statusCheck);
     }
 
@@ -267,6 +270,7 @@ const scaneHandler = async (req, res) => {
         await mysqlPool.query(processQuery, processValues);
       }
 
+      audioPlayer.playSuccess();
       return res.status(200).send({
         success: true,
         message: "Resi berhasil di scan",
@@ -278,6 +282,7 @@ const scaneHandler = async (req, res) => {
       });
     }
 
+    audioPlayer.playError();
     res.status(404).send({
       success: false,
       message: "Resi not valid or not found",
@@ -287,6 +292,7 @@ const scaneHandler = async (req, res) => {
       const fs = require("fs");
       fs.unlinkSync(req.file.path);
     }
+    audioPlayer.playError();
     handleError(error, res, "processing scan and photo");
   }
 };

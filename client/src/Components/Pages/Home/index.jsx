@@ -8,6 +8,7 @@ import { jwtDecode } from "jwt-decode";
 import { ToastContainer, toast } from "react-toastify";
 import PhotoCaptureFragment from "../../Fragments/PhotoCaptureFragment";
 import urlApi from "../../../utils/url";
+import { playSuccessSound, playErrorSound } from "../../../utils/audio";
 
 const HomePage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -38,13 +39,16 @@ const HomePage = () => {
           }
         )
         .then((res) => {
+          playSuccessSound();
           setShowPhotoConfirm(true);
           setIsBarcodeActive(false);
         })
         .catch((err) => {
+          playErrorSound();
           toast.error(err.response?.data?.message || "Failed to check resi");
         });
     } else {
+      playErrorSound();
       setDataScan("Not Found");
       setScanning(true);
     }
@@ -67,18 +71,21 @@ const HomePage = () => {
         },
       })
       .then((res) => {
+        playSuccessSound();
         toast.success("Process completed successfully");
         setShowPhotoConfirm(false);
         setScanning(true);
         setCurrentResi(null);
       })
       .catch((err) => {
+        playErrorSound();
         toast.error(err.response?.data?.message || "Failed to process");
       });
   };
 
   const handlePhotoCapture = ({ photo }) => {
     if (!photo) {
+      playErrorSound();
       toast.error("Photo is required for picker role");
       return;
     }
@@ -107,6 +114,7 @@ const HomePage = () => {
             },
           })
           .then((res) => {
+            playSuccessSound();
             toast.success("Process completed successfully");
             setIsPhotoMode(false);
             setIsBarcodeActive(true);
@@ -115,6 +123,7 @@ const HomePage = () => {
             photo = ""; // Reset the photo
           })
           .catch((err) => {
+            playErrorSound();
             toast.error(err.response?.data?.message || "Failed to process");
           });
       });
