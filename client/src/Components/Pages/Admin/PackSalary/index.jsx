@@ -39,12 +39,12 @@ const PackSalary = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const user = jwtDecode(token);
-    setUser(user);
+    const decodedUser = jwtDecode(token);
+    setUser(decodedUser);
   }, []);
 
   useEffect(() => {
-    if (user?.role === "superadmin") {
+    if (user?.roles?.includes("superadmin")) {
       axios
         .get(`${urlApi}/api/v1/gaji`, {
           headers: {
@@ -209,7 +209,7 @@ const PackSalary = () => {
   ];
 
   const handleSalaryUpdate = async () => {
-    if (!user?.role === "superadmin") return;
+    if (!user?.roles?.includes("superadmin")) return;
 
     setUpdateLoading(true);
     try {
@@ -395,7 +395,7 @@ const PackSalary = () => {
         <div className="w-full h-auto border-2 border-gray-200 rounded-lg p-6 mb-6">
           <Title>Packing Salary</Title>
           <div className="flex gap-4 items-center mt-4">
-            {user?.role === "superadmin" && (
+            {user?.roles?.includes("superadmin") && (
               <>
                 <Form onSubmit={handleSubmit} className="flex-grow">
                   <InputFragment htmlFor={"total_gaji_per_scan"} InputType="number" isJustNumber={true} inputName={"total_gaji_per_scan"} inputValue={form.total_gaji_per_scan} isDisabled={!isEdit} inputOnChange={handleInputChange}>

@@ -9,21 +9,29 @@ const fs = require("fs");
 require("dotenv").config();
 const secretKey = process.env.SECRET_KEY;
 
+const generatePekerjaPKJId = async () => {
+  const [lastId] = await mysqlPool.query("SELECT id_pekerja FROM pekerja ORDER BY id_pekerja DESC LIMIT 1");
+  if (lastId.length === 0) return "PKJ00001";
+
+  const lastNumber = parseInt(lastId[0].id_pekerja.slice(3));
+  return `PKJ${String(lastNumber + 1).padStart(5, "0")}`;
+};
+
 // regisrasi pekerja
 const RegisterHandler = async (req, res) => {
   try {
-    const { username, nama_pekerja, id_bagian, password, role } = req.body;
+    const { username, nama_pekerja, bagian_roles, password } = req.body;
 
-    // Enhanced input validation
-    if (!username?.trim()) {
+    // Validate input
+    if (!username?.trim() || !password || !nama_pekerja?.trim() || !Array.isArray(bagian_roles) || bagian_roles.length === 0) {
       return res.status(400).send({
         success: false,
-        message: "Username is required",
+        message: "All fields are required. bagian_roles must be an array of valid bagian IDs",
         error: "validation_error",
       });
     }
 
-    if (!password || password.length < 6) {
+    if (password.length < 6) {
       return res.status(400).send({
         success: false,
         message: "Password must be at least 6 characters long",
@@ -31,66 +39,47 @@ const RegisterHandler = async (req, res) => {
       });
     }
 
-    if (!nama_pekerja?.trim()) {
-      return res.status(400).send({
-        success: false,
-        message: "Worker name is required",
-        error: "validation_error",
+    const connection = await mysqlPool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Generate PKJ ID
+      const id_pekerja = await generatePekerjaPKJId();
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Insert into pekerja table
+      await connection.query(
+        `INSERT INTO pekerja (id_pekerja, username, nama_pekerja, password) 
+         VALUES (?, ?, ?, ?)`,
+        [id_pekerja, username, nama_pekerja, hashedPassword]
+      );
+
+      // Insert roles
+      for (const bagian_id of bagian_roles) {
+        await connection.query(`INSERT INTO role_pekerja (id_pekerja, id_bagian) VALUES (?, ?)`, [id_pekerja, bagian_id]);
+      }
+
+      await connection.commit();
+
+      res.status(200).send({
+        success: true,
+        message: "Successfully registered",
       });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    // Validate role
-    const validRoles = ["superadmin", "admin", "staff"];
-    if (!validRoles.includes(role)) {
-      return res.status(400).send({
-        success: false,
-        message: "Invalid role specified",
-        error: "invalid_role",
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await mysqlPool.query(
-      `INSERT INTO pekerja (username, nama_pekerja, id_bagian, password, role) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [username, nama_pekerja, id_bagian, hashedPassword, role]
-    );
-
-    res.status(200).send({
-      success: true,
-      message: "Successfully registered",
-    });
   } catch (error) {
     console.error("Registration error:", error);
 
     if (error.code === "ER_DUP_ENTRY") {
-      if (error.message.includes("username")) {
-        return res.status(409).send({
-          success: false,
-          message: "Username already exists",
-          error: "duplicate_username",
-        });
-      }
       return res.status(409).send({
         success: false,
-        message: "Duplicate entry detected",
-        error: "duplicate_entry",
-      });
-    }
-
-    if (error.code === "ER_DATA_TOO_LONG") {
-      return res.status(400).send({
-        success: false,
-        message: "Input data exceeds maximum length",
-        error: "data_length_error",
-      });
-    }
-
-    if (error.code?.startsWith("ER_")) {
-      return res.status(400).send({
-        success: false,
-        message: "Database constraint violation",
-        error: error.code,
+        message: "Username already exists",
+        error: "duplicate_username",
       });
     }
 
@@ -106,7 +95,6 @@ const loginHandler = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Enhanced input validation
     if (!username?.trim() || !password) {
       return res.status(400).send({
         success: false,
@@ -115,16 +103,8 @@ const loginHandler = async (req, res) => {
       });
     }
 
-    // Validate and parse user agent
+    // Get user agent info
     const ua = new UAParser(req.headers["user-agent"]);
-    if (!req.headers["user-agent"]) {
-      return res.status(400).send({
-        success: false,
-        message: "Invalid client information",
-        error: "invalid_client",
-      });
-    }
-
     const deviceInfo = {
       ip_address: req.headers["x-forwarded-for"] || req.socket.remoteAddress,
       device_type: ua.getDevice().type || "desktop",
@@ -132,9 +112,20 @@ const loginHandler = async (req, res) => {
       os: `${ua.getOS().name || "Unknown"} ${ua.getOS().version || ""}`,
     };
 
-    const [rows] = await mysqlPool.query("SELECT * FROM pekerja WHERE username = ?", [username]);
+    // Get user and their roles
+    const [users] = await mysqlPool.query(
+      `SELECT p.*, 
+              GROUP_CONCAT(b.jenis_pekerja) as roles,
+              GROUP_CONCAT(b.id_bagian) as bagian_ids
+       FROM pekerja p
+       LEFT JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
+       LEFT JOIN bagian b ON rp.id_bagian = b.id_bagian
+       WHERE p.username = ?
+       GROUP BY p.id_pekerja`,
+      [username]
+    );
 
-    if (rows.length === 0) {
+    if (users.length === 0) {
       return res.status(401).send({
         success: false,
         message: "Invalid credentials",
@@ -142,83 +133,57 @@ const loginHandler = async (req, res) => {
       });
     }
 
-    const pekerja = rows[0];
-    const passcordValidation = await bcrypt.compare(password, pekerja.password);
-    const [bagianData] = await mysqlPool.query("SELECT * FROM bagian WHERE id_bagian = ?", [pekerja.id_bagian]);
+    const user = users[0];
+    const passwordValid = await bcrypt.compare(password, user.password);
 
-    const divisi = bagianData[0] ? bagianData[0].jenis_pekerja : "admin";
+    if (!passwordValid) {
+      return res.status(401).send({
+        success: false,
+        message: "Invalid credentials",
+        error: "invalid_credentials",
+      });
+    }
 
+    // Log device info
     await mysqlPool.query(
       `INSERT INTO device_logs (id_pekerja, ip_address, device_info)
        VALUES (?, ?, ?)`,
-      [pekerja.id_pekerja, deviceInfo.ip_address, JSON.stringify(deviceInfo)]
+      [user.id_pekerja, deviceInfo.ip_address, JSON.stringify(deviceInfo)]
     );
 
-    if (!passcordValidation) {
-      return res.status(401).send({
-        success: false,
-        message: "Invalid credentials",
-        error: "invalid_credentials",
-      });
-    }
+    const roles = user.roles ? user.roles.split(",") : [];
+    const bagian_ids = user.bagian_ids ? user.bagian_ids.split(",") : [];
 
     const token = jwt.sign(
       {
-        id_pekerja: pekerja.id_pekerja,
-        username: pekerja.username,
-        pekerja: pekerja.nama_pekerja,
-        bagian: divisi || null,
-        role: pekerja.role,
+        id_pekerja: user.id_pekerja,
+        username: user.username,
+        pekerja: user.nama_pekerja,
+        roles: roles,
+        bagian_ids: bagian_ids,
         deviceInfo: deviceInfo,
       },
       secretKey,
-      {
-        expiresIn: "1d",
-      }
+      { expiresIn: "1d" }
     );
 
     res.status(200).send({
       success: true,
       message: "Login success",
       data: {
-        username: pekerja.username,
-        nama_pekerja: pekerja.nama_pekerja,
-        bagian: divisi,
-        role: pekerja.role,
+        username: user.username,
+        nama_pekerja: user.nama_pekerja,
+        roles: roles,
+        bagian_ids: bagian_ids,
       },
       yourToken: token,
     });
   } catch (error) {
     console.error("Login error:", error);
-
-    // Add specific handling for device logging errors
-    if (error.code === "ER_BAD_FIELD_ERROR") {
-      // Continue with login even if device logging fails
-      console.error("Device logging failed:", error.message);
-      // Don't return here - continue with login process
-    }
-
-    if (error.code === "ER_ACCESS_DENIED_ERROR") {
-      return res.status(500).send({
-        success: false,
-        message: "Database access error",
-        error: "database_error",
-      });
-    }
-
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).send({
-        success: false,
-        message: "Session expired",
-        error: "token_expired",
-      });
-    }
-
     res.status(500).send({
       success: false,
       message: "Internal server error during login",
       error: "internal_server_error",
-      details: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -233,7 +198,7 @@ const logOutHandler = (req, res) => {
 const showAllStaff = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10; // Changed default to 10
+    const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
     const { search } = req.query;
 
@@ -241,40 +206,55 @@ const showAllStaff = async (req, res) => {
     let queryParams = [];
 
     if (search) {
-      whereConditions.push("(pekerja.nama_pekerja LIKE ? OR pekerja.role LIKE ?)");
-      queryParams.push(`%${search}%`, `%${search}%`);
+      whereConditions.push("(p.nama_pekerja LIKE ? OR p.username LIKE ? OR b.jenis_pekerja LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
+    // Get total count
     const [countResult] = await mysqlPool.query(
-      `
-      SELECT COUNT(*) as count
-      FROM pekerja
-      ${whereClause}
-      `,
+      `SELECT COUNT(DISTINCT p.id_pekerja) as count
+       FROM pekerja p
+       LEFT JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
+       LEFT JOIN bagian b ON rp.id_bagian = b.id_bagian
+       ${whereClause}`,
       queryParams
     );
 
     const totalItems = countResult[0].count;
     const totalPages = Math.ceil(totalItems / limit);
 
+    // Get worker data with their roles
     const [rows] = await mysqlPool.query(
-      `
-      SELECT id_pekerja, username,nama_pekerja, role, jenis_pekerja
-      FROM pekerja 
-      LEFT JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
-      ${whereClause}
-      ORDER BY pekerja.created_at DESC
-      LIMIT ?, ?
-    `,
+      `SELECT 
+        p.id_pekerja,
+        p.username,
+        p.nama_pekerja,
+        p.created_at,
+        GROUP_CONCAT(DISTINCT b.jenis_pekerja) as roles,
+        GROUP_CONCAT(DISTINCT b.id_bagian) as bagian_ids
+       FROM pekerja p
+       LEFT JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
+       LEFT JOIN bagian b ON rp.id_bagian = b.id_bagian
+       ${whereClause}
+       GROUP BY p.id_pekerja
+       ORDER BY p.created_at DESC
+       LIMIT ?, ?`,
       [...queryParams, offset, limit]
     );
+
+    // Process the results to convert comma-separated strings to arrays
+    const processedRows = rows.map((row) => ({
+      ...row,
+      roles: row.roles ? row.roles.split(",") : [],
+      bagian_ids: row.bagian_ids ? row.bagian_ids.split(",") : [],
+    }));
 
     res.status(200).send({
       success: true,
       message: "Data found",
-      data: rows,
+      data: processedRows,
       pagination: {
         totalPages,
         currentPage: page,
@@ -286,11 +266,11 @@ const showAllStaff = async (req, res) => {
     });
   } catch (error) {
     console.error("Error when trying to show all workers:", error);
-
     res.status(500).send({
       success: false,
       message: "Error when trying to show all workers",
       error: "internal_server_error",
+      details: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -390,52 +370,102 @@ const deviceLog = async (req, res) => {
 const editStaff = async (req, res) => {
   try {
     const { id_pekerja } = req.params;
-    const { username, nama_pekerja, id_bagian, role } = req.body;
+    const { username, nama_pekerja, bagian_roles, new_password } = req.body;
 
-    // Enhanced input validation
-    if (!username?.trim()) {
+    // Input validation
+    if (!username?.trim() || !nama_pekerja?.trim()) {
       return res.status(400).send({
         success: false,
-        message: "Username is required",
+        message: "Username and worker name are required",
         error: "validation_error",
       });
     }
 
-    if (!nama_pekerja?.trim()) {
+    if (!Array.isArray(bagian_roles) || bagian_roles.length === 0) {
       return res.status(400).send({
         success: false,
-        message: "Worker name is required",
+        message: "At least one role must be assigned",
         error: "validation_error",
       });
     }
 
-    // Validate role
-    const validRoles = ["superadmin", "admin", "staff"];
-    if (!validRoles.includes(role)) {
-      return res.status(400).send({
-        success: false,
-        message: "Invalid role specified",
-        error: "invalid_role",
+    const connection = await mysqlPool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Check if worker exists
+      const [existingWorker] = await connection.query("SELECT id_pekerja FROM pekerja WHERE id_pekerja = ?", [id_pekerja]);
+
+      if (existingWorker.length === 0) {
+        await connection.rollback();
+        return res.status(404).send({
+          success: false,
+          message: "Worker not found",
+          error: "not_found",
+        });
+      }
+
+      // Update basic info
+      let updateQuery = "UPDATE pekerja SET username = ?, nama_pekerja = ?";
+      let updateParams = [username, nama_pekerja];
+
+      if (new_password) {
+        if (new_password.length < 6) {
+          await connection.rollback();
+          return res.status(400).send({
+            success: false,
+            message: "Password must be at least 6 characters long",
+            error: "validation_error",
+          });
+        }
+        const hashedPassword = await bcrypt.hash(new_password, 10);
+        updateQuery += ", password = ?";
+        updateParams.push(hashedPassword);
+      }
+
+      updateQuery += " WHERE id_pekerja = ?";
+      updateParams.push(id_pekerja);
+
+      await connection.query(updateQuery, updateParams);
+
+      // Get current roles
+      const [currentRoles] = await connection.query("SELECT id_bagian FROM role_pekerja WHERE id_pekerja = ?", [id_pekerja]);
+
+      const currentRoleSet = new Set(currentRoles.map((r) => r.id_bagian));
+      const newRoleSet = new Set(bagian_roles);
+
+      // Roles to add (in new set but not in current)
+      const rolesToAdd = bagian_roles.filter((r) => !currentRoleSet.has(r));
+
+      // Roles to remove (in current but not in new)
+      const rolesToRemove = Array.from(currentRoleSet).filter((r) => !newRoleSet.has(r));
+
+      // Add new roles
+      if (rolesToAdd.length > 0) {
+        const insertValues = rolesToAdd.map((role) => [id_pekerja, role]);
+        await connection.query("INSERT INTO role_pekerja (id_pekerja, id_bagian) VALUES ?", [insertValues]);
+      }
+
+      // Remove old roles only if there will still be at least one role left
+      if (rolesToRemove.length > 0 && currentRoles.length - rolesToRemove.length >= 1) {
+        await connection.query("DELETE FROM role_pekerja WHERE id_pekerja = ? AND id_bagian IN (?)", [id_pekerja, rolesToRemove]);
+      }
+
+      await connection.commit();
+
+      res.status(200).send({
+        success: true,
+        message: "Successfully updated worker and roles",
       });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    const [result] = await mysqlPool.query(`UPDATE pekerja SET username = ?, nama_pekerja = ?, id_bagian = ?, role = ? WHERE id_pekerja = ?`, [username, nama_pekerja, id_bagian, role, id_pekerja]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).send({
-        success: false,
-        message: "Worker not found",
-        error: "not_found",
-      });
-    }
-
-    res.status(200).send({
-      success: true,
-      message: "Successfully edited",
-    });
   } catch (error) {
     console.error("Edit staff error:", error);
-
     if (error.code === "ER_DUP_ENTRY") {
       return res.status(409).send({
         success: false,
@@ -447,16 +477,8 @@ const editStaff = async (req, res) => {
     if (error.code === "ER_NO_REFERENCED_ROW_2") {
       return res.status(400).send({
         success: false,
-        message: "Invalid department ID",
-        error: "invalid_department",
-      });
-    }
-
-    if (error.code === "ER_DATA_TOO_LONG") {
-      return res.status(400).send({
-        success: false,
-        message: "Input data exceeds maximum length",
-        error: "data_length_error",
+        message: "One or more invalid bagian IDs provided",
+        error: "invalid_bagian",
       });
     }
 
@@ -569,34 +591,30 @@ const importStaffFromExcel = async (req, res) => {
 
 const exportStaff = async (req, res) => {
   try {
-    const { search, role } = req.query;
-
+    const { search } = req.query;
     let whereConditions = [];
     let queryParams = [];
 
     if (search) {
-      whereConditions.push("(pekerja.nama_pekerja LIKE ? OR bagian.jenis_pekerja LIKE ?)");
+      whereConditions.push("(p.nama_pekerja LIKE ? OR b.jenis_pekerja LIKE ?)");
       queryParams.push(`%${search}%`, `%${search}%`);
-    }
-
-    if (role && role !== "all") {
-      whereConditions.push("pekerja.role = ?");
-      queryParams.push(role);
     }
 
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
+    // Updated query to use correct joins and columns
     const [rows] = await mysqlPool.query(
-      `
-       SELECT pekerja.username,
-              pekerja.nama_pekerja,
-              bagian.jenis_pekerja,
-              pekerja.role,
-              pekerja.created_at
-        FROM pekerja
-        LEFT JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
+      `SELECT 
+         p.username,
+         p.nama_pekerja,
+         GROUP_CONCAT(DISTINCT b.jenis_pekerja) as roles,
+         p.created_at
+       FROM pekerja p
+       LEFT JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
+       LEFT JOIN bagian b ON rp.id_bagian = b.id_bagian
        ${whereClause}
-       ORDER BY pekerja.created_at DESC`,
+       GROUP BY p.id_pekerja, p.username, p.nama_pekerja, p.created_at
+       ORDER BY p.created_at DESC`,
       queryParams
     );
 
@@ -613,8 +631,7 @@ const exportStaff = async (req, res) => {
     worksheet.columns = [
       { header: "Username", key: "username", width: 20 },
       { header: "Nama Pekerja", key: "nama_pekerja", width: 30 },
-      { header: "Bagian", key: "jenis_pekerja", width: 25 },
-      { header: "Role", key: "role", width: 15 },
+      { header: "Roles", key: "roles", width: 25 },
       { header: "Tanggal Bergabung", key: "created_at", width: 25 },
     ];
 

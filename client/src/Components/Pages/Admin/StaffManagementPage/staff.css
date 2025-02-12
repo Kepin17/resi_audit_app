@@ -65,3 +65,77 @@
   outline: 2px solid #177ddc;
   outline-offset: 1px;
 }
+
+.staff-container {
+  background: white;
+  padding: 24px;
+  height: 100vh;
+  border-radius: 8px;
+  overflow-y: scroll;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.staff-card {
+  transition: all 0.3s ease;
+}
+
+.staff-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.staff-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.staff-avatar {
+  margin-bottom: 16px;
+}
+
+.staff-info {
+  width: 100%;
+}
+
+.staff-name {
+  margin: 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.staff-username {
+  margin: 4px 0 12px;
+  color: #666;
+  font-size: 14px;
+}
+
+.staff-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.ant-tag {
+  margin: 0;
+  text-transform: capitalize;
+}
+
+.ant-card-actions {
+  background: #fafafa;
+}
+
+@media (max-width: 576px) {
+  .staff-container {
+    padding: 16px;
+  }
+
+  .staff-card {
+    margin-bottom: 16px;
+  }
+}

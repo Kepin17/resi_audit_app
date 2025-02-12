@@ -6,12 +6,17 @@ import { Link } from "react-router-dom";
 import { HiMenuAlt3 } from "react-icons/hi";
 
 const DashboardLayout = ({ children }) => {
-  const token = localStorage.getItem("token");
-  const user = jwtDecode(token);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isAuthDropdownOpen, setIsAuthDropdownOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [user, setUser] = useState({});
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const user = jwtDecode(token);
+    setUser(user);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -70,7 +75,7 @@ const DashboardLayout = ({ children }) => {
               </div>
               <div className={`transition-all duration-300 overflow-hidden ${isAuthDropdownOpen ? "h-30 mt-2" : "h-0"}`}>
                 <ul className="list-inside space-y-2">
-                  {user.role === "superadmin" && (
+                  {user?.roles?.includes("superadmin") && (
                     <>
                       <li className="hover:bg-blue-300 p-2 rounded">
                         <Link to="/admin/staff" className="text-blue-800 block">

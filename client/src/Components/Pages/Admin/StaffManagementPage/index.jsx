@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
-import { Button, Table, Modal, Form, Input, Space, message, Select, Pagination, Upload } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined, UploadOutlined, DownloadOutlined } from "@ant-design/icons";
+import { Button, Table, Modal, Form, Input, Space, message, Select, Pagination, Upload, Checkbox, Card, Avatar, Tag, Row, Col, Badge } from "antd";
+import { EditOutlined, DeleteOutlined, PlusOutlined, UploadOutlined, DownloadOutlined, UserOutlined } from "@ant-design/icons";
 import axios from "axios";
 import "./staff.css";
-import { FaMoneyBill } from "react-icons/fa";
 import SearchFragment from "../../../Fragments/SearchFragment";
 import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 import urlApi from "../../../../utils/url";
+
 const StaffManagementPage = () => {
   const [staffList, setStaffList] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -21,6 +21,7 @@ const StaffManagementPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [totalItems, setTotalItems] = useState(0);
   const pageSize = 10; // Define consistent page size
+  const [showPasswordEdit, setShowPasswordEdit] = useState(false);
 
   const debounce = (func, wait) => {
     let timeout;
@@ -92,41 +93,6 @@ const StaffManagementPage = () => {
       });
   }, []);
 
-  const columns = [
-    {
-      title: "Nama Pekerja",
-      dataIndex: "nama_pekerja",
-      key: "nama_pekerja",
-    },
-
-    {
-      title: "Username",
-      dataIndex: "username",
-      key: "username",
-    },
-    {
-      title: "Dapartement",
-      dataIndex: "jenis_pekerja",
-      key: "jenis_pekerja",
-    },
-    {
-      title: "Role",
-      dataIndex: "role",
-      key: "role",
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      render: (_, record) => (
-        <Space>
-          <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          <Button icon={<FaMoneyBill />} />
-          <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id_pekerja)} />
-        </Space>
-      ),
-    },
-  ];
-
   const handleAdd = () => {
     setEditingStaff(null);
     form.resetFields();
@@ -135,11 +101,12 @@ const StaffManagementPage = () => {
 
   const handleEdit = (staff) => {
     setEditingStaff(staff);
+    setShowPasswordEdit(false);
     form.setFieldsValue({
       username: staff.username,
       nama_pekerja: staff.nama_pekerja,
-      id_bagian: staff.id_bagian,
-      role: staff.role,
+      roles: staff.bagian_ids, // Set initial role values from bagian_ids
+      changePassword: false,
     });
     setIsModalVisible(true);
   };
@@ -169,16 +136,44 @@ const StaffManagementPage = () => {
     }
   };
 
+  const roles = [
+    { label: "Super Admin", value: "BGN005" },
+    { label: "Admin", value: "BGN004" },
+    { label: "Pickout", value: "BGN003" },
+    { label: "Packing", value: "BGN002" },
+    { label: "Picker", value: "BGN001" },
+  ];
+
+  const handlePasswordEditChange = (e) => {
+    setShowPasswordEdit(e.target.checked);
+    if (!e.target.checked) {
+      form.setFieldsValue({ new_password: undefined });
+    }
+  };
+
   const handleSubmit = async (values) => {
     try {
+      const formattedValues = {
+        username: values.username,
+        nama_pekerja: values.nama_pekerja,
+        bagian_roles: values.roles, // Use roles as bagian_roles
+      };
+
       if (editingStaff) {
-        await axios.put(`${urlApi}/api/v1/auth/${editingStaff.id_pekerja}`, values, {
+        // Add password only if it's being changed
+        if (showPasswordEdit && values.new_password) {
+          formattedValues.new_password = values.new_password;
+        }
+
+        await axios.put(`${urlApi}/api/v1/auth/${editingStaff.id_pekerja}`, formattedValues, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
       } else {
-        await axios.post("http://localhost:8080/api/v1/auth/register", values, {
+        // For new staff, include password
+        formattedValues.password = values.password;
+        await axios.post(`${urlApi}/api/v1/auth/register`, formattedValues, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -187,6 +182,7 @@ const StaffManagementPage = () => {
 
       setIsModalVisible(false);
       form.resetFields();
+      setShowPasswordEdit(false);
       message.success(`Staff ${editingStaff ? "updated" : "added"} successfully`);
       fetchStaff(currentPage, searchTerm);
     } catch (error) {
@@ -245,7 +241,7 @@ const StaffManagementPage = () => {
 
   const handleExport = async () => {
     try {
-      const response = await axios.get(`${urlApi}/api/v1/barang-export`, {
+      const response = await axios.get(`${urlApi}/api/v1/auth-export`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -287,15 +283,41 @@ const StaffManagementPage = () => {
 
   const [ExcelModalOpen, setExcelModalOpen] = useState(false);
 
+  const StaffCards = ({ data }) => {
+    return (
+      <Row gutter={[16, 16]}>
+        {data.map((staff) => (
+          <Col xs={24} sm={12} md={8} lg={6} key={staff.id_pekerja}>
+            <Card hoverable className="staff-card" actions={[<Button icon={<EditOutlined />} onClick={() => handleEdit(staff)} />, <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(staff.id_pekerja)} />]}>
+              <div className="staff-card-content">
+                <Avatar size={64} icon={<UserOutlined />} className="staff-avatar" style={{ backgroundColor: "#1890ff" }} />
+                <div className="staff-info">
+                  <h3 className="staff-name">{staff.nama_pekerja}</h3>
+                  <p className="staff-username">@{staff.username}</p>
+                  <div className="staff-roles">
+                    {staff.roles?.map((role, index) => (
+                      <Tag key={index} color={role === "superadmin" ? "red" : role === "admin" ? "blue" : role === "pickout" ? "green" : role === "packing" ? "orange" : "default"}>
+                        {role}
+                      </Tag>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+    );
+  };
+
   return (
     <DashboardLayout>
       <div style={{ padding: "24px" }}>
-        <div style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between" }}>
+        <div style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between" }} className="mobile:flex mobile:flex-col mobile:gap-5">
           <Space>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
               Add Staff
             </Button>
-
             <Button icon={<DownloadOutlined />} onClick={() => setExcelModalOpen(true)}>
               Excel Action
             </Button>
@@ -303,8 +325,8 @@ const StaffManagementPage = () => {
           <SearchFragment onSearch={handleSearchInput} value={searchInput} placeholder="Search by name or role..." style={{ width: "250px" }} allowClear />
         </div>
 
-        <div className="staff-table h-full bg-white rounded-lg shadow-lg p-5">
-          <Table columns={columns} dataSource={staffList} rowKey="id_pekerja" pagination={false} loading={isLoading} />
+        <div className="staff-container">
+          <StaffCards data={staffList} />
 
           <Pagination
             current={currentPage}
@@ -313,12 +335,8 @@ const StaffManagementPage = () => {
             onChange={handlePageChange}
             showSizeChanger={false}
             showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} items`}
-            style={{ marginTop: "16px", textAlign: "right" }}
-            nextIcon="Next"
-            prevIcon="Previous"
+            style={{ marginTop: "24px", textAlign: "right" }}
             showQuickJumper
-            showLessItems={false}
-            align="end"
           />
         </div>
 
@@ -328,6 +346,7 @@ const StaffManagementPage = () => {
           open={isModalVisible}
           onCancel={() => {
             form.resetFields();
+            setShowPasswordEdit(false);
             setIsModalVisible(false);
           }}
           footer={null}
@@ -342,58 +361,41 @@ const StaffManagementPage = () => {
               <Input />
             </Form.Item>
 
-            <Form.Item
-              name="id_bagian"
-              label="Dapartement"
-              rules={[
-                {
-                  required: form.getFieldValue("role") !== "superadmin",
-                  message: "Please input staff department!",
-                },
-              ]}
-            >
-              <Select
-                style={{ width: "100%" }}
-                placeholder="Select Department"
-                optionFilterProp="children"
-                value={form.getFieldValue("id_bagian")}
-                options={bagian.map((item) => ({
-                  label: item.jenis_pekerja,
-                  value: item.id_bagian,
-                }))}
-              />
+            <Form.Item name="roles" label="Roles" rules={[{ required: true, message: "Please select at least one role!" }]}>
+              <Checkbox.Group options={roles} />
             </Form.Item>
 
             {editingStaff ? (
-              ""
+              <>
+                <Form.Item name="changePassword" valuePropName="checked">
+                  <Checkbox onChange={handlePasswordEditChange}>Change Password</Checkbox>
+                </Form.Item>
+
+                {showPasswordEdit && (
+                  <Form.Item
+                    name="new_password"
+                    label="New Password"
+                    rules={[
+                      { required: true, message: "Please input new password!" },
+                      { min: 6, message: "Password must be at least 6 characters!" },
+                    ]}
+                  >
+                    <Input.Password placeholder="Input new password" />
+                  </Form.Item>
+                )}
+              </>
             ) : (
-              <Form.Item name="password" label="password" rules={[{ required: true, message: "Please input staff password!" }]}>
+              <Form.Item
+                name="password"
+                label="Password"
+                rules={[
+                  { required: true, message: "Please input staff password!" },
+                  { min: 6, message: "Password must be at least 6 characters!" },
+                ]}
+              >
                 <Input.Password placeholder="Input password" />
               </Form.Item>
             )}
-            <Form.Item name="role" label="role" rules={[{ required: true, message: "Please input staff role!" }]}>
-              <Select
-                style={{ width: 200 }}
-                placeholder="Select Role"
-                optionFilterProp="label"
-                value={form.getFieldValue("id_bagian") || ""}
-                filterSort={(optionA, optionB) => (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())}
-                options={[
-                  {
-                    label: "super admin",
-                    value: "superadmin",
-                  },
-                  {
-                    label: "admin",
-                    value: "admin",
-                  },
-                  {
-                    label: "staff",
-                    value: "staff",
-                  },
-                ]}
-              />
-            </Form.Item>
 
             <Form.Item>
               <Button type="primary" htmlType="submit">

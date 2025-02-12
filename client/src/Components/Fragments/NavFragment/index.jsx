@@ -2,7 +2,9 @@ import { jwtDecode } from "jwt-decode";
 import Button from "../../Elements/Button";
 import Title from "../../Elements/Title";
 import React, { useEffect, useState, useRef } from "react";
-import { FaUserCircle, FaSignOutAlt, FaUserCog } from "react-icons/fa";
+import { FaUserCircle, FaSignOutAlt } from "react-icons/fa";
+import { MdDashboard } from "react-icons/md";
+import { Link } from "react-router-dom";
 
 const NavFragment = () => {
   const [tokenDatas, setTokenDatas] = useState({});
@@ -42,6 +44,13 @@ const NavFragment = () => {
             </div>
             {isOpen && (
               <div className="absolute top-full right-0 mt-2 w-56 bg-white/80 backdrop-blur-md rounded-lg shadow-lg py-2 border border-gray-100/50 transform opacity-100 scale-100 transition-all duration-200">
+                <Link to="/admin">
+                  <Button buttonStyle="w-full text-left px-4 py-3 hover:bg-blue-50/50 flex items-center gap-3 text-blue-600 transition-all duration-200">
+                    <MdDashboard />
+                    Dashboard
+                  </Button>
+                </Link>
+
                 <Button
                   buttonStyle="w-full text-left px-4 py-3 hover:bg-red-50/50 flex items-center gap-3 text-red-600 transition-all duration-200"
                   onClick={() => {

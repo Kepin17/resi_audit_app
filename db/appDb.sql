@@ -1,14 +1,14 @@
--- Active: 1738167577342@@127.0.0.1@3306@db_pack
+-- Active: 1738167577342@@127.0.0.1@3306@pack_db
 
--- CREATE DATABASE pack_db;
-USE db_pack;
+CREATE DATABASE pack_db;
+USE pack_db;
 
 
-
+DROP TABLE IF EXISTS barang, proses, log_proses, gaji_pegawai, gaji, status_logs, device_logs;
 
 CREATE TABLE BAGIAN (
   id_bagian VARCHAR(7) PRIMARY KEY NOT NULL,
-  jenis_pekerja ENUM('picker', 'packing', 'pickout') NOT NULL CHECK (jenis_pekerja IN ('picker', 'packing', 'pickout')),
+  jenis_pekerja ENUM('picker', 'packing', 'pickout', "admin", "superadmin") NOT NULL CHECK (jenis_pekerja IN ('picker', 'packing', 'pickout', "admin", "superadmin")),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT CheckBagian1 CHECK (CHAR_LENGTH(id_bagian) = 6),
@@ -19,7 +19,9 @@ CREATE TABLE BAGIAN (
 INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
   ('BGN001', 'picker'),
   ('BGN002', 'packing'),
-  ('BGN003', 'pickout')
+  ('BGN003', 'pickout'),
+  ('BGN004', 'admin'),
+  ('BGN005', 'superadmin');
 
 
 
@@ -27,13 +29,20 @@ CREATE TABLE pekerja (
     id_pekerja VARCHAR(9) PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     nama_pekerja VARCHAR(100) NOT NULL,
-    id_bagian VARCHAR(6) NULL,
     password VARCHAR(255) NOT NULL,
-    role ENUM('superadmin', 'admin', 'staff') DEFAULT 'staff',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_bagian) REFERENCES bagian(id_bagian),
     CONSTRAINT CheckPekerja CHECK (id_pekerja REGEXP '^PKJ[0-9]{5}$')
+);
+
+CREATE TABLE role_pekerja (
+    id_role INT AUTO_INCREMENT PRIMARY KEY,
+    id_pekerja VARCHAR(9),
+    id_bagian VARCHAR(7),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (id_bagian) REFERENCES bagian(id_bagian) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 ALTER TABLE pekerja
@@ -103,16 +112,14 @@ DELIMITER ;
 
 
 
--- DROP TABLE barang, proses, log_proses, gaji_pegawai;
+-- DROP TABLE barang, COMMENT proses, log_proses, gaji_pegawai;
 
 CREATE TABLE barang (
   resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
-  status_barang ENUM('pending', 'cancelled', 'ready', 'picked', 'packed', "shipped") DEFAULT 'pending',
+  status_barang ENUM('pending', 'cancelled', 'ready', 'picked', 'packed', "shipped", "konfirmasi") DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-
-
 
 
 
@@ -121,7 +128,7 @@ CREATE TABLE proses (
   id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,
   resi_id VARCHAR(20),
   id_pekerja VARCHAR(9),
-  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout')),
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout', 'konfirmasi', 'cancelled')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT FK_Pekerja_proses FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
@@ -165,7 +172,7 @@ CREATE TABLE log_proses (
   id_log INT PRIMARY KEY AUTO_INCREMENT,
   resi_id VARCHAR(20),
   id_pekerja VARCHAR(9), 
-  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout')),
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout', 'konfirmasi', 'cancelled')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   gambar_resi VARCHAR(255) NULL,
@@ -268,58 +275,83 @@ CREATE TABLE gaji_pegawai (
 ALTER TABLE gaji_pegawai ADD COLUMN is_dibayar BOOLEAN DEFAULT FALSE;
 
 
--- DROP TRIGGER IF EXISTS trigger_hitung_gaji
-
 DELIMITER $$
 
+-- Hitung gaji hanya untuk pekerja di bagian "packing"
 CREATE TRIGGER trigger_hitung_gaji
 AFTER INSERT ON log_proses
 FOR EACH ROW
 BEGIN
     DECLARE v_id_gaji INT;
     DECLARE v_gaji_per_scan DECIMAL(10, 2);
-    DECLARE v_last_update DATE;
-    DECLARE v_jenis_pekerja ENUM('picker', 'packing', 'pickout');
     
-    -- Get the current active salary configuration
     SELECT id_gaji, total_gaji_per_scan 
     INTO v_id_gaji, v_gaji_per_scan
     FROM gaji 
     LIMIT 1;
     
-    -- Get the jenis_pekerja for this worker
-    SELECT b.jenis_pekerja INTO v_jenis_pekerja
-    FROM pekerja p
-    JOIN bagian b ON p.id_bagian = b.id_bagian
-    WHERE p.id_pekerja = NEW.id_pekerja
-    LIMIT 1;
-    
-    -- Only update salary if jenis_pekerja is 'packing'
-    IF v_jenis_pekerja = 'packing' THEN
-        -- Get the last update date for this worker
-        SELECT DATE(created_at) INTO v_last_update
-        FROM gaji_pegawai 
-        WHERE id_pekerja = NEW.id_pekerja 
-        AND DATE(created_at) = CURRENT_DATE()
-        LIMIT 1;
-        
-        -- If record exists for today, update it
-        IF v_last_update = CURRENT_DATE() THEN
-            UPDATE gaji_pegawai 
-            SET jumlah_scan = jumlah_scan + 1,
-                gaji_total = (jumlah_scan + 1) * v_gaji_per_scan,
-                updated_at = NOW()
-            WHERE id_gaji = v_id_gaji 
-            AND id_pekerja = NEW.id_pekerja
-            AND DATE(created_at) = CURRENT_DATE();
-        ELSE
-            -- If no record for today, create new one
-            INSERT INTO gaji_pegawai (id_gaji, id_pekerja, jumlah_scan, gaji_total)
-            VALUES (v_id_gaji, NEW.id_pekerja, 1, v_gaji_per_scan);
-        END IF;
+    -- Periksa apakah pekerja ada di bagian 'packing' menggunakan role_pekerja
+    IF EXISTS (
+        SELECT 1 FROM role_pekerja rp
+        JOIN bagian b ON rp.id_bagian = b.id_bagian
+        WHERE rp.id_pekerja = NEW.id_pekerja
+        AND b.jenis_pekerja = 'packing'
+    ) THEN
+        INSERT INTO gaji_pegawai (id_gaji, id_pekerja, jumlah_scan, gaji_total)
+        VALUES (v_id_gaji, NEW.id_pekerja, 1, v_gaji_per_scan)
+        ON DUPLICATE KEY UPDATE 
+            jumlah_scan = jumlah_scan + 1, 
+            gaji_total = (jumlah_scan + 1) * v_gaji_per_scan;
     END IF;
 END$$
 
 DELIMITER ;
+
+-- Add trigger to prevent deleting last role
+DELIMITER $$
+
+CREATE TRIGGER before_delete_role_pekerja
+BEFORE DELETE ON role_pekerja
+FOR EACH ROW
+BEGIN
+    DECLARE role_count INT;
+    
+    -- Count remaining roles for this worker
+    SELECT COUNT(*) INTO role_count
+    FROM role_pekerja
+    WHERE id_pekerja = OLD.id_pekerja;
+    
+    -- If this is the last role, prevent deletion
+    IF role_count <= 1 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Cannot delete the last role for a worker';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Add trigger to prevent having no roles on update
+DELIMITER $$
+
+CREATE TRIGGER before_update_role_pekerja
+BEFORE UPDATE ON role_pekerja
+FOR EACH ROW
+BEGIN
+    DECLARE role_count INT;
+    
+    -- Count remaining roles for this worker
+    SELECT COUNT(*) INTO role_count
+    FROM role_pekerja
+    WHERE id_pekerja = NEW.id_pekerja;
+    
+    -- If this would leave no roles, prevent update
+    IF role_count = 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Worker must have at least one role';
+    END IF;
+END$$
+
+DELIMITER ;
+
 
 

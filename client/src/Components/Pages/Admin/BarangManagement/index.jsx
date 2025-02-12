@@ -5,7 +5,6 @@ import moment from "moment";
 import { DatePicker, Form, Input, message, Table } from "antd";
 import Button from "../../../Elements/Button";
 import { MdOutlinePendingActions, MdLocalShipping } from "react-icons/md";
-import Title from "../../../Elements/Title";
 import { MdCancelScheduleSend } from "react-icons/md";
 import { IoIosCreate } from "react-icons/io";
 import axios from "axios";
@@ -15,6 +14,7 @@ import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 import { TbCancel } from "react-icons/tb";
 import { FaBoxArchive, FaBoxesPacking, FaRotate } from "react-icons/fa6";
 import urlApi from "../../../../utils/url";
+import { PiNoteBlankFill } from "react-icons/pi";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -382,7 +382,7 @@ const AdminBarangSection = () => {
 
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2">
-                {["Semua", "Pending", "Picked", "Packed", "Shipped", "cancelled"].map((status) => (
+                {["Semua", "konfirmasi", "cancelled", "Pending", "Picked", "Packed", "Shipped"].map((status) => (
                   <Button
                     key={status}
                     buttonStyle={`
@@ -556,6 +556,7 @@ const AdminBarangSection = () => {
                             {item.status === "picked" && <FaBoxArchive className="text-2xl text-blue-600" />}
                             {item.status === "packed" && <FaBoxesPacking className="text-2xl text-orange-600" />}
                             {item.status === "shipped" && <MdLocalShipping className="text-2xl text-green-600" />}
+                            {item.status === "konfirmasi" && <PiNoteBlankFill className="text-2xl text-yellow-500" />}
                           </div>
                           <div>
                             <h3 className="font-semibold text-gray-900">{item.resi_id}</h3>
@@ -570,10 +571,12 @@ const AdminBarangSection = () => {
                     ? "bg-blue-100 text-blue-800"
                     : item.status === "packed"
                     ? "bg-orange-100 text-orange-800"
+                    : item.status === "konfirmasi"
+                    ? "bg-yellow-100 text-yellow-800"
                     : "bg-green-100 text-green-800"
                 }`}
                             >
-                              {item.status}
+                              {item.status === "konfirmasi" ? "konfirmasi Cancel" : item.status}
                             </span>
                           </div>
                         </div>
@@ -614,7 +617,9 @@ const AdminBarangSection = () => {
                             className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 py-2 rounded-lg transition-all duration-300"
                           >
                             <MdCancelScheduleSend className="text-lg" />
-                            <span className="text-sm font-medium">Cancel Order</span>
+                            <span className="text-sm font-medium">
+                              {item.status === "pending" ? "konfirmasi Cancel" : item.status === "konfirmasi" ? "Cancel Resi" : item.status === "picked" ? "Cancel Pickup" : item.status === "packed" ? "Cancel Packing" : "Cancel Shipper"}
+                            </span>
                           </button>
                         </div>
                       )}

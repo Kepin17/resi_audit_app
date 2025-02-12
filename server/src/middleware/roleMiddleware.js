@@ -1,28 +1,30 @@
 const roleMiddleware = (allowedRoles) => {
   return (req, res, next) => {
     try {
-      const userRole = req.user.role;
-
-      if (!userRole) {
+      // Check if user has roles array in token
+      if (!req.user || !req.user.roles || !Array.isArray(req.user.roles)) {
         return res.status(403).json({
           status: "error",
-          message: "No role specified",
+          message: "No roles found for user",
         });
       }
 
-      // Check if user role is in allowed roles
-      if (!allowedRoles.includes(userRole)) {
+      // Check if user has any of the allowed roles
+      const hasAllowedRole = req.user.roles.some((userRole) => allowedRoles.includes(userRole));
+
+      if (!hasAllowedRole) {
         return res.status(403).json({
           status: "error",
-          message: "You do not have permission to access this resource",
+          message: "You don't have permission to access this resource",
         });
       }
 
       next();
     } catch (error) {
-      return res.status(500).json({
+      console.error("Role middleware error:", error);
+      res.status(500).json({
         status: "error",
-        message: "Role verification failed",
+        message: "Internal server error in role verification",
       });
     }
   };

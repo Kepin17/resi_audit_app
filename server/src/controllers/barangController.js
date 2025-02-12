@@ -92,6 +92,7 @@ const showAllBarang = async (req, res) => {
           WHEN barang.status_barang = 'Picked' THEN 'Sudah dipickup'
           WHEN barang.status_barang = 'Packed' THEN 'Sudah dipacking'
           WHEN barang.status_barang = 'Shipped' THEN 'Dalam pengiriman'
+          WHEN barang.status_barang = 'Konfirmasi' THEN 'Konfirmasi barang'
           ELSE 'Status tidak diketahui'
         END as status_description
        FROM barang
@@ -167,7 +168,9 @@ const showDetailByResi = async (req, res) => {
 const cancelBarang = async (req, res) => {
   try {
     const { resi_id } = req.params;
+    const userRoles = req.user.roles;
 
+    // Check if resi exists
     const [rows] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
 
     if (rows.length === 0) {
@@ -177,18 +180,44 @@ const cancelBarang = async (req, res) => {
       });
     }
 
-    const status_barang = "Cancelled";
+    let status_barang;
+    let status_proses;
+
+    // Determine status based on user role
+    if (userRoles.includes("admin")) {
+      status_barang = "Konfirmasi";
+      status_proses = "Konfirmasi";
+    } else if (userRoles.includes("superadmin")) {
+      status_barang = "Cancelled";
+      status_proses = "cancelled";
+    } else {
+      return res.status(403).send({
+        success: false,
+        message: "You don't have permission to cancel items",
+      });
+    }
+
+    // Update the status
     await mysqlPool.query("UPDATE barang SET status_barang = ? WHERE resi_id = ?", [status_barang, resi_id]);
+
+    // Log the cancellation with correct status_proses value
+    await mysqlPool.query(
+      `INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi) 
+       VALUES (?, ?, ?, NULL)`,
+      [resi_id, req.user.id_pekerja, status_proses]
+    );
 
     res.status(200).send({
       success: true,
-      message: "Barang successfully updated",
+      message: `Barang successfully updated to ${status_barang}`,
+      updatedBy: userRoles[0],
+      newStatus: status_barang,
     });
   } catch (error) {
-    console.log(error);
+    console.error("Cancel barang error:", error);
     res.status(500).send({
       success: false,
-      message: "Error when trying to delete barang",
+      message: "Error when trying to update barang status",
       error: error.message,
     });
   }

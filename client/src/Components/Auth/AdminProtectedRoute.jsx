@@ -13,7 +13,9 @@ const AdminProtectedRoute = ({ children }) => {
     const decodeToken = jwtDecode(token);
     const allowedRoles = ["admin", "superadmin"];
 
-    if (!allowedRoles.includes(decodeToken.role)) {
+    const hasAdminAccess = decodeToken.roles.some((role) => allowedRoles.includes(role));
+
+    if (!hasAdminAccess) {
       return <Navigate to="/" replace />;
     }
 

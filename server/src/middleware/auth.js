@@ -1,27 +1,37 @@
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
-const secretKey = process.env.SECRET_KEY;
+const authToken = (req, res, next) => {
+  try {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
 
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (token == null)
-    return res.sendStatus(401).send({
-      success: false,
-      message: "Unauthorized access, please login first!",
-    });
-
-  jwt.verify(token, secretKey, (err, user) => {
-    if (err)
-      return res.sendStatus(403).send({
-        success: false,
-        message: "Token has been expired, please login again!",
+    if (!token) {
+      return res.status(401).json({
+        status: "error",
+        message: "No token provided",
       });
-    req.user = user;
-    next();
-  });
+    }
+
+    jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+      if (err) {
+        return res.status(403).json({
+          status: "error",
+          message: "Invalid or expired token",
+        });
+      }
+
+      // Store the full decoded token in req.user
+      req.user = decoded;
+      next();
+    });
+  } catch (error) {
+    console.error("Auth middleware error:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Internal server error in authentication",
+    });
+  }
 };
 
-module.exports = authenticateToken;
+module.exports = authToken;
