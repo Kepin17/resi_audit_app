@@ -11,6 +11,9 @@ import urlApi from "../../../utils/url";
 import { playSuccessSound, playErrorSound } from "../../../utils/audio";
 import { FaCartFlatbed } from "react-icons/fa6";
 import Unauthorized from "../Unauthorized";
+import { DatePicker } from "antd";
+import SearchFragment from "../../Fragments/SearchFragment";
+import { FaTruck } from "react-icons/fa";
 
 const PickoutPage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -20,20 +23,29 @@ const PickoutPage = () => {
   const [scanning, setScanning] = useState(true);
   const [currentResi, setCurrentResi] = useState(null);
   const [isPhotoMode, setIsPhotoMode] = useState(false);
-  const [user, setUser] = useState({});
+  const [user, setUser] = useState("");
+  const [isLoading, setIsLoading] = useState(true); // Add this line
   const [thisPage, setThisPage] = useState("pickout");
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
     const decodeToken = jwtDecode(token);
-    setUser(decodeToken);
+    setUser(decodeToken.roles);
+    setIsLoading(false);
   }, []);
+
   // Improved scan mode buttons component
   const ScanModeButtons = () => (
     <div className="grid grid-cols-2 gap-4 w-full max-w-md">
       <button
         className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2
-          ${scanMode === "barcode-only" ? "bg-blue-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          ${scanMode === "barcode-only" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
         onClick={() => setScanMode("barcode-only")}
       >
         <CiBarcode className="text-2xl" />
@@ -41,7 +53,7 @@ const PickoutPage = () => {
       </button>
       <button
         className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2
-          ${scanMode === "barcode-photo" ? "bg-blue-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          ${scanMode === "barcode-photo" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
         onClick={() => setScanMode("barcode-photo")}
       >
         <CiBarcode className="text-2xl" />
@@ -97,7 +109,6 @@ const PickoutPage = () => {
       playErrorSound();
       toast.error(err.response?.data?.message || "Failed to process");
     } finally {
-      setShowPhotoConfirm(false);
       setScanning(true);
       setCurrentResi(null);
       setIsBarcodeActive(true);
@@ -184,8 +195,23 @@ const PickoutPage = () => {
         window.location.href = "/admin";
       }
 
+      let url = `${urlApi}/api/v1/auditResi/activity/${thisPage}/${username}`;
+      const queryParams = [];
+
+      if (selectedDate) {
+        queryParams.push(`date=${selectedDate.format("YYYY-MM-DD")}`);
+      }
+
+      if (searchQuery) {
+        queryParams.push(`search=${encodeURIComponent(searchQuery)}`);
+      }
+
+      if (queryParams.length > 0) {
+        url += `?${queryParams.join("&")}`;
+      }
+
       axios
-        .get(`${urlApi}/api/v1/auditResi/activity/${thisPage}/${username}`, {
+        .get(url, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -194,27 +220,42 @@ const PickoutPage = () => {
           setData(res.data.data);
         })
         .catch((err) => {
-          console.error(err.response.data.message);
+          console.error(err.response?.data?.message);
         });
     };
 
-    // Initial fetch
     fetchData();
-
-    // Set up interval for subsequent fetches
-    const interval = setInterval(fetchData, 3000); // 2000 ms = 2 seconds
-
-    // Cleanup interval on component unmount
+    const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
-  }, []); // Empty dependency array
+  }, [thisPage, selectedDate, searchQuery]); // Add dependencies
 
-  if (!user?.roles?.includes("pickout")) {
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+  };
+
+  const handleSearch = (value) => {
+    setSearchQuery(value);
+  };
+
+  // Add loading check before role check
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!user.includes("picker")) {
     return (
       <MainLayout>
         <Unauthorized />
       </MainLayout>
     );
   }
+
   return (
     <MainLayout>
       <ToastContainer />
@@ -266,13 +307,12 @@ const PickoutPage = () => {
           {/* Main Content */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Stats Cards */}
-            <div className="bg-blue-100 text-blue-500 w-[22rem] h-full p-1 rounded-md flex items-center justify-center border-2 mb-6">
+            <div className="bg-indigo-100 text-indigo-500 w-[22rem] h-full p-1 rounded-md flex items-center justify-center border-2 mb-6">
               <h1 className="text-4xl flex items-center gap-4 font-bold">
-                <FaCartFlatbed />
-                Pickout Barcode
+                <FaTruck />
+                Pickout Station
               </h1>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-sm font-medium text-gray-500">Today's Scans</h3>
@@ -281,7 +321,7 @@ const PickoutPage = () => {
 
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-sm font-medium text-gray-500">Scan Mode</h3>
-                <p className="text-2xl font-bold text-blue-500 mt-2">{scanMode === "barcode-only" ? "Basic" : "Advanced"}</p>
+                <p className="text-2xl font-bold text-indigo-500 mt-2">{scanMode === "barcode-only" ? "Basic" : "Advanced"}</p>
               </div>
             </div>
 
@@ -293,7 +333,7 @@ const PickoutPage = () => {
                   <ScanModeButtons />
                 </div>
                 <Button
-                  buttonStyle="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300"
+                  buttonStyle="bg-indigo-500 hover:bg-indigo-600 px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300"
                   onClick={() => setIsBarcodeActive(true)}
                 >
                   <CiBarcode className="text-xl" />
@@ -304,6 +344,10 @@ const PickoutPage = () => {
 
             {/* Activity List */}
             <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center gap-5">
+                <DatePicker onChange={handleDateChange} value={selectedDate} format="YYYY-MM-DD" />
+                <SearchFragment onSearch={handleSearch} value={searchQuery} placeholder={"Cari Resi"} />
+              </div>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
               <div className="space-y-4">
                 {data.map((item, index) => (
@@ -315,7 +359,7 @@ const PickoutPage = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-900">{item.nama_pekerja}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${item.status === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{item.status}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${item.status === "pickout" ? "bg-indigo-100 text-indigo-700" : "bg-red-100 text-red-700"}`}>{item.status}</span>
                       </div>
                       <p className="text-sm text-gray-500">Resi: {item.resi}</p>
                     </div>

@@ -9,10 +9,12 @@ import { ToastContainer, toast } from "react-toastify";
 import PhotoCaptureFragment from "../../Fragments/PhotoCaptureFragment";
 import urlApi from "../../../utils/url";
 import { playSuccessSound, playErrorSound } from "../../../utils/audio";
-import { FaCartFlatbed } from "react-icons/fa6";
+import { FaBoxOpen } from "react-icons/fa6";
 import Unauthorized from "../Unauthorized";
+import { DatePicker } from "antd";
+import SearchFragment from "../../Fragments/SearchFragment";
 
-const PickingPage = () => {
+const PackingPage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
   const [scanMode, setScanMode] = useState("barcode-only"); // Add this new state
   const [data, setData] = useState([]);
@@ -21,14 +23,28 @@ const PickingPage = () => {
   const [currentResi, setCurrentResi] = useState(null);
   const [isPhotoMode, setIsPhotoMode] = useState(false);
   const [user, setUser] = useState({});
+  const [isLoading, setIsLoading] = useState(true); // Add this line
   const [thisPage, setThisPage] = useState("packing");
-  const [pekerjaGaji, setPekerjaGaji] = useState(0);
-  const [dailyEarnings, setDailyEarnings] = useState(0);
+  const [dailyEarnings, setDailyEarnings] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    limit: 10,
+    initialized: false, // Add this flag
+  });
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
     const decodeToken = jwtDecode(token);
     setUser(decodeToken);
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -61,7 +77,7 @@ const PickingPage = () => {
     <div className="grid grid-cols-2 gap-4 w-full max-w-md">
       <button
         className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2
-          ${scanMode === "barcode-only" ? "bg-blue-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          ${scanMode === "barcode-only" ? "bg-green-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
         onClick={() => setScanMode("barcode-only")}
       >
         <CiBarcode className="text-2xl" />
@@ -69,7 +85,7 @@ const PickingPage = () => {
       </button>
       <button
         className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2
-          ${scanMode === "barcode-photo" ? "bg-blue-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          ${scanMode === "barcode-photo" ? "bg-green-500 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
         onClick={() => setScanMode("barcode-photo")}
       >
         <CiBarcode className="text-2xl" />
@@ -200,40 +216,107 @@ const PickingPage = () => {
     return `${day} ${month} ${year} | ${time}`;
   };
 
+  const handlePageChange = (newPage) => {
+    setPagination((prev) => ({ ...prev, currentPage: newPage }));
+  };
+
+  const renderPaginationControls = () => {
+    // Only render pagination controls if data is initialized
+    if (!pagination.initialized || !pagination.totalPages) return null;
+
+    return (
+      <div className="flex items-center justify-between mt-4 border-t pt-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">
+            Showing {(pagination.currentPage - 1) * pagination.limit + 1} to {Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)} of {pagination.totalItems} results
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handlePageChange(pagination.currentPage - 1)}
+            disabled={pagination.currentPage === 1}
+            className={`px-3 py-1 rounded ${pagination.currentPage === 1 ? "bg-gray-100 text-gray-400" : "bg-green-500 text-white hover:bg-green-600"}`}
+          >
+            Previous
+          </button>
+          {[...Array(pagination.totalPages)].map((_, index) => (
+            <button key={index + 1} onClick={() => handlePageChange(index + 1)} className={`px-3 py-1 rounded ${pagination.currentPage === index + 1 ? "bg-green-500 text-white" : "bg-gray-100 hover:bg-gray-200"}`}>
+              {index + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => handlePageChange(pagination.currentPage + 1)}
+            disabled={pagination.currentPage === pagination.totalPages}
+            className={`px-3 py-1 rounded ${pagination.currentPage === pagination.totalPages ? "bg-gray-100 text-gray-400" : "bg-green-500 text-white hover:bg-green-600"}`}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   useEffect(() => {
     const fetchData = () => {
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
       const username = decodeToken.username;
 
-      const allowedRoles = ["admin", "superadmin"];
-      if (allowedRoles.includes(decodeToken.role)) {
-        window.location.href = "/admin";
+      let url = `${urlApi}/api/v1/auditResi/activity/${thisPage}/${username}`;
+      const queryParams = [];
+
+      // Only add pagination params if initialized
+      if (pagination.initialized) {
+        queryParams.push(`page=${pagination.currentPage}`);
+        queryParams.push(`limit=${pagination.limit}`);
+      }
+
+      if (selectedDate) {
+        queryParams.push(`date=${selectedDate.format("YYYY-MM-DD")}`);
+      }
+
+      if (searchQuery) {
+        queryParams.push(`search=${encodeURIComponent(searchQuery)}`);
+      }
+
+      if (queryParams.length > 0) {
+        url += `?${queryParams.join("&")}`;
       }
 
       axios
-        .get(`${urlApi}/api/v1/auditResi/activity/${thisPage}/${username}`, {
+        .get(url, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         })
         .then((res) => {
           setData(res.data.data);
+          // Update pagination with initialized flag
+          setPagination((prev) => ({
+            ...res.data.pagination,
+            initialized: true,
+          }));
         })
         .catch((err) => {
-          console.error(err.response.data.message);
+          console.error(err.response?.data?.message);
         });
     };
 
-    // Initial fetch
     fetchData();
-
-    // Set up interval for subsequent fetches
-    const interval = setInterval(fetchData, 3000); // 2000 ms = 2 seconds
-
-    // Cleanup interval on component unmount
+    const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
-  }, []); // Empty dependency array
+  }, [thisPage, selectedDate, searchQuery, pagination.currentPage]);
+
+  // Add loading check before role check
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   if (!user?.roles?.includes("packing")) {
     return (
@@ -242,6 +325,18 @@ const PickingPage = () => {
       </MainLayout>
     );
   }
+
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    // Reset pagination when changing date
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleSearch = (value) => {
+    setSearchQuery(value);
+    // Reset pagination when searching
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
 
   const formatRupiah = (number) => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(number);
@@ -290,7 +385,7 @@ const PickingPage = () => {
           {/* Header Section */}
           <div className="bg-white shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              <h1 className="text-2xl font-bold text-gray-900">Package Audit Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Packing Dashboard</h1>
             </div>
           </div>
 
@@ -298,24 +393,25 @@ const PickingPage = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Stats Cards */}
 
-            <div className="bg-blue-100 text-blue-500 w-[22rem] h-full p-1 rounded-md flex items-center justify-center border-2 mb-6">
+            <div className="bg-green-100 text-green-500 w-[22rem] h-full p-1 rounded-md flex items-center justify-center border-2 mb-6">
               <h1 className="text-4xl flex items-center gap-4 font-bold">
-                <FaCartFlatbed />
-                Packing Barcode
+                <FaBoxOpen />
+                Packing Station
               </h1>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-sm font-medium text-gray-500">Today's Scans</h3>
+                <h3 className="text-sm font-medium text-gray-500">Today's Packing</h3>
                 <p className="text-2xl font-bold text-gray-900 mt-2">{data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length}</p>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-sm font-medium text-gray-500">Scan Mode</h3>
-                <p className="text-2xl font-bold text-blue-500 mt-2">{scanMode === "barcode-only" ? "Basic" : "Advanced"}</p>
+                <p className="text-2xl font-bold text-green-500 mt-2">{scanMode === "barcode-only" ? "Basic" : "Advanced"}</p>
               </div>
+
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-sm font-medium text-gray-500">Today's Earnings</h3>
+                <h3 className="text-sm font-medium text-gray-500">Daily Earns</h3>
                 <p className="text-2xl font-bold text-green-500 mt-2">{formatRupiah(dailyEarnings)}</p>
               </div>
             </div>
@@ -328,7 +424,7 @@ const PickingPage = () => {
                   <ScanModeButtons />
                 </div>
                 <Button
-                  buttonStyle="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300"
+                  buttonStyle="bg-green-500 hover:bg-green-600 px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg shadow-green-200 hover:shadow-xl hover:shadow-green-300"
                   onClick={() => setIsBarcodeActive(true)}
                 >
                   <CiBarcode className="text-xl" />
@@ -339,7 +435,11 @@ const PickingPage = () => {
 
             {/* Activity List */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+              <div className="flex items-center gap-5 mb-4">
+                <DatePicker onChange={handleDateChange} value={selectedDate} format="YYYY-MM-DD" />
+                <SearchFragment onSearch={handleSearch} value={searchQuery} placeholder="Cari Resi" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Packing Activity</h2>
               <div className="space-y-4">
                 {data.map((item, index) => (
                   <div
@@ -350,7 +450,7 @@ const PickingPage = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-900">{item.nama_pekerja}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${item.status === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{item.status}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${item.status === "packing" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{item.status}</span>
                       </div>
                       <p className="text-sm text-gray-500">Resi: {item.resi}</p>
                     </div>
@@ -358,6 +458,7 @@ const PickingPage = () => {
                   </div>
                 ))}
               </div>
+              {renderPaginationControls()}
             </div>
           </div>
         </div>
@@ -366,4 +467,4 @@ const PickingPage = () => {
   );
 };
 
-export default PickingPage;
+export default PackingPage;

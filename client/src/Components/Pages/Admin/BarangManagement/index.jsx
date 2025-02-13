@@ -475,46 +475,47 @@ const AdminBarangSection = () => {
         <div className="w-full h-auto bg-slate-50 rounded-md px-6 py-5">
           <div className="flex flex-col gap-5 max-w-[1400px] mx-auto">
             {/* Search and Filter Section */}
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ">
               {/* Left side: Date, Search, and Sort */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
                 <RangePicker onChange={handleDateChange} className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2 w-full sm:w-auto mobile:flex-col">
                   <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nomor resi" className="w-full sm:w-[250px] shadow-sm" />
-                  <div className="flex items-center gap-2">
-                    <Button
-                      buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
-                        ${sortBy === "today-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
-                        hover:bg-green-600 hover:text-white text-xs`}
-                      onClick={() => handleSort("today-first")}
-                    >
-                      <FaSort className="text-sm" />
-                      <span>Hari Ini</span>
-                    </Button>
-                    <Button
-                      buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
-                        ${sortBy === "oldest-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
-                        hover:bg-green-600 hover:text-white text-xs`}
-                      onClick={() => handleSort("oldest-first")}
-                    >
-                      <FaSort className="text-sm" />
-                      <span>Terlama</span>
-                    </Button>
-                    <Button
-                      buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
-                        ${sortBy === "last-update" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
-                        hover:bg-green-600 hover:text-white text-xs`}
-                      onClick={() => handleSort("last-update")}
-                    >
-                      <FaSort className="text-sm" />
-                      <span>Update</span>
-                    </Button>
-                  </div>
                 </div>
               </div>
 
+              <div className="flex items-center gap-2">
+                <Button
+                  buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        ${sortBy === "today-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
+                        hover:bg-green-600 hover:text-white text-xs`}
+                  onClick={() => handleSort("today-first")}
+                >
+                  <FaSort className="text-sm" />
+                  <span>Hari Ini</span>
+                </Button>
+                <Button
+                  buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        ${sortBy === "oldest-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
+                        hover:bg-green-600 hover:text-white text-xs`}
+                  onClick={() => handleSort("oldest-first")}
+                >
+                  <FaSort className="text-sm" />
+                  <span>Terlama</span>
+                </Button>
+                <Button
+                  buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        ${sortBy === "last-update" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
+                        hover:bg-green-600 hover:text-white text-xs`}
+                  onClick={() => handleSort("last-update")}
+                >
+                  <FaSort className="text-sm" />
+                  <span>Update</span>
+                </Button>
+              </div>
+
               {/* Right side: Action Buttons */}
-              <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
+              <div className="flex items-center gap-2 w-full lg:w-auto justify-start">
                 <Button buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg" onClick={handleExport} disabled={exportLoading}>
                   {exportLoading ? (
                     <span className="flex items-center gap-2">

@@ -11,6 +11,8 @@ import urlApi from "../../../utils/url";
 import { playSuccessSound, playErrorSound } from "../../../utils/audio";
 import { FaCartFlatbed } from "react-icons/fa6";
 import Unauthorized from "../Unauthorized";
+import { DatePicker } from "antd";
+import SearchFragment from "../../Fragments/SearchFragment";
 
 const HomePage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -21,12 +23,20 @@ const HomePage = () => {
   const [currentResi, setCurrentResi] = useState(null);
   const [isPhotoMode, setIsPhotoMode] = useState(false);
   const [user, setUser] = useState("");
+  const [isLoading, setIsLoading] = useState(true); // Add this line
   const [thisPage, setThisPage] = useState("picker");
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
     const decodeToken = jwtDecode(token);
     setUser(decodeToken.roles);
+    setIsLoading(false);
   }, []);
 
   // Improved scan mode buttons component
@@ -184,8 +194,23 @@ const HomePage = () => {
         window.location.href = "/admin";
       }
 
+      let url = `${urlApi}/api/v1/auditResi/activity/${thisPage}/${username}`;
+      const queryParams = [];
+
+      if (selectedDate) {
+        queryParams.push(`date=${selectedDate.format("YYYY-MM-DD")}`);
+      }
+
+      if (searchQuery) {
+        queryParams.push(`search=${encodeURIComponent(searchQuery)}`);
+      }
+
+      if (queryParams.length > 0) {
+        url += `?${queryParams.join("&")}`;
+      }
+
       axios
-        .get(`${urlApi}/api/v1/auditResi/activity/${thisPage}/${username}`, {
+        .get(url, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -194,19 +219,32 @@ const HomePage = () => {
           setData(res.data.data);
         })
         .catch((err) => {
-          console.error(err.response.data.message);
+          console.error(err.response?.data?.message);
         });
     };
 
-    // Initial fetch
     fetchData();
-
-    // Set up interval for subsequent fetches
-    const interval = setInterval(fetchData, 3000); // 2000 ms = 2 seconds
-
-    // Cleanup interval on component unmount
+    const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
-  }, []); // Empty dependency array
+  }, [thisPage, selectedDate, searchQuery]); // Add dependencies
+
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+  };
+
+  const handleSearch = (value) => {
+    setSearchQuery(value);
+  };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   if (!user.includes("picker")) {
     return (
@@ -304,6 +342,10 @@ const HomePage = () => {
 
             {/* Activity List */}
             <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center gap-5">
+                <DatePicker onChange={handleDateChange} value={selectedDate} format="YYYY-MM-DD" />
+                <SearchFragment onSearch={handleSearch} value={searchQuery} placeholder={"Cari Resi"} />
+              </div>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
               <div className="space-y-4">
                 {data.map((item, index) => (
@@ -315,7 +357,7 @@ const HomePage = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-900">{item.nama_pekerja}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${item.status === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{item.status}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${item.status === "picker" ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}`}>{item.status}</span>
                       </div>
                       <p className="text-sm text-gray-500">Resi: {item.resi}</p>
                     </div>

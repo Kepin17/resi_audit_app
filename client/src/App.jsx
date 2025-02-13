@@ -10,9 +10,9 @@ import AdminBarangSection from "./Components/Pages/Admin/BarangManagement";
 import StaffManagementPage from "./Components/Pages/Admin/StaffManagementPage";
 import LogLoginPage from "./Components/Pages/Admin/Log/LogLoginPage";
 import PackSalary from "./Components/Pages/Admin/PackSalary";
-import PickingPage from "./Components/Pages/Home/PickingPage";
 import PickoutPage from "./Components/Pages/Home/PickoutPage";
 import { jwtDecode } from "jwt-decode";
+import PackingPage from "./Components/Pages/Home/PackingPage";
 import { useEffect, useState } from "react";
 function App() {
   const [getRole, setRole] = useState("");
@@ -38,13 +38,30 @@ function App() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<ProtectedRoute>{getRole.includes("picker") ? <HomePage /> : getRole.includes("packing") ? <PickingPage /> : getRole.includes("pickout") ? <PickoutPage /> : <AdminDashboard />}</ProtectedRoute>} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              {getRole.includes("picker") ? (
+                <HomePage />
+              ) : getRole.includes("packing") ? (
+                <PackingPage />
+              ) : getRole.includes("pickout") ? (
+                <PickoutPage />
+              ) : getRole.includes("admin") || getRole.includes("superadmin") ? (
+                <AdminDashboard />
+              ) : (
+                ""
+              )}
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/packing"
           element={
             <ProtectedRoute>
-              <PickingPage />
+              <PackingPage />
             </ProtectedRoute>
           }
         />

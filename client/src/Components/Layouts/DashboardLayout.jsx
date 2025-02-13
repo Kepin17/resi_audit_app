@@ -52,8 +52,8 @@ const DashboardLayout = ({ children }) => {
         <nav
           className={`
           sidebar w-[85%] md:w-[40vh] bg-blue-800 shadow-xl rounded-md h-screen
-          fixed md:relative top-0 left-0  z-40
-          transform transition-transform duration-300 ease-in-out
+          fixed md:sticky top-0 left-0  z-40
+          transform transition-transform duration-300 ease-in-out 
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
         >

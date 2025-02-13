@@ -14,7 +14,6 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [importLoading, setImportLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [statusCounts, setStatusCounts] = useState({
     picker: 0,
@@ -208,7 +207,7 @@ const AdminDashboard = () => {
       {/* Statistics Chart Section */}
       <div className="bg-white rounded-xl shadow-lg p-6 mx-4 mb-8">
         <div className="flex flex-col space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mobile:flex-col gap-5">
             <h2 className="text-xl font-semibold">Activity Statistics</h2>
             <div className="flex gap-2">
               {["daily", "weekly", "monthly", "yearly"].map((period) => (
@@ -303,7 +302,7 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end mobile:justify-start">
               <button onClick={handleExport} className="flex items-center gap-2 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 shadow-md">
                 <FaFileExport /> Export Data
               </button>

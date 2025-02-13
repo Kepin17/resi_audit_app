@@ -34,7 +34,7 @@ const LogLoginPage = () => {
           // Add query parameters
           const params = new URLSearchParams();
           params.append("page", page);
-          params.append("limit", 16);
+          params.append("limit", 10);
 
           if (searchTerm?.trim()) {
             params.append("search", searchTerm.trim());

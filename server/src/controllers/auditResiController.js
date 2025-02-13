@@ -363,15 +363,35 @@ const showAllActiviy = async (req, res) => {
 const getActivityByName = async (req, res) => {
   try {
     const { thisPage, username } = req.params;
-    const [rows] = await mysqlPool.query(
-      `
-      SELECT pekerja.nama_pekerja, log_proses.resi_id as resi, log_proses.status_proses as status, log_proses.created_at as proses_scan
+    const { date, search } = req.query;
+
+    let query = `
+      SELECT pekerja.nama_pekerja, 
+             log_proses.resi_id as resi, 
+             log_proses.status_proses as status, 
+             log_proses.created_at as proses_scan
       FROM log_proses 
       JOIN proses ON log_proses.resi_id = proses.resi_id 
       JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE pekerja.username = ? AND log_proses.status_proses = ?`,
-      [username, thisPage]
-    );
+      WHERE pekerja.username = ? 
+      AND log_proses.status_proses = ?`;
+
+    const queryParams = [username, thisPage];
+
+    if (date) {
+      query += ` AND DATE(log_proses.created_at) = ?`;
+      queryParams.push(date);
+    }
+
+    if (search) {
+      query += ` AND log_proses.resi_id LIKE ?`;
+      queryParams.push(`%${search}%`);
+    }
+
+    query += ` ORDER BY log_proses.created_at DESC`;
+
+    const [rows] = await mysqlPool.query(query, queryParams);
+
     if (rows.length === 0) {
       return res.status(404).send({
         success: false,
