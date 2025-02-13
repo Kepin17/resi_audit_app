@@ -98,13 +98,13 @@ const showAllBarang = async (req, res) => {
     // Define sort order based on sortBy parameter
     let orderClause = "ORDER BY b.created_at DESC";
     switch (sortBy) {
-      case 'today-first':
+      case "today-first":
         orderClause = "ORDER BY DATE(b.created_at) = CURDATE() DESC, b.created_at ASC";
         break;
-      case 'oldest-first':
+      case "oldest-first":
         orderClause = "ORDER BY b.created_at ASC";
         break;
-      case 'last-update':
+      case "last-update":
         // Fix: use last_scan from latest_process instead of updated_at
         orderClause = "ORDER BY COALESCE(latest_process.last_scan, b.updated_at) DESC";
         break;

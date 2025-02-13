@@ -478,42 +478,33 @@ const AdminBarangSection = () => {
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               {/* Left side: Date, Search, and Sort */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
-                <RangePicker 
-                  onChange={handleDateChange} 
-                  className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" 
-                />
+                <RangePicker onChange={handleDateChange} className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <SearchFragment 
-                    onSearch={handleSearchInput} 
-                    onKeyPress={handleSearchSubmit} 
-                    value={searchInput} 
-                    placeholder="Cari nomor resi" 
-                    className="w-full sm:w-[250px] shadow-sm" 
-                  />
+                  <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nomor resi" className="w-full sm:w-[250px] shadow-sm" />
                   <div className="flex items-center gap-2">
                     <Button
                       buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
-                        ${sortBy === 'today-first' ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-green-500'}
+                        ${sortBy === "today-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
                         hover:bg-green-600 hover:text-white text-xs`}
-                      onClick={() => handleSort('today-first')}
+                      onClick={() => handleSort("today-first")}
                     >
                       <FaSort className="text-sm" />
                       <span>Hari Ini</span>
                     </Button>
                     <Button
                       buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
-                        ${sortBy === 'oldest-first' ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-green-500'}
+                        ${sortBy === "oldest-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
                         hover:bg-green-600 hover:text-white text-xs`}
-                      onClick={() => handleSort('oldest-first')}
+                      onClick={() => handleSort("oldest-first")}
                     >
                       <FaSort className="text-sm" />
                       <span>Terlama</span>
                     </Button>
                     <Button
                       buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
-                        ${sortBy === 'last-update' ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-green-500'}
+                        ${sortBy === "last-update" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
                         hover:bg-green-600 hover:text-white text-xs`}
-                      onClick={() => handleSort('last-update')}
+                      onClick={() => handleSort("last-update")}
                     >
                       <FaSort className="text-sm" />
                       <span>Update</span>
@@ -524,11 +515,7 @@ const AdminBarangSection = () => {
 
               {/* Right side: Action Buttons */}
               <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
-                <Button
-                  buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg"
-                  onClick={handleExport}
-                  disabled={exportLoading}
-                >
+                <Button buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg" onClick={handleExport} disabled={exportLoading}>
                   {exportLoading ? (
                     <span className="flex items-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -558,10 +545,7 @@ const AdminBarangSection = () => {
                     </>
                   )}
                 </Button>
-                <Button
-                  buttonStyle="bg-blue-500 flex items-center gap-2 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 shadow-md hover:shadow-lg font-medium"
-                  onClick={() => setIsModalOpen(true)}
-                >
+                <Button buttonStyle="bg-blue-500 flex items-center gap-2 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 shadow-md hover:shadow-lg font-medium" onClick={() => setIsModalOpen(true)}>
                   <IoIosCreate className="text-lg" />
                   <span className="text-sm">Buat Resi</span>
                 </Button>
