@@ -2,13 +2,14 @@ const express = require("express");
 const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
-const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, checkStatusResi } = require("../controllers/auditResiController");
+const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto } = require("../controllers/auditResiController");
 const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
-const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel } = require("../controllers/SalaryController");
+const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel, getSalaryByID, getGajiPackingStats, getDailyEarnings } = require("../controllers/SalaryController");
 const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExcel } = require("../controllers/resiTerpackController");
 const upload = require("../config/multerConfig");
+const { getStatistics, getWorkerStatistics } = require("../controllers/statisticsController");
 
 const roles = {
   picker: "picker",
@@ -20,7 +21,7 @@ const roles = {
 
 // add staff area
 
-router.post("/auth/register", authToken, roleMiddleware([roles.supadmin]), RegisterHandler);
+router.post("/auth/register", RegisterHandler);
 router.get("/auth/show", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllStaff);
 router.get("/auth/show/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), showStaffDetail);
 router.delete("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), deleteStaff);
@@ -39,7 +40,7 @@ router.get("/auth-export", authToken, roleMiddleware([roles.admin, roles.supadmi
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllBarang);
 router.post("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), addNewBarang);
-router.put("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), cancelBarang);
+router.put("/barang-cancel/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), cancelBarang);
 router.get("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDetailByResi);
 router.get("/barang-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportBarang);
 router.post(
@@ -55,13 +56,13 @@ router.get("/barang-backup", authToken, roleMiddleware([roles.admin, roles.supad
 router.post("/auditResi/scan/:resi_id", authToken, roleMiddleware([roles.packing, roles.pickout, roles.picker, roles.admin, roles.supadmin]), upload.single("photo"), scaneHandler);
 
 router.get("/auditResi/activity", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllActiviy);
-router.get("/auditResi/activity/:username", authToken, getActivityByName);
+router.get("/auditResi/activity/:thisPage/:username", authToken, roleMiddleware([roles.picker, roles.packing, roles.pickout]), getActivityByName);
 router.get("/auditResi/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDataByResi);
 router.post("/auditResi/photo", authToken, uploadPhoto);
 router.get("/audit-packed", authToken, roleMiddleware([roles.admin, roles.supadmin]), showResiTerpack);
 
 // audit packing
-router.get("/resi-terpack", authToken, roleMiddleware([roles.admin, roles.supadmin]), showResiTerpack);
+router.get("/resi-terpack", authToken, roleMiddleware([roles.admin, roles.supadmin, roles.packing, roles.pickout, roles.picker]), showResiTerpack);
 router.get("/resi-terpack-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportPackToExcel);
 router.get("/resi-terpack-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupPackToExcel);
 router.post("/resi-terpack-import", authToken, roleMiddleware([roles.admin, roles.supadmin]), upload.single("file"), importPackFromExcel);
@@ -71,6 +72,7 @@ router.get("/bagian", authToken, roleMiddleware([roles.supadmin]), upload.single
 
 // gaji bos
 router.get("/gaji", authToken, roleMiddleware([roles.supadmin]), getSalary);
+router.get("/salary/daily-earnings", authToken, roleMiddleware([roles.packing]), getDailyEarnings);
 router.put("/gaji/:id_gaji", authToken, roleMiddleware([roles.supadmin]), editGaji);
 router.get("/gaji/packing", authToken, roleMiddleware([roles.supadmin, roles.admin]), getGajiPacking);
 router.put("/gaji/packing/:id_gaji_pegawai", authToken, roleMiddleware([roles.supadmin]), payPackingStaff);
@@ -80,5 +82,9 @@ router.put("/gaji/packing/:id_gaji_pegawai", authToken, roleMiddleware([roles.su
 router.get("/gaji/packing-export", authToken, roleMiddleware([roles.supadmin, roles.admin]), exportGaji);
 router.get("/gaji/packing-backup", authToken, roleMiddleware([roles.supadmin, roles.admin]), backupGajiPacking);
 router.post("/gaji/packing-import", authToken, roleMiddleware([roles.supadmin, roles.admin]), upload.single("file"), importGajiFromExcel);
+router.get("/packing/stats", authToken, roleMiddleware([roles.supadmin, roles.admin]), getGajiPackingStats);
+
+router.get("/statistics", authToken, roleMiddleware([roles.supadmin]), getStatistics);
+router.get("/worker-statistics", authToken, roleMiddleware([roles.supadmin]), getWorkerStatistics);
 
 module.exports = router;

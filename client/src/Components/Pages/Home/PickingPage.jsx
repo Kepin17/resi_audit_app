@@ -22,12 +22,40 @@ const PickingPage = () => {
   const [isPhotoMode, setIsPhotoMode] = useState(false);
   const [user, setUser] = useState({});
   const [thisPage, setThisPage] = useState("packing");
+  const [pekerjaGaji, setPekerjaGaji] = useState(0);
+  const [dailyEarnings, setDailyEarnings] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const decodeToken = jwtDecode(token);
     setUser(decodeToken);
   }, []);
+
+  useEffect(() => {
+    const fetchDailyEarnings = async () => {
+      try {
+        const response = await axios.get(`${urlApi}/api/v1/salary/daily-earnings?id_pekerja=${user.id_pekerja}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+
+        setDailyEarnings(response.data.data);
+      } catch (err) {
+        console.error("Error fetching daily earnings:", err);
+        toast.error("Failed to fetch daily earnings");
+      }
+    };
+
+    if (user.id_pekerja) {
+      fetchDailyEarnings();
+
+      // Refresh daily earnings every minute
+      const interval = setInterval(fetchDailyEarnings, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [user.id_pekerja]);
+
   // Improved scan mode buttons component
   const ScanModeButtons = () => (
     <div className="grid grid-cols-2 gap-4 w-full max-w-md">
@@ -184,7 +212,7 @@ const PickingPage = () => {
       }
 
       axios
-        .get(`${urlApi}/api/v1/auditResi/activity/${username}`, {
+        .get(`${urlApi}/api/v1/auditResi/activity/${thisPage}/${username}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -214,6 +242,10 @@ const PickingPage = () => {
       </MainLayout>
     );
   }
+
+  const formatRupiah = (number) => {
+    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(number);
+  };
   return (
     <MainLayout>
       <ToastContainer />
@@ -277,13 +309,14 @@ const PickingPage = () => {
                 <h3 className="text-sm font-medium text-gray-500">Today's Scans</h3>
                 <p className="text-2xl font-bold text-gray-900 mt-2">{data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length}</p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-sm font-medium text-gray-500">Success Rate</h3>
-                <p className="text-2xl font-bold text-green-500 mt-2">{Math.round((data.filter((item) => item.status === "success").length / data.length) * 100) || 0}%</p>
-              </div>
+
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-sm font-medium text-gray-500">Scan Mode</h3>
                 <p className="text-2xl font-bold text-blue-500 mt-2">{scanMode === "barcode-only" ? "Basic" : "Advanced"}</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-sm font-medium text-gray-500">Today's Earnings</h3>
+                <p className="text-2xl font-bold text-green-500 mt-2">{formatRupiah(dailyEarnings)}</p>
               </div>
             </div>
 

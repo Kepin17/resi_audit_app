@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
-import { FaClipboardCheck } from "react-icons/fa";
+import { FaClipboardCheck, FaUserCheck, FaFileExport } from "react-icons/fa";
 import { LuPackageCheck } from "react-icons/lu";
-import { FaUserCheck, FaFileExport, FaDatabase, FaFileImport } from "react-icons/fa";
 import { message } from "antd";
 import moment from "moment";
 import axios from "axios";
 import urlApi from "../../../../utils/url";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const AdminDashboard = () => {
   const [data, setData] = useState([]);
@@ -27,6 +27,9 @@ const AdminDashboard = () => {
     totalItems: 0,
     perPage: 12,
   });
+  const [statisticsPeriod, setStatisticsPeriod] = useState("daily");
+  const [statisticsData, setStatisticsData] = useState([]);
+  const [workerStats, setWorkerStats] = useState([]);
 
   const fetchData = async () => {
     try {
@@ -61,8 +64,33 @@ const AdminDashboard = () => {
       }, {});
       setStatusCounts(counts);
     } catch (err) {
-      console.log(err);
       message.error("Failed to fetch data");
+    }
+  };
+
+  const fetchStatistics = async () => {
+    try {
+      const response = await axios.get(`${urlApi}/api/v1/statistics?period=${statisticsPeriod}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      setStatisticsData(response.data.data);
+    } catch (err) {
+      message.error("Failed to fetch statistics");
+    }
+  };
+
+  const fetchWorkerStats = async () => {
+    try {
+      const response = await axios.get(`${urlApi}/api/v1/worker-statistics?period=${statisticsPeriod}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      setWorkerStats(response.data.data);
+    } catch (err) {
+      message.error("Failed to fetch worker statistics");
     }
   };
 
@@ -70,7 +98,13 @@ const AdminDashboard = () => {
     fetchData();
   }, [searchQuery, startDate, endDate, selectedStatus, pagination.currentPage]);
 
-  const totalReadyForShipment = data.filter((order) => order.status_barang === "pending for shipment").length;
+  useEffect(() => {
+    fetchStatistics();
+  }, [statisticsPeriod]);
+
+  useEffect(() => {
+    fetchWorkerStats();
+  }, [statisticsPeriod]);
 
   const handleExport = async () => {
     try {
@@ -100,81 +134,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleBackup = async () => {
-    try {
-      const response = await axios.get(`${urlApi}/api/v1/resi-terpack-backup`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `staff_data_${new Date().toISOString().split("T")[0]}_backup.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      message.error("Failed to backup data");
-    }
-  };
-
-  const ImportFromExcelHandler = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // File validation
-    const fileExt = file.name.split(".").pop().toLowerCase();
-    if (!["xlsx", "xls"].includes(fileExt)) {
-      message.error("Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)");
-      return;
-    }
-
-    // File size validation (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      message.error("Ukuran file terlalu besar. Maksimal 5MB");
-      return;
-    }
-
-    try {
-      setImportLoading(true);
-      message.loading({ content: "Mengimport data...", key: "import" });
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await axios.post(`${urlApi}/api/v1/resi-terpack-import`, formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      if (response.data?.success) {
-        message.success({
-          content: "Data berhasil diimport",
-          key: "import",
-          duration: 3,
-        });
-        fetchData(); // Use fetchData instead of fetchBarang
-      } else {
-        throw new Error(response.data?.message || "Gagal mengimport data");
-      }
-    } catch (error) {
-      console.error("Error importing file:", error);
-      message.error({
-        content: error.response?.data?.message || "Gagal mengimport data. Pastikan format file sesuai template.",
-        key: "import",
-        duration: 4,
-      });
-    } finally {
-      setImportLoading(false);
-      event.target.value = ""; // Reset file input
-    }
-  };
-
   const handlePageChange = (page) => {
     setPagination((prev) => ({ ...prev, currentPage: page }));
   };
@@ -201,164 +160,219 @@ const AdminDashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="status-card-wrapper w-full flex flex-wrap gap-3 justify-center items-stretch p-2 md:p-0">
-        <div className="status-card bg-blue-500 w-full md:w-1/4 p-4 rounded-lg">
-          <div className="status-card-content text-white flex items-center gap-3">
-            <FaClipboardCheck className="text-3xl" />
-            <div>
-              <h1 className="text-2xl font-semibold">{statusCounts.picker || 0}</h1>
-              <p>Picker</p>
+      {/* Stats Cards Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 p-4">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white text-sm font-medium mb-1">Total Picked</p>
+                <h3 className="text-white text-3xl font-bold">{statusCounts.picker || 0}</h3>
+              </div>
+              <div className="bg-blue-400 rounded-full p-3">
+                <FaClipboardCheck className="text-white text-2xl" />
+              </div>
             </div>
           </div>
         </div>
-        <div className="status-card bg-green-500 w-full md:w-1/4 p-4 rounded-lg">
-          <div className="status-card-content text-white flex items-center gap-3">
-            <LuPackageCheck className="text-3xl" />
-            <div>
-              <h1 className="text-2xl font-semibold">{statusCounts.packing || 0}</h1>
-              <p>Packing</p>
+
+        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg">
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white text-sm font-medium mb-1">Total Packed</p>
+                <h3 className="text-white text-3xl font-bold">{statusCounts.packing || 0}</h3>
+              </div>
+              <div className="bg-green-400 rounded-full p-3">
+                <LuPackageCheck className="text-white text-2xl" />
+              </div>
             </div>
           </div>
         </div>
-        <div className="status-card bg-purple-500 w-full md:w-1/4 p-4 rounded-lg">
-          <div className="status-card-content text-white flex items-center gap-3">
-            <FaUserCheck className="text-3xl" />
-            <div>
-              <h1 className="text-2xl font-semibold">{statusCounts.pickout || 0}</h1>
-              <p>Pickout</p>
+
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white text-sm font-medium mb-1">Total Pickout</p>
+                <h3 className="text-white text-3xl font-bold">{statusCounts.pickout || 0}</h3>
+              </div>
+              <div className="bg-purple-400 rounded-full p-3">
+                <FaUserCheck className="text-white text-2xl" />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="w-full h-full bg-white rounded-md p-5">
-        <div className="p-6">
-          <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between">
-            <div className="flex flex-col md:flex-row gap-4">
-              <input type="text" placeholder="Search by Resi ID or Staff Name" className="p-2 border rounded-md flex-1" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+      {/* Statistics Chart Section */}
+      <div className="bg-white rounded-xl shadow-lg p-6 mx-4 mb-8">
+        <div className="flex flex-col space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Activity Statistics</h2>
+            <div className="flex gap-2">
+              {["daily", "weekly", "monthly", "yearly"].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setStatisticsPeriod(period)}
+                  className={`px-4 py-2 rounded-lg transition-all duration-200 ${statisticsPeriod === period ? "bg-blue-500 text-white shadow-md transform scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                >
+                  {period.charAt(0).toUpperCase() + period.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-[400px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={statisticsData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} interval="preserveStartEnd" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="picker" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="packing" stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="pickout" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Worker Performance Section */}
+      <div className="bg-white rounded-xl shadow-lg p-6 mx-4 mb-8">
+        <div className="flex flex-col space-y-4">
+          <h2 className="text-xl font-semibold">Worker Performance</h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Picked</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Packed</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pickout</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Scans</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Scans/Hour</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours Worked</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Performance</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {workerStats.map((worker, index) => (
+                  <tr key={worker.id_pekerja} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{worker.nama_pekerja}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">{worker.picker_count}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">{worker.packing_count}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-purple-600 font-semibold">{worker.pickout_count}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{worker.total_scans}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{worker.scans_per_hour}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{worker.hours_worked}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-grow h-2 bg-gray-200 rounded-full">
+                          <div className="h-2 bg-green-500 rounded-full" style={{ width: `${worker.performance_score}%` }} />
+                        </div>
+                        <span className="ml-2 text-sm text-gray-600">{worker.performance_score}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Section */}
+      <div className="bg-white rounded-xl shadow-lg p-6 mx-4">
+        <div className="space-y-6">
+          {/* Controls Section */}
+          <div className="flex flex-col lg:flex-row gap-4 justify-between">
+            <div className="flex flex-col md:flex-row gap-4 flex-1">
+              <input
+                type="text"
+                placeholder="Search by Resi ID or Staff Name"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex-1 transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
               <div className="flex gap-2">
-                <input type="date" className="p-2 border rounded-md" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                <input type="date" className="p-2 border rounded-md" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <input type="date" className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <input type="date" className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
             </div>
 
-            <div className="flex gap-2 mb-4">
-              <button onClick={() => setSelectedStatus("all")} className={`px-4 py-2 rounded-md ${selectedStatus === "all" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}>
-                All
+            <div className="flex justify-end">
+              <button onClick={handleExport} className="flex items-center gap-2 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 shadow-md">
+                <FaFileExport /> Export Data
               </button>
-              <button onClick={() => setSelectedStatus("picker")} className={`px-4 py-2 rounded-md ${selectedStatus === "picker" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}>
-                Picker
-              </button>
-              <button onClick={() => setSelectedStatus("packing")} className={`px-4 py-2 rounded-md ${selectedStatus === "packing" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}>
-                Packing
-              </button>
-              <button onClick={() => setSelectedStatus("pickout")} className={`px-4 py-2 rounded-md ${selectedStatus === "pickout" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}>
-                Pickout
-              </button>
-            </div>
-
-            <div className="flex gap-2">
-              <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">
-                <FaFileExport /> Export
-              </button>
-              <button onClick={handleBackup} className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
-                <FaDatabase /> Backup
-              </button>
-              <label className={`flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 cursor-pointer ${importLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
-                <FaFileImport />
-                {importLoading ? "Importing..." : "Import"}
-                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={ImportFromExcelHandler} disabled={importLoading} />
-              </label>
             </div>
           </div>
-        </div>
-        <h2 className="text-2xl font-semibold mb-4">
-          {selectedStatus === "picker" && <span>Picked Orders</span>}
-          {selectedStatus === "packing" && <span>Packed Orders</span>}
-          {selectedStatus === "all" && <span>All Orders</span>}
-          {selectedStatus === "pickout" && <span>Pickout Orders</span>}
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resi ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {data.map((order, index) => (
-                <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap">{!order.resi_id ? "Telah dihapus / bermasalah" : order.resi_id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{order.nama_pekerja}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${
-                        order.status_proses === "picker"
-                          ? "bg-blue-100 text-blue-800"
-                          : order.status_proses === "packing"
-                          ? "bg-green-100 text-green-800"
-                          : order.status_proses === "Konfirmasi"
-                          ? "bg-orange-100 text-orange-800"
-                          : order.status_proses === "cancelled"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-purple-100 text-purple-800"
-                      }`}
-                    >
-                      {order.status_proses === "Konfirmasi" ? "Melakukan konfirmasi pembatalan resi" : order.status_proses === "cancelled" ? "Menyetujui pembatalan resi" : `Telah ${order.status_proses} barang`}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{moment(order.created_at).format("DD/MM/YY | HH:MM:SS")}</td>
+
+          {/* Status Filters */}
+          <div className="flex flex-wrap gap-2">
+            {["all", "picker", "packing", "pickout"].map((status) => (
+              <button
+                key={status}
+                onClick={() => setSelectedStatus(status)}
+                className={`px-6 py-2 rounded-lg transition-all duration-200 ${selectedStatus === status ? "bg-blue-500 text-white shadow-md transform scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Table Section */}
+          <div className="overflow-x-auto bg-white rounded-lg shadow">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {["Resi ID", "Staff Name", "Activity", "Date & Time"].map((header) => (
+                    <th key={header} className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {header}
+                    </th>
+                  ))}
                 </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {data.map((order, index) => (
+                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{!order.resi_id ? "Telah dihapus / bermasalah" : order.resi_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.nama_pekerja}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          order.status_proses === "picker" ? "bg-blue-100 text-blue-800" : order.status_proses === "packing" ? "bg-green-100 text-green-800" : "bg-purple-100 text-purple-800"
+                        }`}
+                      >
+                        {`Telah ${order.status_proses} barang`}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{moment(order.created_at).format("DD/MM/YY | HH:mm:ss")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6">
+            <div className="flex gap-2">
+              {generatePageNumbers().map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => handlePageChange(pageNum)}
+                  className={`px-4 py-2 rounded-lg transition-colors ${pagination.currentPage === pageNum ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                >
+                  {pageNum}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-4 flex justify-end items-center gap-2 px-6">
-          <button
-            onClick={() => handlePageChange(1)}
-            disabled={pagination.currentPage === 1}
-            className={`px-3 py-1 rounded-md ${pagination.currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white hover:bg-blue-600"}`}
-          >
-            First
-          </button>
-
-          <button
-            onClick={() => handlePageChange(pagination.currentPage - 1)}
-            disabled={pagination.currentPage === 1}
-            className={`px-3 py-1 rounded-md ${pagination.currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white hover:bg-blue-600"}`}
-          >
-            Prev
-          </button>
-
-          {generatePageNumbers().map((pageNum) => (
-            <button key={pageNum} onClick={() => handlePageChange(pageNum)} className={`px-3 py-1 rounded-md ${pagination.currentPage === pageNum ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-blue-100"}`}>
-              {pageNum}
-            </button>
-          ))}
-
-          <button
-            onClick={() => handlePageChange(pagination.currentPage + 1)}
-            disabled={pagination.currentPage === pagination.totalPages}
-            className={`px-3 py-1 rounded-md ${pagination.currentPage === pagination.totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white hover:bg-blue-600"}`}
-          >
-            Next
-          </button>
-
-          <button
-            onClick={() => handlePageChange(pagination.totalPages)}
-            disabled={pagination.currentPage === pagination.totalPages}
-            className={`px-3 py-1 rounded-md ${pagination.currentPage === pagination.totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white hover:bg-blue-600"}`}
-          >
-            Last
-          </button>
-
-          <span className="text-gray-600 ml-4">
-            Page {pagination.currentPage} of {pagination.totalPages}
-          </span>
+            </div>
+            <span className="text-sm text-gray-600">
+              Page {pagination.currentPage} of {pagination.totalPages}
+            </span>
+          </div>
         </div>
       </div>
     </DashboardLayout>

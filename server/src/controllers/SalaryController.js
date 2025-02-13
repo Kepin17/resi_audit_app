@@ -26,6 +26,27 @@ const getSalary = async (req, res) => {
   }
 };
 
+const getSalaryByID = async (req, res) => {
+  try {
+    const [rows] = await mysqlPool.query(`SELECT gaji_total FROM gaji_pegawai WHERE id_pekerja = ?`, [req.params.id_pekerja]);
+
+    return res.status(200).send({
+      success: true,
+      message: "gaji found",
+      data: rows[0]?.gaji_total || null,
+    });
+  } catch (error) {
+    console.log(error);
+    if (!res.headersSent) {
+      return res.status(500).send({
+        success: false,
+        message: "Error when trying to show all barang",
+        error: error.message,
+      });
+    }
+  }
+};
+
 const editGaji = async (req, res) => {
   try {
     const { id_gaji } = req.params;
@@ -537,6 +558,75 @@ const backupGajiPacking = async (req, res) => {
   }
 };
 
+const getGajiPackingStats = async (req, res) => {
+  try {
+    const { date } = req.query;
+    const startDate = date ? `${date} 00:00:00` : moment().format("YYYY-MM-DD 00:00:00");
+    const endDate = date ? `${date} 23:59:59` : moment().format("YYYY-MM-DD 23:59:59");
+
+    // Get total workers and active packing for today with COALESCE to handle nulls
+    const [workersStats] = await mysqlPool.query(
+      `
+      SELECT 
+        COALESCE(COUNT(DISTINCT gp.id_pekerja), 0) as totalWorkers,
+        COALESCE(SUM(gp.jumlah_scan), 0) as activePacking,
+        COALESCE(SUM(gp.gaji_total), 0) as totalPayments
+      FROM gaji_pegawai gp
+      WHERE gp.updated_at BETWEEN ? AND ?
+    `,
+      [startDate, endDate]
+    );
+
+    // Add console.log for debugging
+    console.log("Stats Query Result:", workersStats[0]);
+
+    return res.status(200).send({
+      success: true,
+      message: "Statistics retrieved successfully",
+      data: {
+        totalWorkers: parseInt(workersStats[0].totalWorkers) || 0,
+        activePacking: parseInt(workersStats[0].activePacking) || 0,
+        totalPayments: parseFloat(workersStats[0].totalPayments) || 0,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getGajiPackingStats:", error);
+    return res.status(500).send({
+      success: false,
+      message: "Error retrieving statistics",
+      error: error.message,
+    });
+  }
+};
+
+const getDailyEarnings = async (req, res) => {
+  try {
+    const { id_pekerja, date } = req.query;
+    const targetDate = date || moment().format("YYYY-MM-DD");
+
+    const [rows] = await mysqlPool.query(
+      `SELECT COALESCE(SUM(gaji_total), 0) as daily_earnings 
+       FROM gaji_pegawai 
+       WHERE id_pekerja = ? 
+       AND DATE(created_at) = ?`,
+      [id_pekerja, targetDate]
+    );
+
+    return res.status(200).send({
+      success: true,
+      message: "Daily earnings retrieved successfully",
+      data: rows[0]?.daily_earnings || 0,
+    });
+  } catch (error) {
+    console.error("Error in getDailyEarnings:", error);
+    return res.status(500).send({
+      success: false,
+      message: "Error retrieving daily earnings",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getSalary,
   editGaji,
@@ -545,4 +635,7 @@ module.exports = {
   exportGaji,
   backupGajiPacking,
   importGajiFromExcel,
+  getSalaryByID,
+  getGajiPackingStats,
+  getDailyEarnings,
 };

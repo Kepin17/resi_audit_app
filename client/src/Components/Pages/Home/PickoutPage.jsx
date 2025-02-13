@@ -185,7 +185,7 @@ const PickoutPage = () => {
       }
 
       axios
-        .get(`${urlApi}/api/v1/auditResi/activity/${username}`, {
+        .get(`${urlApi}/api/v1/auditResi/activity/${thisPage}/${username}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -278,10 +278,7 @@ const PickoutPage = () => {
                 <h3 className="text-sm font-medium text-gray-500">Today's Scans</h3>
                 <p className="text-2xl font-bold text-gray-900 mt-2">{data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length}</p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-sm font-medium text-gray-500">Success Rate</h3>
-                <p className="text-2xl font-bold text-green-500 mt-2">{Math.round((data.filter((item) => item.status === "success").length / data.length) * 100) || 0}%</p>
-              </div>
+
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-sm font-medium text-gray-500">Scan Mode</h3>
                 <p className="text-2xl font-bold text-blue-500 mt-2">{scanMode === "barcode-only" ? "Basic" : "Advanced"}</p>

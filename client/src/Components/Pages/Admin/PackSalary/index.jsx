@@ -36,6 +36,12 @@ const PackSalary = () => {
   const [openModal, setOpenModal] = useState(false);
   const [user, setUser] = useState(null);
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [todayStats, setTodayStats] = useState({
+    totalWorkers: 0,
+    totalPayments: 0,
+    activePacking: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -109,6 +115,46 @@ const PackSalary = () => {
     fetchGajiPacking(currentPage, pageSize, searchText);
   }, [currentPage, pageSize, searchText, dateRange]);
 
+  const fetchTodayStats = async () => {
+    setStatsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No token found");
+      }
+
+      const today = moment().format("YYYY-MM-DD");
+      const response = await axios.get(`${urlApi}/api/v1/packing/stats`, {
+        params: { date: today },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.data?.success) {
+        setTodayStats({
+          totalWorkers: response.data.data.totalWorkers || 0,
+          totalPayments: response.data.data.totalPayments || 0,
+          activePacking: response.data.data.activePacking || 0,
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching today's stats:", err);
+      message.error(err.response?.data?.message || "Failed to fetch today's statistics");
+      setTodayStats({
+        totalWorkers: 0,
+        totalPayments: 0,
+        activePacking: 0,
+      });
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTodayStats();
+  }, []);
+
   const formatRupiah = (number) => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(number);
   };
@@ -145,6 +191,7 @@ const PackSalary = () => {
           content: "The payment has been processed successfully",
         });
         fetchGajiPacking(currentPage, pageSize, searchText);
+        fetchTodayStats(); // Refetch stats after successful payment
       }
     } catch (err) {
       Modal.error({
@@ -301,129 +348,141 @@ const PackSalary = () => {
     }
   };
 
-  const handleBackup = async () => {
-    try {
-      setExportLoading(true);
-      message.loading({ content: "Memproses backup...", key: "backup" });
-
-      const response = await axios.get(`${urlApi}/api/v1/gaji/packing-backup`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        responseType: "blob",
-      });
-
-      // Handle the backup file download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      const fileName = `backup_gaji_packing_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`;
-      link.setAttribute("download", fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-
-      message.success({
-        content: "Backup berhasil disimpan",
-        key: "backup",
-        duration: 3,
-      });
-    } catch (error) {
-      console.error("Error backing up data:", error);
-      message.error({
-        content: "Gagal melakukan backup: " + (error.response?.data?.message || "Terjadi kesalahan"),
-        key: "backup",
-        duration: 3,
-      });
-    } finally {
-      setExportLoading(false);
-    }
-  };
-
-  const ImportFromExcelHandler = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".xlsx, .xls";
-
-    input.onchange = async (e) => {
-      try {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        // Check file extension
-        const fileExt = file.name.split(".").pop().toLowerCase();
-        if (!["xlsx", "xls"].includes(fileExt)) {
-          message.error("Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)");
-          return;
-        }
-
-        setImportLoading(true);
-        message.loading({ content: "Mengimport data...", key: "import" });
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await axios.post(`${urlApi}/api/v1/gaji/packing-import`, formData, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "Content-Type": "multipart/form-data",
-          },
-        });
-
-        if (response.data?.success) {
-          message.success({ content: "Data berhasil diimport", key: "import" });
-          fetchGajiPacking(currentPage, pageSize, searchText); // Fixed function name
-        }
-      } catch (error) {
-        console.error("Error importing file:", error);
-        message.error({
-          content: error.response?.data?.message || "Gagal mengimport data",
-          key: "import",
-        });
-      } finally {
-        setImportLoading(false);
-      }
-    };
-
-    input.click();
-  };
-
   return (
     <DashboardLayout>
       <div className="w-full h-full bg-white rounded-lg shadow-md p-6">
-        <div className="w-full h-auto border-2 border-gray-200 rounded-lg p-6 mb-6">
-          <Title>Packing Salary</Title>
-          <div className="flex gap-4 items-center mt-4">
-            {user?.roles?.includes("superadmin") && (
-              <>
-                <Form onSubmit={handleSubmit} className="flex-grow">
-                  <InputFragment htmlFor={"total_gaji_per_scan"} InputType="number" isJustNumber={true} inputName={"total_gaji_per_scan"} inputValue={form.total_gaji_per_scan} isDisabled={!isEdit} inputOnChange={handleInputChange}>
-                    Salary
-                  </InputFragment>
-                </Form>
-                <div className="flex items-center text-white">
-                  <button className={`bg-${isEdit ? "red-500" : "blue-500"} hover:bg-${isEdit ? "red-600" : "blue-600"} p-3 rounded-lg mr-2 transition duration-300`} onClick={() => setisEdit(!isEdit)} disabled={updateLoading}>
-                    {!isEdit ? <MdEdit /> : <MdCancel />}
-                  </button>
-                  {isEdit && (
-                    <button className="bg-green-500 hover:bg-green-600 p-3 rounded-lg transition duration-300" onClick={handleSubmit} disabled={updateLoading}>
-                      <GiConfirmed />
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-            <Button className="border-2 border-blue-500 p-4" onClick={() => setOpenModal(true)}>
-              Action
-            </Button>
+        {/* Modified Card Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-80">Current Salary Rate</p>
+                <h2 className="text-2xl font-bold mt-2">{formatRupiah(form.total_gaji_per_scan)}</h2>
+                <p className="text-xs opacity-70 mt-2">Per Item Today</p>
+              </div>
+              <div className="text-4xl opacity-80">
+                <MdPayments />
+              </div>
+            </div>
           </div>
-          <div className="mt-4 flex space-x-4 gap-2">
-            <RangePicker onChange={handleDateChange} showTime={false} allowSame={true} format="YYYY-MM-DD" />
-            <Search placeholder="Search by Nama Pekerja" onSearch={handleSearch} enterButton />
+
+          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-80">Active Workers Today</p>
+                <h2 className="text-2xl font-bold mt-2">{statsLoading ? "Loading..." : todayStats.totalWorkers}</h2>
+                <p className="text-xs opacity-70 mt-2">{statsLoading ? "Loading..." : `${todayStats.activePacking} Items Packed`}</p>
+              </div>
+              <div className="text-4xl opacity-80">
+                <MdEdit />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-80">Today's Total Payments</p>
+                <h2 className="text-2xl font-bold mt-2">{formatRupiah(todayStats.totalPayments)}</h2>
+                <p className="text-xs opacity-70 mt-2">{moment().format("DD MMMM YYYY")}</p>
+              </div>
+              <div className="text-4xl opacity-80">
+                <GiConfirmed />
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Modified Salary Control Section */}
+        <div className="w-full h-auto bg-gray-50 rounded-xl p-6 mb-6 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <Title className="text-gray-700">Packing Salary Management</Title>
+            <Button type="primary" onClick={handleExport} loading={exportLoading} className="flex items-center gap-2 h-12 px-6 text-lg" icon={<MdPayments className="text-xl" />}>
+              Export Data
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="flex gap-4 items-start w-full">
+              {user?.roles?.includes("superadmin") && (
+                <>
+                  <Form onSubmit={handleSubmit} className="flex-1">
+                    <InputFragment
+                      htmlFor={"total_gaji_per_scan"}
+                      InputType="number"
+                      isJustNumber={true}
+                      inputName={"total_gaji_per_scan"}
+                      inputValue={form.total_gaji_per_scan}
+                      isDisabled={!isEdit}
+                      inputOnChange={handleInputChange}
+                      className="w-full h-12" // Added fixed height
+                    >
+                      Salary Rate Per Item
+                    </InputFragment>
+                  </Form>
+                  <button
+                    className={`h-12 px-6 rounded-lg text-white flex items-center gap-2 transition-all duration-300 ${isEdit ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"}`}
+                    onClick={() => setisEdit(!isEdit)}
+                    disabled={updateLoading}
+                  >
+                    {!isEdit ? (
+                      <>
+                        <MdEdit className="text-xl" /> Edit Rate
+                      </>
+                    ) : (
+                      <>
+                        <MdCancel className="text-xl" /> Cancel
+                      </>
+                    )}
+                  </button>
+                  {isEdit && (
+                    <button className="h-12 px-6 bg-green-500 hover:bg-green-600 rounded-lg text-white flex items-center gap-2 transition-all duration-300" onClick={handleSubmit} disabled={updateLoading}>
+                      <GiConfirmed className="text-xl" /> Save
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="flex gap-4">
+              <RangePicker
+                onChange={handleDateChange}
+                showTime={false}
+                allowSame={true}
+                format="YYYY-MM-DD"
+                className="flex-1 h-12" // Added fixed height
+              />
+              <Search
+                placeholder="Search by Name"
+                onSearch={handleSearch}
+                enterButton
+                className="flex-1 h-12" // Added fixed height
+                size="large" // Makes the search input larger
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Table Section */}
+        <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
+          <Table
+            columns={coloms}
+            rowKey="id_gaji_pegawai"
+            dataSource={source}
+            pagination={{
+              current: currentPage,
+              pageSize: pageSize,
+              total: totalItems,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `Total ${total} items`,
+              className: "px-6",
+            }}
+            onChange={handleTableChange}
+            className="custom-table"
+          />
+        </div>
+
+        {/* Fix Modal Structure */}
         <Modal
           title="Confirm Payment"
           open={isModalVisible}
@@ -437,23 +496,6 @@ const PackSalary = () => {
           <p>Are you sure you want to process the payment for {selectedRecord?.nama_pekerja}?</p>
           <p>Total amount: {selectedRecord ? formatRupiah(selectedRecord.gaji_total) : ""}</p>
         </Modal>
-
-        <ExcelActionModal isOpen={openModal} onCancel={() => setOpenModal(false)} ImportFromExcelHandler={ImportFromExcelHandler} handleExport={handleExport} handleBackup={handleBackup} />
-        <Table
-          columns={coloms}
-          rowKey="id_gaji_pegawai"
-          dataSource={source}
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            total: totalItems,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `Total ${total} items`,
-          }}
-          onChange={handleTableChange}
-          className="mt-4 border border-gray-200 rounded-lg shadow-sm"
-        />
       </div>
     </DashboardLayout>
   );

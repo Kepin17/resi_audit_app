@@ -133,7 +133,14 @@ const LogLoginPage = () => {
           !error &&
           filteredLogs.map((log) => {
             const device = log.device_info;
-            const devicejson = JSON.parse(device);
+            let deviceInfo;
+            try {
+              deviceInfo = typeof device === "string" ? JSON.parse(device) : device;
+            } catch (error) {
+              console.error("Error parsing device info:", error);
+              deviceInfo = { device_type: "Unknown", os: "Unknown", browser: "Unknown" };
+            }
+
             return (
               <Card key={log.id_log} className="mb-4">
                 <p>
@@ -145,17 +152,14 @@ const LogLoginPage = () => {
                 <p>
                   <strong>Last Login:</strong> {formatDate(log.login_time)}
                 </p>
-
                 <p>
-                  <strong>Device:</strong> {devicejson.device_type}
+                  <strong>Device:</strong> {deviceInfo.device_type}
                 </p>
-
                 <p>
-                  <strong>OS:</strong> {devicejson.os}
+                  <strong>OS:</strong> {deviceInfo.os}
                 </p>
-
                 <p>
-                  <strong>Browser:</strong> {devicejson.browser}
+                  <strong>Browser:</strong> {deviceInfo.browser}
                 </p>
               </Card>
             );

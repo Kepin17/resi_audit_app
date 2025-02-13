@@ -4,7 +4,7 @@ CREATE DATABASE pack_db;
 USE pack_db;
 
 
--- DROP TABLE IF EXISTS barang, proses, log_proses, gaji_pegawai, gaji, status_logs, device_logs;
+-- DROP TABLE IF EXISTS barang, proses, log_proses, gaji_pegawai, status_logs;
 
 CREATE TABLE BAGIAN (
   id_bagian VARCHAR(7) PRIMARY KEY NOT NULL,
@@ -116,31 +116,37 @@ DELIMITER ;
 
 CREATE TABLE barang (
   resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
-  status_barang ENUM('pending', 'cancelled', 'ready', 'picked', 'packed', "shipped", "konfirmasi") DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 
+-- DROP TABLE proses
 
 -- Create proses table
 CREATE TABLE proses (
   id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,
   resi_id VARCHAR(20),
   id_pekerja VARCHAR(9),
-  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout', 'konfirmasi', 'cancelled')),
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('pending','picker', 'packing', 'pickout', 'konfirmasi', 'cancelled')) DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT FK_Pekerja_proses FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT FK_Proses_resi FOREIGN KEY (resi_id) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 -- Now add the foreign key to barang table
-ALTER TABLE barang
-ADD COLUMN id_proses INT NULL,
-ADD CONSTRAINT FK_PROSES_BARANG FOREIGN KEY (id_proses) REFERENCES proses(id_proses) ON UPDATE CASCADE ON DELETE SET NULL;
 
 ALTER TABLE proses ADD COLUMN gambar_resi VARCHAR(255) NULL ;
 
+DELIMITER $$
+CREATE TRIGGER trg_to_insert_status_proses 
+AFTER INSERT ON barang
+FOR EACH ROW
+BEGIN
+    INSERT INTO proses (resi_id, status_proses)
+    VALUES (NEW.resi_id, 'pending');
+END$$
+DELIMITER ;
 
 DELIMITER $$
 
@@ -172,7 +178,7 @@ CREATE TABLE log_proses (
   id_log INT PRIMARY KEY AUTO_INCREMENT,
   resi_id VARCHAR(20),
   id_pekerja VARCHAR(9), 
-  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker', 'packing', 'pickout', 'konfirmasi', 'cancelled')),
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('pending', 'picker', 'packing', 'pickout', 'konfirmasi', 'cancelled')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   gambar_resi VARCHAR(255) NULL,
@@ -180,11 +186,58 @@ CREATE TABLE log_proses (
   CONSTRAINT FK_BarangLog FOREIGN KEY (resi_id) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+-- 1. Modifikasi tabel log_proses untuk mengizinkan status 'pending'
+ALTER TABLE log_proses 
+DROP CHECK log_proses_chk_1,
+MODIFY COLUMN status_proses VARCHAR(10) NOT NULL 
+CHECK (status_proses IN ('pending', 'picker', 'packing', 'pickout', 'konfirmasi', 'cancelled'));
 
--- Drop existing triggers first
-DROP TRIGGER IF EXISTS trigger_barang_status;
-DROP TRIGGER IF EXISTS trigger_inssert_log_proses;
-DROP TRIGGER IF EXISTS trigger_after_update_log_proses;
+-- 2. Atau modifikasi trigger untuk tidak memicu log ketika status 'pending'
+DELIMITER $$
+
+-- DROP TRIGGER IF EXISTS trigger_after_process_change$$
+-- DROP TRIGGER IF EXISTS trigger_log_new_proses$$
+
+CREATE TRIGGER trigger_log_new_proses
+AFTER INSERT ON proses
+FOR EACH ROW
+BEGIN
+    INSERT INTO log_proses (
+        resi_id, 
+        id_pekerja, 
+        status_proses, 
+        gambar_resi
+    )
+    VALUES (
+        NEW.resi_id,
+        NEW.id_pekerja,
+        COALESCE(NEW.status_proses, 'pending'),
+        NEW.gambar_resi
+    );
+END$$
+
+-- Update the trigger that handles process updates
+CREATE TRIGGER trigger_log_all_proses
+AFTER UPDATE ON proses
+FOR EACH ROW
+BEGIN
+    IF NEW.status_proses != OLD.status_proses THEN
+        INSERT INTO log_proses (
+            resi_id, 
+            id_pekerja, 
+            status_proses, 
+            gambar_resi
+        )
+        VALUES (
+            NEW.resi_id,
+            NEW.id_pekerja,
+            NEW.status_proses,
+            NEW.gambar_resi
+        );
+    END IF;
+END$$
+
+DELIMITER ;
 
 -- Create new trigger for logging only
 DELIMITER $$
@@ -195,6 +248,93 @@ FOR EACH ROW
 BEGIN    
     INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi)
     VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_proses, NEW.gambar_resi);
+END$$
+DELIMITER ;
+
+DELIMITER $$
+
+-- Trigger for INSERT
+CREATE TRIGGER trigger_to_update_status_barang_insert
+AFTER INSERT ON proses
+FOR EACH ROW
+BEGIN    
+    UPDATE barang
+    SET status_barang = NEW.status_proses
+    WHERE resi_id = NEW.resi_id;
+END$$
+
+-- Trigger for UPDATE 
+CREATE TRIGGER trigger_to_update_status_barang_update
+AFTER UPDATE ON proses
+FOR EACH ROW
+BEGIN    
+    UPDATE barang
+    SET status_barang = NEW.status_proses
+    WHERE resi_id = NEW.resi_id;
+END$$
+
+DELIMITER ;
+
+-- Add trigger for cancelled status
+
+DELIMITER $$
+
+CREATE TRIGGER trigger_log_cancelled_status
+AFTER UPDATE ON proses
+FOR EACH ROW
+BEGIN
+    IF NEW.status_proses = 'cancelled' THEN
+        INSERT INTO log_proses (resi_id, id_pekerja, status_proses)
+        VALUES (NEW.resi_id, NEW.id_pekerja, 'cancelled');
+    END IF;
+END$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+-- Add trigger for logging all process updates
+CREATE TRIGGER trigger_log_all_proses
+AFTER UPDATE ON proses
+FOR EACH ROW
+BEGIN
+    -- Log any status change to log_proses
+    IF NEW.status_proses != OLD.status_proses THEN
+        INSERT INTO log_proses (
+            resi_id, 
+            id_pekerja, 
+            status_proses, 
+            gambar_resi
+        )
+        VALUES (
+            NEW.resi_id,
+            NEW.id_pekerja,
+            NEW.status_proses,
+            NEW.gambar_resi
+        );
+    END IF;
+END$$
+
+-- Add trigger for logging new processes
+CREATE TRIGGER trigger_log_new_proses
+AFTER INSERT ON proses
+FOR EACH ROW
+BEGIN
+    -- Only log if status is not pending
+    IF NEW.status_proses != 'pending' THEN
+        INSERT INTO log_proses (
+            resi_id, 
+            id_pekerja, 
+            status_proses, 
+            gambar_resi
+        )
+        VALUES (
+            NEW.resi_id,
+            NEW.id_pekerja,
+            NEW.status_proses,
+            NEW.gambar_resi
+        );
+    END IF;
 END$$
 
 DELIMITER ;
@@ -323,6 +463,52 @@ BEGIN
     IF role_count = 0 THEN
         SIGNAL SQLSTATE '45000' 
         SET MESSAGE_TEXT = 'Worker must have at least one role';
+    END IF;
+END$$
+
+DELIMITER ;
+
+ALTER TABLE proses ADD INDEX idx_created_at (created_at);
+ALTER TABLE proses ADD INDEX idx_status_process (status_proses);
+ALTER TABLE proses ADD INDEX idx_worker_status (id_pekerja, status_proses);
+
+-- Create new optimized triggers
+DELIMITER $$
+
+DROP TRIGGER  IF EXISTS trg_barang_after_insert$$
+DROP TRIGGER  IF EXISTS trg_proses_log_changes$$
+DROP TRIGGER  IF EXISTS trg_proses_log_insert_changes$$
+
+-- Single trigger for new barang that creates initial process
+CREATE TRIGGER trg_barang_after_insert
+AFTER INSERT ON barang
+FOR EACH ROW
+BEGIN
+    -- Insert initial process with pending status
+    INSERT INTO proses (resi_id, status_proses)
+    VALUES (NEW.resi_id, 'pending');
+END$$
+
+-- Single trigger to handle all process logging
+CREATE TRIGGER trg_proses_log_changes
+AFTER UPDATE ON proses
+FOR EACH ROW
+BEGIN
+    -- Only log when status changes and is not the initial pending status
+    IF NEW.status_proses != OLD.status_proses AND 
+       (NEW.status_proses != 'pending' OR OLD.status_proses != 'pending') THEN
+        INSERT INTO log_proses (
+            resi_id, 
+            id_pekerja, 
+            status_proses, 
+            gambar_resi
+        )
+        VALUES (
+            NEW.resi_id,
+            NEW.id_pekerja,
+            NEW.status_proses,
+            NEW.gambar_resi
+        );
     END IF;
 END$$
 

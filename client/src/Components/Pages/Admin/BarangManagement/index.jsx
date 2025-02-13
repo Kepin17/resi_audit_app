@@ -10,9 +10,8 @@ import { IoIosCreate } from "react-icons/io";
 import axios from "axios";
 import Modal from "antd/es/modal/Modal";
 import { PiMicrosoftExcelLogoFill } from "react-icons/pi";
-import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 import { TbCancel } from "react-icons/tb";
-import { FaBoxArchive, FaBoxesPacking, FaRotate } from "react-icons/fa6";
+import { FaBoxArchive, FaBoxesPacking, FaRotate, FaSort } from "react-icons/fa6";
 import urlApi from "../../../../utils/url";
 import { PiNoteBlankFill } from "react-icons/pi";
 import { jwtDecode } from "jwt-decode";
@@ -42,6 +41,7 @@ const AdminBarangSection = () => {
   const [exportModal, setExportModal] = useState(false);
   const [user, setUser] = useState(null);
   const { RangePicker } = DatePicker;
+  const [sortBy, setSortBy] = useState("newest"); // Add this state
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -80,6 +80,7 @@ const AdminBarangSection = () => {
       const params = new URLSearchParams();
       params.append("page", page);
       params.append("limit", 16);
+      params.append("sortBy", sortBy); // Add sort parameter
 
       if (searchTerm?.trim()) {
         params.append("search", searchTerm.trim());
@@ -127,7 +128,7 @@ const AdminBarangSection = () => {
 
   useEffect(() => {
     fetchBarang(currentPage);
-  }, [currentPage, searchTerm, activeButton, dateRange]);
+  }, [currentPage, searchTerm, activeButton, dateRange, sortBy]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -171,24 +172,60 @@ const AdminBarangSection = () => {
   };
 
   const handleCancelOrder = async (resi_id) => {
-    axios
-      .put(`${urlApi}/api/v1/barang/` + resi_id, "", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+    try {
+      // Show confirmation modal before cancelling
+      Modal.confirm({
+        title: "Konfirmasi Pembatalan",
+        content: `Apakah anda yakin ingin membatalkan resi ${resi_id}?`,
+        okText: "Ya, Batalkan",
+        cancelText: "Tidak",
+        onOk: async () => {
+          try {
+            message.loading({ content: "Membatalkan pesanan...", key: "cancelOrder" });
+
+            const response = await axios.put(
+              `${urlApi}/api/v1/barang-cancel/${resi_id}`,
+              { resi_id }, // Add resi_id to request body
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            if (response.data?.success) {
+              message.success({
+                content: "Pesanan berhasil dibatalkan",
+                key: "cancelOrder",
+                duration: 3,
+              });
+              fetchBarang(currentPage);
+            } else {
+              throw new Error(response.data?.message || "Failed to cancel order");
+            }
+          } catch (error) {
+            console.error("Error cancelling order:", error);
+            let errorMsg = "Gagal membatalkan pesanan";
+
+            if (error.response?.status === 404) {
+              errorMsg = "Resi tidak ditemukan";
+            } else if (error.response?.data?.message) {
+              errorMsg = error.response.data.message;
+            }
+
+            message.error({
+              content: errorMsg,
+              key: "cancelOrder",
+              duration: 3,
+            });
+          }
         },
-      })
-      .then((response) => {
-        if (response.data?.success) {
-          message.success("Pesanan berhasil dibatalkan");
-          fetchBarang(currentPage);
-        } else {
-          throw new Error(response.data?.message || "Failed to cancel order");
-        }
-      })
-      .catch((error) => {
-        console.error("Error cancelling order:", error);
-        message.error(error.response?.data?.message || "Gagal membatalkan pesanan");
       });
+    } catch (error) {
+      console.error("Error in confirmation modal:", error);
+      message.error("Terjadi kesalahan sistem");
+    }
   };
 
   const ImportFromExcelHandler = () => {
@@ -346,6 +383,63 @@ const AdminBarangSection = () => {
     }
   };
 
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "pending":
+        return <MdOutlinePendingActions className="text-2xl text-yellow-600" />;
+      case "cancelled":
+        return <TbCancel className="text-2xl text-red-600" />;
+      case "picker":
+        return <FaBoxArchive className="text-2xl text-blue-600" />;
+      case "packing":
+        return <FaBoxesPacking className="text-2xl text-orange-600" />;
+      case "pickout":
+        return <MdLocalShipping className="text-2xl text-green-600" />;
+      case "konfirmasi":
+        return <PiNoteBlankFill className="text-2xl text-yellow-500" />;
+      default:
+        return <MdOutlinePendingActions className="text-2xl text-gray-600" />;
+    }
+  };
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      case "picker":
+        return "bg-blue-100 text-blue-800";
+      case "packing":
+        return "bg-orange-100 text-orange-800";
+      case "pickout":
+        return "bg-green-100 text-green-800";
+      case "konfirmasi":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const statusOptions = [
+    { value: "Semua", label: "Semua" },
+    { value: "pending", label: "Pending" },
+    { value: "picker", label: "Picked" },
+    { value: "packing", label: "Packed" },
+    { value: "pickout", label: "Shipped" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
+
+  const handleModalDetailClose = () => {
+    setModalDetailOpen(false);
+    setResiDetail([]); // Clear detail data when modal closes
+  };
+
+  const handleSort = (sortType) => {
+    setSortBy(sortType);
+    setCurrentPage(1);
+  };
+
   return (
     <DashboardLayout>
       <div className="w-full h-full rounded-md flex flex-col gap-2">
@@ -380,34 +474,59 @@ const AdminBarangSection = () => {
         </Modal>
         <div className="w-full h-auto bg-slate-50 rounded-md px-6 py-5">
           <div className="flex flex-col gap-5 max-w-[1400px] mx-auto">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 w-full">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
-                <RangePicker onChange={handleDateChange} className="w-full sm:w-[280px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
-                <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nomor resi" className="w-full sm:w-[320px] shadow-sm" />
+            {/* Search and Filter Section */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              {/* Left side: Date, Search, and Sort */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
+                <RangePicker 
+                  onChange={handleDateChange} 
+                  className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" 
+                />
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <SearchFragment 
+                    onSearch={handleSearchInput} 
+                    onKeyPress={handleSearchSubmit} 
+                    value={searchInput} 
+                    placeholder="Cari nomor resi" 
+                    className="w-full sm:w-[250px] shadow-sm" 
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        ${sortBy === 'today-first' ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-green-500'}
+                        hover:bg-green-600 hover:text-white text-xs`}
+                      onClick={() => handleSort('today-first')}
+                    >
+                      <FaSort className="text-sm" />
+                      <span>Hari Ini</span>
+                    </Button>
+                    <Button
+                      buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        ${sortBy === 'oldest-first' ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-green-500'}
+                        hover:bg-green-600 hover:text-white text-xs`}
+                      onClick={() => handleSort('oldest-first')}
+                    >
+                      <FaSort className="text-sm" />
+                      <span>Terlama</span>
+                    </Button>
+                    <Button
+                      buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        ${sortBy === 'last-update' ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-green-500'}
+                        hover:bg-green-600 hover:text-white text-xs`}
+                      onClick={() => handleSort('last-update')}
+                    >
+                      <FaSort className="text-sm" />
+                      <span>Update</span>
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2">
-                {["Semua", "konfirmasi", "cancelled", "Pending", "Picked", "Packed", "Shipped"].map((status) => (
-                  <Button
-                    key={status}
-                    buttonStyle={`
-                      ${activeButton === status ? "bg-blue-500 text-white shadow-md" : "bg-white text-gray-700 border-2 border-blue-500 hover:shadow-md"} 
-                      px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 
-                      hover:text-white font-medium text-sm min-w-[100px] flex items-center justify-center
-                    `}
-                    onClick={() => handleButtonClick(status)}
-                  >
-                    {status}
-                  </Button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2 lg:ml-auto w-full lg:w-auto">
+              {/* Right side: Action Buttons */}
+              <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
                 <Button
-                  buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-5 py-2.5 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg w-full lg:w-auto justify-center"
-                  onClick={() => setExportModal(true)}
+                  buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg"
+                  onClick={handleExport}
                   disabled={exportLoading}
                 >
                   {exportLoading ? (
@@ -418,19 +537,52 @@ const AdminBarangSection = () => {
                   ) : (
                     <>
                       <PiMicrosoftExcelLogoFill className="text-lg" />
-                      <span>Action</span>
+                      <span>Export</span>
                     </>
                   )}
                 </Button>
                 <Button
-                  buttonStyle="bg-blue-500 flex items-center gap-2 text-white px-6 py-2.5 
-                rounded-lg transition-all duration-300 hover:bg-blue-600 shadow-md hover:shadow-lg font-medium w-full lg:w-auto justify-center"
+                  buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg"
+                  onClick={ImportFromExcelHandler}
+                  disabled={importLoading}
+                >
+                  {importLoading ? (
+                    <span className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Loading...
+                    </span>
+                  ) : (
+                    <>
+                      <PiMicrosoftExcelLogoFill className="text-lg" />
+                      <span>Import</span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  buttonStyle="bg-blue-500 flex items-center gap-2 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 shadow-md hover:shadow-lg font-medium"
                   onClick={() => setIsModalOpen(true)}
                 >
                   <IoIosCreate className="text-lg" />
-                  <span className="text-sm whitespace-nowrap">Buat Resi</span>
+                  <span className="text-sm">Buat Resi</span>
                 </Button>
               </div>
+            </div>
+
+            {/* Status Filter Buttons */}
+            <div className="flex flex-wrap gap-2">
+              {statusOptions.map(({ value, label }) => (
+                <Button
+                  key={value}
+                  buttonStyle={`
+                    ${activeButton === value ? "bg-blue-500 text-white shadow-md" : "bg-white text-gray-700 border border-blue-500 hover:shadow-md"} 
+                    px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 
+                    hover:text-white font-medium text-sm min-w-[90px] flex items-center justify-center
+                  `}
+                  onClick={() => handleButtonClick(value)}
+                >
+                  {label}
+                </Button>
+              ))}
             </div>
           </div>
         </div>
@@ -443,18 +595,18 @@ const AdminBarangSection = () => {
             <div className="text-red-500 text-center py-4">{error}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 relative">
-              <Modal className=" w-[100rem] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" open={isModalDetailOpen} onCancel={() => setModalDetailOpen(false)} title="Detail Resi" footer={null}>
+              <Modal className=" w-[100rem] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" open={isModalDetailOpen} onCancel={handleModalDetailClose} title="Detail Resi" footer={null}>
                 <Table dataSource={resiDetail} pagination={false}>
                   <Table.Column title="Resi ID" dataIndex="resi_id" key="resi_id" />
                   <Table.Column title="Nama Pekerja" dataIndex="nama_pekerja" key="nama_pekerja" />
                   <Table.Column
                     title="Status"
-                    dataIndex="jenis_pekerja"
-                    key="status_barang"
+                    dataIndex="status_proses"
+                    key="status_proses"
                     render={(text) => {
                       setJenisPekerja(text);
 
-                      return <span>{text === "picker" ? "Pickup" : text === "packing" ? "Packing" : text === "pickout" ? "Shipper" : "Admin"}</span>;
+                      return <span>{text === "picker" ? "Pickup" : text === "packing" ? "Packing" : text === "pickout" ? "Shipper" : "Cancelled"}</span>;
                     }}
                   />
                   <Table.Column title="Created At" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("DD/MM/YYYY HH:mm:ss")} />
@@ -465,15 +617,19 @@ const AdminBarangSection = () => {
                     render={(text) => {
                       return (
                         <div className="flex gap-2">
-                          <Button
-                            onClick={() => {
-                              setImg(text);
-                              setModalDetailOpen(false);
-                              setIsImageViewerOpen(true);
-                            }}
-                          >
-                            View
-                          </Button>
+                          {text ? (
+                            <Button
+                              onClick={() => {
+                                setImg(text);
+                                setModalDetailOpen(false);
+                                setIsImageViewerOpen(true);
+                              }}
+                            >
+                              View
+                            </Button>
+                          ) : (
+                            <span>-</span>
+                          )}
                         </div>
                       );
                     }}
@@ -490,8 +646,6 @@ const AdminBarangSection = () => {
                           setIsImageViewerOpen(true);
                           if (totalDeg === 0) setTotalDeg(90);
                           else setTotalDeg(0);
-
-                          console.log(totalDeg);
                         }}
                       >
                         <FaRotate className="text-4xl text-orange-500" />
@@ -515,75 +669,43 @@ const AdminBarangSection = () => {
                 </div>
               )}
 
-              <ExcelActionModal
-                isOpen={exportModal}
-                onCancel={() => setExportModal(false)}
-                title={"Audit Data Action"}
-                ImportFromExcelHandler={ImportFromExcelHandler}
-                handleBackup={handleBackup}
-                handleExport={handleExport}
-                importLoading={importLoading}
-              />
-
               {barang.map((item) => {
                 return (
                   <div
                     key={item.resi_id}
                     className="card bg-white p-5 rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                    onClick={() => {
-                      // if (item.status_barang === "pending" || item.status_barang === "cancelled") return;
+                    onClick={async (e) => {
+                      e.preventDefault();
 
-                      axios
-                        .get(`${urlApi}/api/v1/barang/` + item.resi_id, {
-                          headers: {
-                            Authorization: `Bearer ${localStorage.getItem("token")}`,
-                          },
-                        })
-                        .then((response) => {
+                      if (item.status_proses !== "pending") {
+                        try {
+                          const response = await axios.get(`${urlApi}/api/v1/barang/${item.resi_id}`, {
+                            headers: {
+                              Authorization: `Bearer ${localStorage.getItem("token")}`,
+                            },
+                          });
                           if (response.data?.success) {
                             setResiDetail(response.data.data);
                             setModalDetailOpen(true);
                           }
-                        })
-                        .catch((error) => {
-                          console.error("Error fetching barang detail:", error);
-                        });
+                        } catch (error) {
+                          message.error("Gagal memuat detail resi");
+                        }
+                      }
                     }}
                   >
                     <div className="flex flex-col space-y-4">
                       {/* Header with Status Icon */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center 
-              ${item.status === "pending" ? "bg-yellow-100" : item.status === "cancelled" ? "bg-red-100" : item.status === "picked" ? "bg-blue-100" : item.status === "packed" ? "bg-orange-100" : "bg-green-100"}`}
-                          >
-                            {item.status === "pending" && <MdOutlinePendingActions className="text-2xl text-yellow-600" />}
-                            {item.status === "cancelled" && <TbCancel className="text-2xl text-red-600" />}
-                            {item.status === "picked" && <FaBoxArchive className="text-2xl text-blue-600" />}
-                            {item.status === "packed" && <FaBoxesPacking className="text-2xl text-orange-600" />}
-                            {item.status === "shipped" && <MdLocalShipping className="text-2xl text-green-600" />}
-                            {item.status === "konfirmasi" && <PiNoteBlankFill className="text-2xl text-yellow-500" />}
-                          </div>
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getStatusClass(item.status_proses)}`}>{getStatusIcon(item.status_proses)}</div>
                           <div>
                             <h3 className="font-semibold text-gray-900">{item.resi_id}</h3>
                             <span
                               className={`text-sm px-2.5 py-1 rounded-full inline-block mt-1
-                ${
-                  item.status === "pending"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : item.status === "cancelled"
-                    ? "bg-red-100 text-red-800"
-                    : item.status === "picked"
-                    ? "bg-blue-100 text-blue-800"
-                    : item.status === "packed"
-                    ? "bg-orange-100 text-orange-800"
-                    : item.status === "konfirmasi"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-green-100 text-green-800"
-                }`}
+                ${getStatusClass(item.status_proses)}`}
                             >
-                              {item.status === "konfirmasi" ? "konfirmasi Cancel" : item.status}
+                              {item.status_description}
                             </span>
                           </div>
                         </div>
@@ -592,7 +714,7 @@ const AdminBarangSection = () => {
                       {/* Content */}
                       <div className="space-y-2">
                         <p className="text-sm text-gray-600">
-                          {item.status_description} {item.status !== "pending" && item.status !== "cancelled" ? <span className="font-medium text-gray-900">• {item.nama_pekerja}</span> : ""}
+                          {item.status_description} {item.status_proses !== "pending" && item.status_proses !== "cancelled" ? <span className="font-medium text-gray-900">• {item.nama_pekerja}</span> : ""}
                         </p>
                         <div className="flex items-center text-xs text-gray-500">
                           <span className="flex items-center">
@@ -614,7 +736,7 @@ const AdminBarangSection = () => {
                       </div>
 
                       {/* Cancel Button */}
-                      {item.status !== "shipped" && item.status !== "cancelled" && (
+                      {item.status_proses !== "pickout" && item.status_proses !== "cancelled" && (
                         <div className="pt-3 mt-3 border-t border-gray-100">
                           <button
                             onClick={(e) => {
@@ -625,17 +747,7 @@ const AdminBarangSection = () => {
                           >
                             <MdCancelScheduleSend className="text-lg" />
                             <span className="text-sm font-medium">
-                              {item.status === "pending" && user.roles === "admin"
-                                ? "konfirmasi Cancel"
-                                : item.status === "Menyetujui Cancel"
-                                ? "Cancel Resi"
-                                : item.status === "picker"
-                                ? "Cancel Pickup"
-                                : item.status === "packing"
-                                ? "Cancel Packing"
-                                : item.status === "pickout"
-                                ? "Cancel Shipper"
-                                : "Cancel Resi"}
+                              {item.status_proses === "pending" && user.roles === "admin" ? "konfirmasi Cancel" : item.status_proses === "Menyetujui Cancel" ? "Cancel Resi" : `Cancel ${item.status_description}`}
                             </span>
                           </button>
                         </div>

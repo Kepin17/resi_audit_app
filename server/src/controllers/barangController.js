@@ -44,25 +44,30 @@ const showAllBarang = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const offset = (page - 1) * limit;
-    const { search, status, startDate, endDate } = req.query;
+    const { search, status, startDate, endDate, sortBy } = req.query;
 
     // Build the WHERE clause dynamically
     let whereConditions = [];
     let queryParams = [];
 
-    // Updated search condition
     if (search) {
-      whereConditions.push("(barang.resi_id LIKE ? OR barang.resi_id LIKE ?)");
-      queryParams.push(`%${search}%`, `%${search}%`);
+      whereConditions.push("(b.resi_id LIKE ?)");
+      queryParams.push(`%${search}%`);
     }
 
+    // Update the status filtering logic
     if (status && status !== "Semua") {
-      whereConditions.push("status_barang = ?");
-      queryParams.push(status);
+      const statusValue = status.toLowerCase();
+      if (statusValue === "pending") {
+        whereConditions.push("(latest_process.status_proses IS NULL OR latest_process.status_proses = 'pending')");
+      } else {
+        whereConditions.push("latest_process.status_proses = ?");
+        queryParams.push(statusValue);
+      }
     }
 
     if (startDate && endDate) {
-      whereConditions.push("DATE(barang.created_at) BETWEEN ? AND ?");
+      whereConditions.push("DATE(b.created_at) BETWEEN ? AND ?");
       queryParams.push(startDate, endDate);
     }
 
@@ -70,8 +75,19 @@ const showAllBarang = async (req, res) => {
 
     // Get total count with filters
     const [countResult] = await mysqlPool.query(
-      `SELECT COUNT(*) as count 
-       FROM barang 
+      `SELECT COUNT(DISTINCT b.resi_id) as count 
+       FROM barang b
+       LEFT JOIN (
+         SELECT p1.resi_id, p1.status_proses
+         FROM proses p1
+         WHERE p1.id_proses = (
+           SELECT p2.id_proses 
+           FROM proses p2 
+           WHERE p2.resi_id = p1.resi_id 
+           ORDER BY p2.updated_at DESC 
+           LIMIT 1
+         )
+       ) latest_process ON b.resi_id = latest_process.resi_id
        ${whereClause}`,
       queryParams
     );
@@ -79,34 +95,71 @@ const showAllBarang = async (req, res) => {
     const totalItems = countResult[0].count;
     const totalPages = Math.ceil(totalItems / limit);
 
-    // Get filtered and paginated data
+    // Define sort order based on sortBy parameter
+    let orderClause = "ORDER BY b.created_at DESC";
+    switch (sortBy) {
+      case 'today-first':
+        orderClause = "ORDER BY DATE(b.created_at) = CURDATE() DESC, b.created_at ASC";
+        break;
+      case 'oldest-first':
+        orderClause = "ORDER BY b.created_at ASC";
+        break;
+      case 'last-update':
+        // Fix: use last_scan from latest_process instead of updated_at
+        orderClause = "ORDER BY COALESCE(latest_process.last_scan, b.updated_at) DESC";
+        break;
+      default:
+        orderClause = "ORDER BY b.created_at DESC";
+    }
+
+    // Get filtered and paginated data with latest process status
     const [rows] = await mysqlPool.query(
       `SELECT 
-        barang.*,
-        pekerja.nama_pekerja,
-        proses.updated_at as last_scan,
-        COALESCE(barang.status_barang, 'Pending') as status,
+        b.resi_id,
+        b.created_at,
+        b.updated_at,
+        COALESCE(latest_process.status_proses, 'pending') as status_proses,
+        latest_process.nama_pekerja,
+        latest_process.last_scan,
         CASE 
-          WHEN barang.status_barang = 'Cancelled' THEN 'Dibatalkan'
-          WHEN barang.status_barang = 'Pending' THEN 'Menunggu pickup'
-          WHEN barang.status_barang = 'Picked' THEN 'Sudah dipickup'
-          WHEN barang.status_barang = 'Packed' THEN 'Sudah dipacking'
-          WHEN barang.status_barang = 'Shipped' THEN 'Dalam pengiriman'
-          WHEN barang.status_barang = 'Konfirmasi' THEN 'Konfirmasi barang'
-          ELSE 'Status tidak diketahui'
-        END as status_description
-       FROM barang
-        LEFT JOIN proses ON barang.resi_id = proses.resi_id
-        LEFT JOIN pekerja ON proses.id_pekerja = pekerja.id_pekerja
+          WHEN latest_process.status_proses = 'cancelled' THEN 'Dibatalkan'
+          WHEN latest_process.status_proses = 'pending' OR latest_process.status_proses IS NULL THEN 'Menunggu pickup'
+          WHEN latest_process.status_proses = 'picker' THEN 'Sudah dipickup'
+          WHEN latest_process.status_proses = 'packing' THEN 'Sudah dipacking'
+          WHEN latest_process.status_proses = 'pickout' THEN 'Dalam pengiriman'
+          WHEN latest_process.status_proses = 'konfirmasi' THEN 'Konfirmasi Cancel'
+          ELSE 'Menunggu proses'
+        END as status_description,
+        (
+          SELECT GROUP_CONCAT(DISTINCT l.status_proses ORDER BY l.created_at DESC)
+          FROM log_proses l
+          WHERE l.resi_id = b.resi_id
+        ) as process_history
+       FROM barang b
+       LEFT JOIN (
+         SELECT p1.resi_id, 
+                p1.status_proses, 
+                p1.updated_at as last_scan,
+                pek.nama_pekerja
+         FROM proses p1
+         LEFT JOIN pekerja pek ON p1.id_pekerja = pek.id_pekerja
+         WHERE p1.id_proses = (
+           SELECT p2.id_proses 
+           FROM proses p2 
+           WHERE p2.resi_id = p1.resi_id 
+           ORDER BY p2.updated_at DESC 
+           LIMIT 1
+         )
+       ) latest_process ON b.resi_id = latest_process.resi_id
        ${whereClause}
-       ORDER BY barang.created_at DESC
+       ${orderClause}
        LIMIT ?, ?`,
       [...queryParams, offset, limit]
     );
 
     return res.status(200).json({
       success: true,
-      message: "Barang found",
+      message: "Data found",
       data: rows,
       pagination: {
         totalPages,
@@ -118,7 +171,7 @@ const showAllBarang = async (req, res) => {
     console.error("Database error:", error);
     return res.status(500).json({
       success: false,
-      message: "Error when trying to fetch barang",
+      message: "Error when trying to fetch data",
       error: error.message,
     });
   }
@@ -137,91 +190,107 @@ const showDetailByResi = async (req, res) => {
 
     const [rows] = await mysqlPool.query(
       `
-      SELECT 
-        log_proses.resi_id,
-        log_proses.created_at,
-        pekerja.nama_pekerja,
-        bagian.jenis_pekerja,
-        log_proses.gambar_resi
+      SELECT log_proses.resi_id,
+      log_proses.status_proses,
+      log_proses.created_at,
+      log_proses.gambar_resi,
+      pekerja.nama_pekerja
       FROM log_proses
       LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      LEFT JOIN role_pekerja ON pekerja.id_pekerja = role_pekerja.id_pekerja
-      LEFT JOIN bagian ON role_pekerja.id_bagian = bagian.id_bagian
       WHERE log_proses.resi_id = ?
-      ORDER BY log_proses.created_at DESC
+      
       `,
       [resi_id]
     );
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "No data found",
+      });
+    }
+
     res.status(200).send({
       success: true,
-      message: "Barang found",
+      message: "Data found",
       data: rows,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).send({
       success: false,
-      message: "Error when trying to fetch barang",
+      message: "Error fetching resi details",
       error: error.message,
     });
   }
 };
 
 const cancelBarang = async (req, res) => {
+  const connection = await mysqlPool.getConnection();
+
   try {
+    await connection.beginTransaction();
+
     const { resi_id } = req.params;
     const userRoles = req.user.roles;
 
-    // Check if resi exists
-    const [rows] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
+    // Check if resi exists and get current status
+    const [existingResi] = await connection.query("SELECT status_proses FROM proses WHERE resi_id = ? ORDER BY updated_at DESC LIMIT 1", [resi_id]);
 
-    if (rows.length === 0) {
+    if (existingResi.length === 0) {
       return res.status(404).send({
         success: false,
-        message: "Barang not found",
+        message: "Resi not found",
       });
     }
 
-    let status_barang;
-    let status_proses;
-
-    // Determine status based on user role
-    if (userRoles.includes("admin")) {
-      status_barang = "Cancelled";
-      status_proses = "Cancelled";
-    } else if (userRoles.includes("superadmin")) {
-      status_barang = "Cancelled";
-      status_proses = "cancelled";
-    } else {
-      return res.status(403).send({
+    // Check if already cancelled
+    if (existingResi[0].status_proses === "cancelled") {
+      return res.status(400).send({
         success: false,
-        message: "You don't have permission to cancel items",
+        message: "Resi already cancelled",
       });
     }
 
-    // Update the status
-    await mysqlPool.query("UPDATE barang SET status_barang = ? WHERE resi_id = ?", [status_barang, resi_id]);
-
-    // Log the cancellation with correct status_proses value
-    await mysqlPool.query(
-      `INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi) 
-       VALUES (?, ?, ?, NULL)`,
-      [resi_id, req.user.id_pekerja, status_proses]
+    // Update or insert into proses table
+    await connection.query(
+      `INSERT INTO proses (resi_id, id_pekerja, status_proses)
+       SELECT ?, ?, 'cancelled'
+       WHERE NOT EXISTS (
+         SELECT 1 FROM proses 
+         WHERE resi_id = ? AND status_proses = 'cancelled'
+       )`,
+      [resi_id, req.user.id_pekerja, resi_id]
     );
+
+    // Log the cancellation only if not already logged
+    await connection.query(
+      `INSERT INTO log_proses (resi_id, id_pekerja, status_proses)
+       SELECT ?, ?, 'cancelled'
+       WHERE NOT EXISTS (
+         SELECT 1 FROM log_proses 
+         WHERE resi_id = ? AND status_proses = 'cancelled'
+       )`,
+      [resi_id, req.user.id_pekerja, resi_id]
+    );
+
+    await connection.commit();
 
     res.status(200).send({
       success: true,
-      message: `Barang successfully updated to ${status_barang}`,
-      updatedBy: userRoles[0],
-      newStatus: status_barang,
+      message: "Resi has been cancelled",
+      updatedBy: userRoles,
     });
   } catch (error) {
-    console.error("Cancel barang error:", error);
+    await connection.rollback();
+    console.error("Cancel resi error:", error);
     res.status(500).send({
       success: false,
-      message: "Error when trying to update barang status",
+      message: "Error cancelling resi",
       error: error.message,
     });
+  } finally {
+    connection.release();
   }
 };
 
@@ -235,58 +304,49 @@ const importResiFromExcel = async (req, res) => {
     }
 
     const workbook = new excelJS.Workbook();
+    await workbook.xlsx.readFile(req.file.path);
+    const worksheet = workbook.getWorksheet(1);
 
+    const connection = await mysqlPool.getConnection();
     try {
-      await workbook.xlsx.readFile(req.file.path);
-      const worksheet = workbook.getWorksheet(1);
+      await connection.beginTransaction();
 
-      const rows = [];
-      worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber !== 1) {
-          // Skip header row
-          const resi_id = row.getCell(1).value;
-          const status = row.getCell(2).value;
-          const created_at = row.getCell(3).value;
-          const updated_at = row.getCell(4).value;
-          const id_proses = row.getCell(5).value;
+      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
+        const row = worksheet.getRow(rowNumber);
+        const resi_id = row.getCell(1).value;
 
-          rows.push([resi_id, status || "Pending", created_at ? new Date(created_at) : new Date(), updated_at ? new Date(updated_at) : new Date(), id_proses || null]);
+        if (resi_id) {
+          // Insert into barang table
+          await connection.query(
+            `INSERT INTO barang (resi_id) 
+             VALUES (?)
+             ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP`,
+            [resi_id]
+          );
         }
-      });
-
-      // Insert data into database
-      for (const row of rows) {
-        await mysqlPool.query(
-          `INSERT INTO barang (resi_id, status_barang, created_at, updated_at, id_proses) 
-           VALUES (?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE 
-           updated_at = VALUES(updated_at)`,
-          row
-        );
       }
 
-      // Clean up: delete the uploaded file
+      await connection.commit();
+
+      // Clean up uploaded file
       const fs = require("fs");
       fs.unlinkSync(req.file.path);
 
-      return res.status(200).send({
+      res.status(200).send({
         success: true,
-        message: "Data berhasil diimport dan diupdate",
-        rowsProcessed: rows.length,
+        message: "Data imported successfully",
       });
     } catch (error) {
-      console.error("Error processing Excel file:", error);
-      return res.status(500).send({
-        success: false,
-        message: "Error processing Excel file",
-        error: error.message,
-      });
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
   } catch (error) {
     console.error(error);
     res.status(500).send({
       success: false,
-      message: "Error when trying to import resi",
+      message: "Error importing data",
       error: error.message,
     });
   }
@@ -301,12 +361,12 @@ const exportBarang = async (req, res) => {
     let queryParams = [];
 
     if (search) {
-      whereConditions.push("(b.resi_id LIKE ? OR b.resi_id LIKE ?)");
-      queryParams.push(`%${search}%`, `%${search}%`);
+      whereConditions.push("(b.resi_id LIKE ?)");
+      queryParams.push(`%${search}%`);
     }
 
     if (status && status !== "Semua") {
-      whereConditions.push("b.status_barang = ?");
+      whereConditions.push("latest_process.status_proses = ?");
       queryParams.push(status);
     }
 
@@ -317,26 +377,39 @@ const exportBarang = async (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
-    // Get filtered data from database
+    // Updated query to use correct table structure
     const [rows] = await mysqlPool.query(
       `
       SELECT 
         b.resi_id,
-        COALESCE(b.status_barang, 'Pending') as status_barang,
+        COALESCE(latest_process.status_proses, 'pending') as status_proses,
         DATE_FORMAT(b.created_at, '%Y-%m-%d %H:%i:%s') as created_at,
         DATE_FORMAT(b.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at,
-        COALESCE(pek.nama_pekerja, '-') as nama_pekerja,
+        COALESCE(latest_process.nama_pekerja, '-') as nama_pekerja,
         CASE 
-          WHEN b.status_barang = 'Cancelled' THEN 'Dibatalkan'
-          WHEN b.status_barang = 'Pending' THEN 'Menunggu pickup'
-          WHEN b.status_barang = 'Picked' THEN 'Sudah dipickup'
-          WHEN b.status_barang = 'Packed' THEN 'Sudah dipacking'
-          WHEN b.status_barang = 'Shipped' THEN 'Dalam pengiriman'
+          WHEN latest_process.status_proses = 'cancelled' THEN 'Dibatalkan'
+          WHEN latest_process.status_proses = 'pending' OR latest_process.status_proses IS NULL THEN 'Menunggu pickup'
+          WHEN latest_process.status_proses = 'picker' THEN 'Sudah dipickup'
+          WHEN latest_process.status_proses = 'packing' THEN 'Sudah dipacking'
+          WHEN latest_process.status_proses = 'pickout' THEN 'Dalam pengiriman'
           ELSE 'Status tidak diketahui'
         END as status_description
       FROM barang b
-      LEFT JOIN proses p ON b.resi_id = p.resi_id
-      LEFT JOIN pekerja pek ON p.id_pekerja = pek.id_pekerja
+      LEFT JOIN (
+        SELECT p1.resi_id, 
+               p1.status_proses,
+               p1.updated_at,
+               pek.nama_pekerja
+        FROM proses p1
+        LEFT JOIN pekerja pek ON p1.id_pekerja = pek.id_pekerja
+        WHERE p1.id_proses = (
+          SELECT p2.id_proses 
+          FROM proses p2 
+          WHERE p2.resi_id = p1.resi_id 
+          ORDER BY p2.updated_at DESC 
+          LIMIT 1
+        )
+      ) latest_process ON b.resi_id = latest_process.resi_id
       ${whereClause}
       ORDER BY b.created_at DESC
     `,
@@ -353,6 +426,7 @@ const exportBarang = async (req, res) => {
     const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet("Data Barang");
 
+    // Updated column headers to match the actual data
     worksheet.columns = [
       { header: "Nomor Resi", key: "resi_id", width: 20 },
       { header: "Status", key: "status_description", width: 25 },

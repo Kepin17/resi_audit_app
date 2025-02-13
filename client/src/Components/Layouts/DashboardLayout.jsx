@@ -110,12 +110,15 @@ const DashboardLayout = ({ children }) => {
                       Data Resi
                     </Link>
                   </li>
-
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/" className="text-blue-800 block">
-                      Scan Resi
-                    </Link>
-                  </li>
+                  {user?.roles?.includes("picker") || user?.roles?.includes("packing") || user?.roles?.includes("pickout") ? (
+                    <li className="hover:bg-blue-300 p-2 rounded">
+                      <Link to="/" className="text-blue-800 block">
+                        Scan Resi
+                      </Link>
+                    </li>
+                  ) : (
+                    ""
+                  )}
                 </ul>
               </div>
             </li>

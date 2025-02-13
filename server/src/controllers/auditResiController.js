@@ -138,6 +138,31 @@ const scaneHandler = async (req, res) => {
       [resi_id]
     );
 
+    // Check for cancelled status after getting current process
+    const [cancelledCheck] = await mysqlPool.query(
+      `SELECT p.*, pk.nama_pekerja, lp.created_at as cancelled_at
+       FROM proses p
+       JOIN log_proses lp ON p.resi_id = lp.resi_id
+       JOIN pekerja pk ON lp.id_pekerja = pk.id_pekerja
+       WHERE p.resi_id = ? 
+       AND p.status_proses = 'cancelled'
+       ORDER BY lp.created_at DESC
+       LIMIT 1`,
+      [resi_id]
+    );
+
+    if (cancelledCheck && cancelledCheck.length > 0) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      audioPlayer.playError();
+      return res.status(400).send({
+        success: false,
+        message: `Resi ini telah di cancel oleh ${cancelledCheck[0].nama_pekerja} pada ${new Date(cancelledCheck[0].cancelled_at).toLocaleString("id-ID")}`,
+      });
+    }
+
     const workflow = ["picker", "packing", "pickout"];
     let allowedRole;
     let nextRole;
@@ -208,52 +233,41 @@ const scaneHandler = async (req, res) => {
         });
       }
 
+      // Check for duplicate scan in log_proses
+      const [existingScan] = await mysqlPool.query(
+        `SELECT proses.*, pekerja.username, pekerja.nama_pekerja
+         FROM proses 
+         JOIN pekerja ON proses.id_pekerja = pekerja.id_pekerja
+         JOIN role_pekerja rp ON pekerja.id_pekerja = rp.id_pekerja
+         JOIN bagian b ON rp.id_bagian = b.id_bagian
+         WHERE proses.resi_id = ? 
+         AND b.jenis_pekerja = ?
+         ORDER BY proses.created_at DESC
+         LIMIT 1`,
+        [resi_id, thisPage]
+      );
+
       // Validate if the current page matches the required next role
       if (thisPage !== nextRole) {
         if (req.file) {
           const fs = require("fs");
           fs.unlinkSync(req.file.path);
         }
-        audioPlayer.playError();
-        return res.status(400).send({
-          success: false,
-          message: `Kamu bukan bagian dari ${nextRole}`,
-        });
-      }
 
-      // Check if worker has required role
-      if (!workerRoleTypes.includes(nextRole)) {
-        if (req.file) {
-          const fs = require("fs");
-          fs.unlinkSync(req.file.path);
+        // If someone with same role has already scanned
+        if (existingScan && existingScan.length > 0) {
+          audioPlayer.playError();
+          return res.status(400).send({
+            success: false,
+            message: `Resi ini sudah di scan oleh ${existingScan[0].nama_pekerja} pada ${new Date(existingScan[0].created_at).toLocaleString("id-ID")}`,
+          });
         }
+
+        // If wrong sequence
         audioPlayer.playError();
         return res.status(400).send({
           success: false,
-          message: `Kamu tidak memiliki akses sebagai ${nextRole}`,
-        });
-      }
-
-      // Check for duplicate scan in log_proses
-      const [existingScan] = await mysqlPool.query(
-        `SELECT lp.*, p.username 
-         FROM log_proses lp
-         JOIN pekerja p ON lp.id_pekerja = p.id_pekerja
-         WHERE lp.resi_id = ? AND lp.status_proses = ?
-         ORDER BY lp.created_at DESC
-         LIMIT 1`,
-        [resi_id, nextRole]
-      );
-
-      if (existingScan && existingScan.length > 0) {
-        if (req.file) {
-          const fs = require("fs");
-          fs.unlinkSync(req.file.path);
-        }
-        audioPlayer.playError();
-        return res.status(400).send({
-          success: false,
-          message: `Resi ini sudah di scan ${nextRole} oleh ${existingScan[0].username} pada ${new Date(existingScan[0].created_at).toLocaleString("id-ID")}`,
+          message: `Resi harus di scan ${nextRole} terlebih dahulu`,
         });
       }
 
@@ -278,13 +292,6 @@ const scaneHandler = async (req, res) => {
            VALUES (?, ?, ?, ?)`,
           [resi_id, id_pekerja, allowedRole, photoPath]
         );
-
-        await mysqlPool.query(
-          `
-          INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi)
-          VALUES (?, ?, ?, ?);`,
-          [resi_id, id_pekerja, allowedRole, photoPath]
-        );
       } else {
         // If process exists, UPDATE the existing record
         [result] = await mysqlPool.query(
@@ -295,13 +302,6 @@ const scaneHandler = async (req, res) => {
                updated_at = CURRENT_TIMESTAMP
            WHERE resi_id = ?`,
           [allowedRole, id_pekerja, photoPath, resi_id]
-        );
-
-        await mysqlPool.query(
-          `
-          INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi)
-          VALUES (?, ?, ?, ?);`,
-          [resi_id, id_pekerja, allowedRole, photoPath]
         );
       }
 
@@ -362,15 +362,15 @@ const showAllActiviy = async (req, res) => {
 
 const getActivityByName = async (req, res) => {
   try {
-    const { username } = req.params;
+    const { thisPage, username } = req.params;
     const [rows] = await mysqlPool.query(
       `
       SELECT pekerja.nama_pekerja, log_proses.resi_id as resi, log_proses.status_proses as status, log_proses.created_at as proses_scan
       FROM log_proses 
       JOIN proses ON log_proses.resi_id = proses.resi_id 
       JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE pekerja.username = ?`,
-      [username]
+      WHERE pekerja.username = ? AND log_proses.status_proses = ?`,
+      [username, thisPage]
     );
     if (rows.length === 0) {
       return res.status(404).send({
