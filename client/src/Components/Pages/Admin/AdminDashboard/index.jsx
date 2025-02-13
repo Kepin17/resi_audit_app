@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
-import { FaClipboardCheck, FaUserCheck, FaFileExport } from "react-icons/fa";
+import { FaFileExport, FaTruck } from "react-icons/fa";
+import { FaCartFlatbed } from "react-icons/fa6";
 import { LuPackageCheck } from "react-icons/lu";
 import { message } from "antd";
 import moment from "moment";
@@ -9,6 +12,8 @@ import urlApi from "../../../../utils/url";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState([]);
   const [todayCount, setTodayCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,16 +98,62 @@ const AdminDashboard = () => {
     }
   };
 
+  const getUserRole = () => {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+
+    try {
+      const decoded = jwtDecode(token);
+      return decoded.roles; // assuming role is stored in token payload
+    } catch (error) {
+      console.error("Token decode error:", error);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const userRole = getUserRole();
+
+        // Reduce delay from 800ms to 300ms for faster transition
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        if (!userRole || !userRole.includes("superadmin")) {
+          navigate("/admin/barang");
+          return;
+        }
+
+        setIsLoading(false);
+        // Only fetch these if superadmin
+        fetchData();
+        fetchStatistics();
+        fetchWorkerStats();
+      } catch (error) {
+        console.error("Access check failed:", error);
+        navigate("/admin/barang");
+      }
+    };
+
+    checkAccess();
+  }, [navigate]);
+
   useEffect(() => {
     fetchData();
   }, [searchQuery, startDate, endDate, selectedStatus, pagination.currentPage]);
 
   useEffect(() => {
-    fetchStatistics();
+    const userRole = getUserRole();
+    if (userRole === "superadmin") {
+      fetchStatistics();
+    }
   }, [statisticsPeriod]);
 
   useEffect(() => {
-    fetchWorkerStats();
+    const userRole = getUserRole();
+    if (userRole === "superadmin") {
+      fetchWorkerStats();
+    }
   }, [statisticsPeriod]);
 
   const handleExport = async () => {
@@ -157,6 +208,16 @@ const AdminDashboard = () => {
     return pages;
   };
 
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       {/* Stats Cards Section */}
@@ -169,7 +230,7 @@ const AdminDashboard = () => {
                 <h3 className="text-white text-3xl font-bold">{statusCounts.picker || 0}</h3>
               </div>
               <div className="bg-blue-400 rounded-full p-3">
-                <FaClipboardCheck className="text-white text-2xl" />
+                <FaCartFlatbed className="text-white text-2xl" />
               </div>
             </div>
           </div>
@@ -197,7 +258,7 @@ const AdminDashboard = () => {
                 <h3 className="text-white text-3xl font-bold">{statusCounts.pickout || 0}</h3>
               </div>
               <div className="bg-purple-400 rounded-full p-3">
-                <FaUserCheck className="text-white text-2xl" />
+                <FaTruck className="text-white text-2xl" />
               </div>
             </div>
           </div>
@@ -342,7 +403,13 @@ const AdminDashboard = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          order.status_proses === "picker" ? "bg-blue-100 text-blue-800" : order.status_proses === "packing" ? "bg-green-100 text-green-800" : "bg-purple-100 text-purple-800"
+                          order.status_proses === "picker"
+                            ? "bg-blue-100 text-blue-800"
+                            : order.status_proses === "packing"
+                            ? "bg-green-100 text-green-800"
+                            : order.status_proses === "pickout"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-red-100 text-red-800"
                         }`}
                       >
                         {`Telah ${order.status_proses} barang`}

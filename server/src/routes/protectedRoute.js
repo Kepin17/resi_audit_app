@@ -10,6 +10,7 @@ const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backup
 const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExcel } = require("../controllers/resiTerpackController");
 const upload = require("../config/multerConfig");
 const { getStatistics, getWorkerStatistics } = require("../controllers/statisticsController");
+const { createBackup } = require("../controllers/backupController");
 
 const roles = {
   picker: "picker",
@@ -86,5 +87,7 @@ router.get("/packing/stats", authToken, roleMiddleware([roles.supadmin, roles.ad
 
 router.get("/statistics", authToken, roleMiddleware([roles.supadmin]), getStatistics);
 router.get("/worker-statistics", authToken, roleMiddleware([roles.supadmin]), getWorkerStatistics);
+
+router.get("/backup/create", authToken, roleMiddleware([roles.supadmin]), createBackup);
 
 module.exports = router;

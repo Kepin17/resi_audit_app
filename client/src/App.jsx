@@ -84,14 +84,7 @@ function App() {
           }
         />
 
-        <Route
-          path="/admin"
-          element={
-            <AdminProtectedRoute>
-              <AdminDashboard />
-            </AdminProtectedRoute>
-          }
-        />
+        <Route path="/admin" element={<AdminProtectedRoute>{getRole.includes("superadmin") ? <AdminDashboard /> : getRole.includes("admin") ? <AdminBarangSection /> : ""}</AdminProtectedRoute>} />
 
         <Route
           path="/admin/barang"

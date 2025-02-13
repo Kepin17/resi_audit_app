@@ -11,7 +11,6 @@ const { RangePicker } = DatePicker;
 const { Search } = Input;
 import moment from "moment";
 import axios from "axios";
-import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 import urlApi from "../../../../utils/url";
 import { jwtDecode } from "jwt-decode";
 
@@ -25,15 +24,12 @@ const PackSalary = () => {
   const [searchText, setSearchText] = useState("");
   const [dateRange, setDateRange] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0); // Add this state
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [loading, setLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
-  const [importLoading, setImportLoading] = useState(false); // Add this line
-  const [openModal, setOpenModal] = useState(false);
   const [user, setUser] = useState(null);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [todayStats, setTodayStats] = useState({
@@ -99,14 +95,12 @@ const PackSalary = () => {
 
       if (response.data?.success) {
         setSource(response.data.data);
-        setTotalPages(response.data.pagination.totalPages);
         setTotalItems(response.data.pagination.totalItems); // Add this line
       }
     } catch (err) {
       if (err.response) {
         message.error(err.response.data.message);
         setSource([]);
-        setTotalPages(1);
       }
     }
   };
@@ -242,12 +236,12 @@ const PackSalary = () => {
       key: "updated_at",
       render: (text, record) => (
         <button
-          className={`${record.is_dibayar ? "bg-gray-500 hover:bg-gray-600" : "bg-blue-500 hover:bg-blue-600"} text-white p-2 rounded-lg transition duration-300 flex items-center gap-2`}
+          className={`${record.is_dibayar || !user?.roles?.includes("superadmin") ? "bg-gray-500 hover:bg-gray-600" : "bg-blue-500 hover:bg-blue-600"} text-white p-2 rounded-lg transition duration-300 flex items-center gap-2`}
           onClick={() => {
             setSelectedRecord(record);
             setIsModalVisible(true);
           }}
-          disabled={record.is_dibayar}
+          disabled={!user?.roles?.includes("superadmin") ? true : record.is_dibayar}
         >
           <MdPayments className="text-xl" /> Payment
         </button>

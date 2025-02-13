@@ -5,12 +5,17 @@ import { IoIosArrowUp, IoIosArrowDown } from "react-icons/io";
 import { Link } from "react-router-dom";
 import { HiMenuAlt3 } from "react-icons/hi";
 
+import { toast } from "react-toastify";
+import axios from "axios";
+import { backupEndpoint } from "../../utils/url";
+
 const DashboardLayout = ({ children }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isAuthDropdownOpen, setIsAuthDropdownOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -36,6 +41,44 @@ const DashboardLayout = ({ children }) => {
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleBackup = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem("token");
+
+      const response = await axios({
+        url: backupEndpoint,
+        method: "GET",
+        responseType: "blob", // Important for file download
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Create download link
+      const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+
+      // Get filename from response headers or use default
+      const contentDisposition = response.headers["content-disposition"];
+      const fileName = contentDisposition ? contentDisposition.split("filename=")[1] : "backup.zip";
+
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("Backup berhasil diunduh!");
+    } catch (error) {
+      console.error("Backup error:", error);
+      toast.error("Terjadi kesalahan saat melakukan backup");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -122,6 +165,14 @@ const DashboardLayout = ({ children }) => {
                 </ul>
               </div>
             </li>
+
+            <li
+              className={`${isLoading ? "bg-gray-500" : "bg-green-700 hover:bg-green-600"} p-2 rounded-md cursor-pointer text-white flex items-center justify-left ${user?.roles?.includes("superadmin") ? "" : "hidden"}`}
+              onClick={!isLoading ? handleBackup : undefined}
+            >
+              {isLoading ? "Sedang memproses..." : "Backup"}
+            </li>
+
             <li
               className="bg-red-500 p-2 rounded-md cursor-pointer text-white"
               onClick={() => {
