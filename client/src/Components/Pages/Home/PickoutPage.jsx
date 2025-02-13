@@ -12,7 +12,7 @@ import { playSuccessSound, playErrorSound } from "../../../utils/audio";
 import { FaCartFlatbed } from "react-icons/fa6";
 import Unauthorized from "../Unauthorized";
 
-const HomePage = () => {
+const PickoutPage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
   const [scanMode, setScanMode] = useState("barcode-only"); // Add this new state
   const [data, setData] = useState([]);
@@ -20,16 +20,14 @@ const HomePage = () => {
   const [scanning, setScanning] = useState(true);
   const [currentResi, setCurrentResi] = useState(null);
   const [isPhotoMode, setIsPhotoMode] = useState(false);
-  const [user, setUser] = useState("");
-  const [thisPage, setThisPage] = useState("picker");
+  const [user, setUser] = useState({});
+  const [thisPage, setThisPage] = useState("pickout");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const decodeToken = jwtDecode(token);
-    setUser(decodeToken.roles);
-    console.log(decodeToken.roles);
+    setUser(decodeToken);
   }, []);
-
   // Improved scan mode buttons component
   const ScanModeButtons = () => (
     <div className="grid grid-cols-2 gap-4 w-full max-w-md">
@@ -99,6 +97,7 @@ const HomePage = () => {
       playErrorSound();
       toast.error(err.response?.data?.message || "Failed to process");
     } finally {
+      setShowPhotoConfirm(false);
       setScanning(true);
       setCurrentResi(null);
       setIsBarcodeActive(true);
@@ -209,14 +208,13 @@ const HomePage = () => {
     return () => clearInterval(interval);
   }, []); // Empty dependency array
 
-  if (!user.includes("picker")) {
+  if (!user?.roles?.includes("pickout")) {
     return (
       <MainLayout>
         <Unauthorized />
       </MainLayout>
     );
   }
-
   return (
     <MainLayout>
       <ToastContainer />
@@ -271,9 +269,10 @@ const HomePage = () => {
             <div className="bg-blue-100 text-blue-500 w-[22rem] h-full p-1 rounded-md flex items-center justify-center border-2 mb-6">
               <h1 className="text-4xl flex items-center gap-4 font-bold">
                 <FaCartFlatbed />
-                Pickup Barcode
+                Pickout Barcode
               </h1>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-sm font-medium text-gray-500">Today's Scans</h3>
@@ -335,4 +334,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage;
+export default PickoutPage;

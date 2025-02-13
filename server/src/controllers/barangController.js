@@ -145,8 +145,10 @@ const showDetailByResi = async (req, res) => {
         log_proses.gambar_resi
       FROM log_proses
       LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      LEFT JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
+      LEFT JOIN role_pekerja ON pekerja.id_pekerja = role_pekerja.id_pekerja
+      LEFT JOIN bagian ON role_pekerja.id_bagian = bagian.id_bagian
       WHERE log_proses.resi_id = ?
+      ORDER BY log_proses.created_at DESC
       `,
       [resi_id]
     );
@@ -185,8 +187,8 @@ const cancelBarang = async (req, res) => {
 
     // Determine status based on user role
     if (userRoles.includes("admin")) {
-      status_barang = "Konfirmasi";
-      status_proses = "Konfirmasi";
+      status_barang = "Cancelled";
+      status_proses = "Cancelled";
     } else if (userRoles.includes("superadmin")) {
       status_barang = "Cancelled";
       status_proses = "cancelled";

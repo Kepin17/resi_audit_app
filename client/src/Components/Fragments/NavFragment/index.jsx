@@ -2,9 +2,10 @@ import { jwtDecode } from "jwt-decode";
 import Button from "../../Elements/Button";
 import Title from "../../Elements/Title";
 import React, { useEffect, useState, useRef } from "react";
-import { FaUserCircle, FaSignOutAlt } from "react-icons/fa";
+import { FaUserCircle, FaSignOutAlt, FaTruck } from "react-icons/fa";
 import { MdDashboard } from "react-icons/md";
 import { Link } from "react-router-dom";
+import { FaBoxesPacking, FaCartFlatbed } from "react-icons/fa6";
 
 const NavFragment = () => {
   const [tokenDatas, setTokenDatas] = useState({});
@@ -15,7 +16,6 @@ const NavFragment = () => {
     const token = localStorage.getItem("token");
     const decoded = jwtDecode(token);
     setTokenDatas(decoded);
-    console.log(decoded);
   }, []);
 
   useEffect(() => {
@@ -44,12 +44,49 @@ const NavFragment = () => {
             </div>
             {isOpen && (
               <div className="absolute top-full right-0 mt-2 w-56 bg-white/80 backdrop-blur-md rounded-lg shadow-lg py-2 border border-gray-100/50 transform opacity-100 scale-100 transition-all duration-200">
-                <Link to="/admin">
-                  <Button buttonStyle="w-full text-left px-4 py-3 hover:bg-blue-50/50 flex items-center gap-3 text-blue-600 transition-all duration-200">
-                    <MdDashboard />
-                    Dashboard
-                  </Button>
-                </Link>
+                {tokenDatas.roles.includes("picker") ? (
+                  <Link to="/">
+                    <Button buttonStyle="w-full text-left px-4 py-3 hover:bg-blue-50/50 flex items-center gap-3 text-blue-600 transition-all duration-200">
+                      <FaCartFlatbed />
+                      Picker
+                    </Button>
+                  </Link>
+                ) : (
+                  ""
+                )}
+
+                {tokenDatas.roles.includes("packing") ? (
+                  <Link to="/packing">
+                    <Button buttonStyle="w-full text-left px-4 py-3 hover:bg-blue-50/50 flex items-center gap-3 text-blue-600 transition-all duration-200">
+                      <FaBoxesPacking />
+                      Packing
+                    </Button>
+                  </Link>
+                ) : (
+                  ""
+                )}
+
+                {tokenDatas.roles.includes("pickout") ? (
+                  <Link to="/pickout">
+                    <Button buttonStyle="w-full text-left px-4 py-3 hover:bg-blue-50/50 flex items-center gap-3 text-blue-600 transition-all duration-200">
+                      <FaTruck />
+                      Pickout
+                    </Button>
+                  </Link>
+                ) : (
+                  ""
+                )}
+
+                {tokenDatas.roles.includes("superadmin") || tokenDatas.roles.includes("admin") ? (
+                  <Link to="/admin">
+                    <Button buttonStyle="w-full text-left px-4 py-3 hover:bg-blue-50/50 flex items-center gap-3 text-blue-600 transition-all duration-200">
+                      <MdDashboard />
+                      Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  ""
+                )}
 
                 <Button
                   buttonStyle="w-full text-left px-4 py-3 hover:bg-red-50/50 flex items-center gap-3 text-red-600 transition-all duration-200"

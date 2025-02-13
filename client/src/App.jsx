@@ -10,19 +10,54 @@ import AdminBarangSection from "./Components/Pages/Admin/BarangManagement";
 import StaffManagementPage from "./Components/Pages/Admin/StaffManagementPage";
 import LogLoginPage from "./Components/Pages/Admin/Log/LogLoginPage";
 import PackSalary from "./Components/Pages/Admin/PackSalary";
-
+import PickingPage from "./Components/Pages/Home/PickingPage";
+import PickoutPage from "./Components/Pages/Home/PickoutPage";
+import { jwtDecode } from "jwt-decode";
+import { useEffect, useState } from "react";
 function App() {
+  const [getRole, setRole] = useState("");
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decodedToken = jwtDecode(token);
+        const role = decodedToken.roles;
+        setRole(role);
+        const currentTime = Date.now() / 1000;
+        if (decodedToken.exp < currentTime) {
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+        }
+      } catch (error) {
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }
+    }
+  }, []);
+
   return (
     <>
       <Routes>
+        <Route path="/" element={<ProtectedRoute>{getRole.includes("picker") ? <HomePage /> : getRole.includes("packing") ? <PickingPage /> : getRole.includes("pickout") ? <PickoutPage /> : <AdminDashboard />}</ProtectedRoute>} />
+
         <Route
-          path="/"
+          path="/packing"
           element={
             <ProtectedRoute>
-              <HomePage />
+              <PickingPage />
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/pickout"
+          element={
+            <ProtectedRoute>
+              <PickoutPage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/login"
           element={

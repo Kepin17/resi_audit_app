@@ -283,9 +283,9 @@ const AdminDashboard = () => {
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resi ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Packing Staff</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pack Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -296,9 +296,19 @@ const AdminDashboard = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${order.status_proses === "picker" ? "bg-blue-100 text-blue-800" : order.status_proses === "packing" ? "bg-green-100 text-green-800" : "bg-purple-100 text-purple-800"}`}
+                      ${
+                        order.status_proses === "picker"
+                          ? "bg-blue-100 text-blue-800"
+                          : order.status_proses === "packing"
+                          ? "bg-green-100 text-green-800"
+                          : order.status_proses === "Konfirmasi"
+                          ? "bg-orange-100 text-orange-800"
+                          : order.status_proses === "cancelled"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-purple-100 text-purple-800"
+                      }`}
                     >
-                      {order.status_proses}
+                      {order.status_proses === "Konfirmasi" ? "Melakukan konfirmasi pembatalan resi" : order.status_proses === "cancelled" ? "Menyetujui pembatalan resi" : `Telah ${order.status_proses} barang`}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">{moment(order.created_at).format("DD/MM/YY | HH:MM:SS")}</td>

@@ -1,10 +1,10 @@
--- Active: 1738167577342@@127.0.0.1@3306@pack_db
+-- Active: 1739431700514@@127.0.0.1@3306
 
 CREATE DATABASE pack_db;
 USE pack_db;
 
 
-DROP TABLE IF EXISTS barang, proses, log_proses, gaji_pegawai, gaji, status_logs, device_logs;
+-- DROP TABLE IF EXISTS barang, proses, log_proses, gaji_pegawai, gaji, status_logs, device_logs;
 
 CREATE TABLE BAGIAN (
   id_bagian VARCHAR(7) PRIMARY KEY NOT NULL,
@@ -181,66 +181,20 @@ CREATE TABLE log_proses (
 );
 
 
--- DROP TRIGGER IF EXISTS trigger_barang_status;
+-- Drop existing triggers first
+DROP TRIGGER IF EXISTS trigger_barang_status;
+DROP TRIGGER IF EXISTS trigger_inssert_log_proses;
+DROP TRIGGER IF EXISTS trigger_after_update_log_proses;
 
-DELIMITER $$
-CREATE TRIGGER trigger_barang_status
-AFTER UPDATE ON proses
-FOR EACH ROW
-
-BEGIN
-  
-    IF  NEW.status_proses = "packing" THEN
-        UPDATE barang
-        SET status_barang = 'packed'
-        WHERE resi_id = NEW.resi_id;
-    END IF;
-
-    IF NEW.status_proses = 'pickout' THEN
-        
-        UPDATE barang 
-        SET status_barang = 'shipped' 
-        WHERE resi_id = NEW.resi_id;   
-    END IF;
-  
-END$$
-
-DELIMITER ;
-
--- DROP TRIGGER IF EXISTS trigger_inssert_log_proses;
-
+-- Create new trigger for logging only
 DELIMITER $$
 
--- DROP TRIGGER IF EXISTS trigger_inssert_log_proses;
-
-CREATE TRIGGER trigger_inssert_log_proses
+CREATE TRIGGER trigger_after_process_change
 AFTER INSERT ON proses
 FOR EACH ROW
-BEGIN
-    
+BEGIN    
     INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi)
     VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_proses, NEW.gambar_resi);
-
-      IF NEW.status_proses = "picker" THEN
-        UPDATE barang
-        SET status_barang = 'picked'
-        WHERE resi_id = NEW.resi_id;
-    END IF;
-
-END$$
-
-DELIMITER ;
-
-DELIMITER $$
-
-CREATE TRIGGER trigger_after_update_log_proses
-AFTER UPDATE ON proses
-FOR EACH ROW
-BEGIN
-    
-    INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi)
-    VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_proses, NEW.gambar_resi);
-
 END$$
 
 DELIMITER ;
@@ -277,31 +231,52 @@ ALTER TABLE gaji_pegawai ADD COLUMN is_dibayar BOOLEAN DEFAULT FALSE;
 
 DELIMITER $$
 
--- Hitung gaji hanya untuk pekerja di bagian "packing"
+-- DROP TRIGGER IF EXISTS trigger_hitung_gaji$$
+
 CREATE TRIGGER trigger_hitung_gaji
 AFTER INSERT ON log_proses
 FOR EACH ROW
 BEGIN
     DECLARE v_id_gaji INT;
     DECLARE v_gaji_per_scan DECIMAL(10, 2);
+    DECLARE v_existing_record INT;
     
+    -- Get current gaji settings
     SELECT id_gaji, total_gaji_per_scan 
     INTO v_id_gaji, v_gaji_per_scan
     FROM gaji 
     LIMIT 1;
     
-    -- Periksa apakah pekerja ada di bagian 'packing' menggunakan role_pekerja
+    -- Only calculate salary if:
+    -- 1. Worker has packing role
+    -- 2. The process status is 'packing'
     IF EXISTS (
         SELECT 1 FROM role_pekerja rp
         JOIN bagian b ON rp.id_bagian = b.id_bagian
         WHERE rp.id_pekerja = NEW.id_pekerja
         AND b.jenis_pekerja = 'packing'
-    ) THEN
-        INSERT INTO gaji_pegawai (id_gaji, id_pekerja, jumlah_scan, gaji_total)
-        VALUES (v_id_gaji, NEW.id_pekerja, 1, v_gaji_per_scan)
-        ON DUPLICATE KEY UPDATE 
-            jumlah_scan = jumlah_scan + 1, 
-            gaji_total = (jumlah_scan + 1) * v_gaji_per_scan;
+    ) AND NEW.status_proses = 'packing' THEN
+        -- Check if there's an existing record for today
+        SELECT COUNT(*) INTO v_existing_record
+        FROM gaji_pegawai
+        WHERE id_pekerja = NEW.id_pekerja
+        AND DATE(created_at) = CURDATE()
+        AND is_dibayar = FALSE;
+
+        IF v_existing_record > 0 THEN
+            -- Update existing record
+            UPDATE gaji_pegawai
+            SET jumlah_scan = jumlah_scan + 1,
+                gaji_total = (jumlah_scan + 1) * v_gaji_per_scan,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id_pekerja = NEW.id_pekerja
+            AND DATE(created_at) = CURDATE()
+            AND is_dibayar = FALSE;
+        ELSE
+            -- Create new record for today
+            INSERT INTO gaji_pegawai (id_gaji, id_pekerja, jumlah_scan, gaji_total, created_at)
+            VALUES (v_id_gaji, NEW.id_pekerja, 1, v_gaji_per_scan, CURRENT_TIMESTAMP);
+        END IF;
     END IF;
 END$$
 
@@ -352,6 +327,7 @@ BEGIN
 END$$
 
 DELIMITER ;
+
 
 
 

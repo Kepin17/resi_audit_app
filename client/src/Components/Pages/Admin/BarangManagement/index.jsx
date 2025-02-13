@@ -15,6 +15,7 @@ import { TbCancel } from "react-icons/tb";
 import { FaBoxArchive, FaBoxesPacking, FaRotate } from "react-icons/fa6";
 import urlApi from "../../../../utils/url";
 import { PiNoteBlankFill } from "react-icons/pi";
+import { jwtDecode } from "jwt-decode";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -39,8 +40,14 @@ const AdminBarangSection = () => {
   const [getJenisPekerja, setJenisPekerja] = useState("");
   const [totalDeg, setTotalDeg] = useState(0);
   const [exportModal, setExportModal] = useState(false);
-
+  const [user, setUser] = useState(null);
   const { RangePicker } = DatePicker;
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const user = jwtDecode(token);
+    setUser(user);
+  }, []);
 
   const handleSearchInput = (value) => {
     setSearchInput(value);
@@ -524,7 +531,7 @@ const AdminBarangSection = () => {
                     key={item.resi_id}
                     className="card bg-white p-5 rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
                     onClick={() => {
-                      if (item.status === "pending" || item.status === "cancelled") return;
+                      // if (item.status_barang === "pending" || item.status_barang === "cancelled") return;
 
                       axios
                         .get(`${urlApi}/api/v1/barang/` + item.resi_id, {
@@ -618,7 +625,17 @@ const AdminBarangSection = () => {
                           >
                             <MdCancelScheduleSend className="text-lg" />
                             <span className="text-sm font-medium">
-                              {item.status === "pending" ? "konfirmasi Cancel" : item.status === "konfirmasi" ? "Cancel Resi" : item.status === "picked" ? "Cancel Pickup" : item.status === "packed" ? "Cancel Packing" : "Cancel Shipper"}
+                              {item.status === "pending" && user.roles === "admin"
+                                ? "konfirmasi Cancel"
+                                : item.status === "Menyetujui Cancel"
+                                ? "Cancel Resi"
+                                : item.status === "picker"
+                                ? "Cancel Pickup"
+                                : item.status === "packing"
+                                ? "Cancel Packing"
+                                : item.status === "pickout"
+                                ? "Cancel Shipper"
+                                : "Cancel Resi"}
                             </span>
                           </button>
                         </div>

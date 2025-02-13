@@ -11,7 +11,9 @@ const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExc
 const upload = require("../config/multerConfig");
 
 const roles = {
-  staff: "staff",
+  picker: "picker",
+  packing: "packing",
+  pickout: "pickout",
   admin: "admin",
   supadmin: "superadmin",
 };
@@ -50,15 +52,8 @@ router.post(
 router.get("/barang-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupBarang);
 
 // audit resi
-router.post(
-  "/auditResi",
-  authToken,
-  roleMiddleware([roles.staff]),
-  upload.single("photo"), // Add multer middleware
-  scaneHandler
-);
+router.post("/auditResi/scan/:resi_id", authToken, roleMiddleware([roles.packing, roles.pickout, roles.picker, roles.admin, roles.supadmin]), upload.single("photo"), scaneHandler);
 
-router.post("/auditResi/check/:resi_id", authToken, roleMiddleware([roles.staff, roles.admin, roles.supadmin]), checkStatusResi);
 router.get("/auditResi/activity", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllActiviy);
 router.get("/auditResi/activity/:username", authToken, getActivityByName);
 router.get("/auditResi/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDataByResi);

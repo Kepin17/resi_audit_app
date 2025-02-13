@@ -56,149 +56,10 @@ const showAllData = async (req, res) => {
   }
 };
 
-const checkStatusResi = async (req, res) => {
-  try {
-    const { resi_id } = req.params;
-    const { id_pekerja } = req.body;
-
-    if (!resi_id) {
-      return res.status(400).send({
-        success: false,
-        message: "Resi ID is required",
-      });
-    }
-
-    if (!id_pekerja) {
-      return res.status(400).send({
-        success: false,
-        message: "Worker ID is required",
-      });
-    }
-
-    // Get worker data
-    const [workerData] = await mysqlPool.query(
-      `SELECT pekerja.*, bagian.jenis_pekerja
-       FROM pekerja 
-       JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
-       WHERE pekerja.id_pekerja = ?`,
-      [id_pekerja]
-    );
-
-    if (!workerData || workerData.length === 0) {
-      return res.status(404).send({
-        success: false,
-        message: "Worker not found",
-      });
-    }
-
-    const workerRole = workerData[0].jenis_pekerja;
-    const nama_pekerja = workerData[0].nama_pekerja;
-
-    // Check if resi exists in barang
-    const [checkBarangRow] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
-
-    if (checkBarangRow.length === 0) {
-      return res.status(404).send({
-        success: false,
-        message: "Resi not found",
-      });
-    }
-
-    if (checkBarangRow[0].status_barang === "cancelled") {
-      return res.status(400).send({
-        success: false,
-        status: "cancelled",
-        message: "Resi has been cancelled",
-      });
-    }
-
-    const [prosesRows] = await mysqlPool.query(
-      `SELECT proses.status_proses, proses.created_at, pekerja.nama_pekerja 
-       FROM proses 
-       LEFT JOIN pekerja pekerja ON pekerja.id_pekerja = proses.id_pekerja
-       WHERE proses.resi_id = ?`,
-      [resi_id]
-    );
-
-    // Check if this is a new resi
-    if (!prosesRows || prosesRows.length === 0) {
-      if (workerRole !== "picker") {
-        return res.status(400).send({
-          success: false,
-          message: "This resi must be processed by picker first",
-        });
-      }
-      return res.status(200).send({
-        success: true,
-        status: "new",
-        message: "Resi is ready for picker process",
-      });
-    }
-
-    const currentStatus = prosesRows[0]?.status_proses;
-    const workflow = ["picker", "packing", "pickout"];
-
-    // Check if worker tries to process their own role again
-    if (workerRole === currentStatus) {
-      return res.status(400).send({
-        success: false,
-        message: `Resi ini sudah diproses ${workerRole} oleh ${nama_pekerja} pada ${new Date(prosesRows[0].created_at).toLocaleString("id-ID")}`,
-      });
-    }
-
-    // Validate if status_proses exists
-    if (!currentStatus) {
-      return res.status(400).send({
-        success: false,
-        message: "Invalid process status",
-      });
-    }
-
-    const currentIndex = workflow.indexOf(currentStatus);
-    const expectedRole = workflow[currentIndex + 1];
-
-    // Check if all processes are completed
-    if (currentIndex === workflow.length - 1) {
-      return res.status(400).send({
-        success: true,
-        status: "completed",
-        message: "Resi has completed all processes",
-        lastProcess: {
-          status: currentStatus,
-          worker: prosesRows[0].nama_pekerja,
-          timestamp: prosesRows[0].created_at,
-        },
-      });
-    }
-
-    // Check if the worker role matches the expected next process
-    if (workerRole !== expectedRole) {
-      return res.status(400).send({
-        success: false,
-        message: `This resi must be processed by ${expectedRole} first`,
-      });
-    }
-
-    const processTime = new Date(prosesRows[0].created_at).toLocaleString("id-ID");
-
-    return res.status(200).send({
-      success: true,
-      status: expectedRole,
-      message: `Resi is ready for ${expectedRole} process`,
-      lastProcess: {
-        status: currentStatus,
-        worker: prosesRows[0].nama_pekerja,
-        timestamp: processTime,
-      },
-    });
-  } catch (error) {
-    handleError(error, res, "checking resi status");
-  }
-};
-
 const scaneHandler = async (req, res) => {
   try {
-    const { resi_id, id_pekerja } = req.body;
+    const { id_pekerja, thisPage } = req.body;
+    const { resi_id } = req.params;
 
     // Validate required fields
     if (!resi_id || !id_pekerja) {
@@ -213,80 +74,257 @@ const scaneHandler = async (req, res) => {
       });
     }
 
-    // First, check the status
-    const statusCheck = await checkStatusResi(
-      {
-        params: { resi_id },
-        body: { id_pekerja },
-      },
-      {
-        status: () => ({ send: () => null }),
-        send: () => null,
-      }
+    // Get worker data with all roles
+    const [workerRoles] = await mysqlPool.query(
+      `SELECT p.*, b.jenis_pekerja, b.id_bagian
+       FROM pekerja p 
+       JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
+       JOIN bagian b ON rp.id_bagian = b.id_bagian
+       WHERE p.id_pekerja = ?`,
+      [id_pekerja]
     );
 
-    // If status check returns error, don't proceed
-    if (statusCheck?.success === false) {
+    if (!workerRoles || workerRoles.length === 0) {
       if (req.file) {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
       audioPlayer.playError();
-      return res.status(400).send(statusCheck);
+      return res.status(404).send({
+        success: false,
+        message: "Worker not found or has no roles",
+      });
     }
 
-    // Get worker data
-    const [workerData] = await mysqlPool.query(
-      `SELECT pekerja.id_bagian, pekerja.nama_pekerja, bagian.jenis_pekerja
-       FROM pekerja 
-       JOIN bagian ON pekerja.id_bagian = bagian.id_bagian
-       WHERE pekerja.id_pekerja = ?`,
-      [id_pekerja]
-    );
+    const workerRoleTypes = workerRoles.map((role) => role.jenis_pekerja);
+    const nama_pekerja = workerRoles[0].nama_pekerja;
+    const username = workerRoles[0].username;
 
-    const workerRole = workerData[0].jenis_pekerja;
-
-    let photoPath = null;
-    if (req.file && workerRole !== "operator") {
-      photoPath = req.file.path;
-    } else if (req.file) {
-      const fs = require("fs");
-      fs.unlinkSync(req.file.path);
-    }
-
+    // Check if resi exists and its status
     const [checkBarangRow] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
 
-    if (checkBarangRow.length !== 0) {
-      const [prosesRows] = await mysqlPool.query("SELECT * FROM proses WHERE resi_id = ?", [resi_id]);
-
-      if (prosesRows.length === 0) {
-        const processQuery = photoPath ? "INSERT INTO proses (resi_id, id_pekerja, status_proses, gambar_resi) VALUES (?, ?, ?, ?)" : "INSERT INTO proses (resi_id, id_pekerja, status_proses) VALUES (?, ?, ?)";
-        const processValues = photoPath ? [resi_id, id_pekerja, workerRole, photoPath] : [resi_id, id_pekerja, workerRole];
-
-        await mysqlPool.query(processQuery, processValues);
-      } else {
-        const processQuery = photoPath ? "UPDATE proses SET status_proses = ?, gambar_resi = ? WHERE resi_id = ? ORDER BY updated_at DESC LIMIT 1" : "UPDATE proses SET status_proses = ? WHERE resi_id = ? ORDER BY updated_at DESC LIMIT 1";
-        const processValues = photoPath ? [workerRole, photoPath, resi_id] : [workerRole, resi_id];
-        await mysqlPool.query(processQuery, processValues);
+    if (checkBarangRow.length === 0) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
       }
+      audioPlayer.playError();
+      return res.status(404).send({
+        success: false,
+        message: "Resi not found in system",
+      });
+    }
+
+    if (checkBarangRow[0].status_barang === "cancelled") {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      audioPlayer.playError();
+      return res.status(400).send({
+        success: false,
+        message: "Resi has been cancelled",
+      });
+    }
+
+    // Get current process status
+    const [currentProcess] = await mysqlPool.query(
+      `SELECT p.*, pk.nama_pekerja as processor_name, pk.username
+       FROM proses p
+       LEFT JOIN pekerja pk ON pk.id_pekerja = p.id_pekerja
+       WHERE p.resi_id = ? 
+       ORDER BY p.created_at DESC 
+       LIMIT 1`,
+      [resi_id]
+    );
+
+    const workflow = ["picker", "packing", "pickout"];
+    let allowedRole;
+    let nextRole;
+
+    // Determine next allowed role and validate
+    if (!currentProcess || currentProcess.length === 0) {
+      if (thisPage !== "picker") {
+        if (req.file) {
+          const fs = require("fs");
+          fs.unlinkSync(req.file.path);
+        }
+        audioPlayer.playError();
+        return res.status(400).send({
+          success: false,
+          message: "Resi harus di scan oleh picker terlebih dahulu",
+        });
+      }
+
+      if (!workerRoleTypes.includes("picker")) {
+        if (req.file) {
+          const fs = require("fs");
+          fs.unlinkSync(req.file.path);
+        }
+        audioPlayer.playError();
+        return res.status(400).send({
+          success: false,
+          message: "Kamu bukan bagian dari picker",
+        });
+      }
+      allowedRole = "picker";
+    } else {
+      const currentIndex = workflow.indexOf(currentProcess[0].status_proses);
+      nextRole = workflow[currentIndex + 1];
+
+      // Check if worker has already scanned this resi in the current process
+      const [workerPreviousScan] = await mysqlPool.query(
+        `SELECT lp.*, p.username 
+         FROM log_proses lp
+         JOIN pekerja p ON lp.id_pekerja = p.id_pekerja
+         WHERE lp.resi_id = ? AND lp.status_proses = ? AND lp.id_pekerja = ?
+         ORDER BY lp.created_at DESC
+         LIMIT 1`,
+        [resi_id, thisPage, id_pekerja]
+      );
+
+      if (workerPreviousScan && workerPreviousScan.length > 0) {
+        if (req.file) {
+          const fs = require("fs");
+          fs.unlinkSync(req.file.path);
+        }
+        audioPlayer.playError();
+        return res.status(400).send({
+          success: false,
+          message: `Kamu sudah melakukan scan, resi akan ke proses selanjutnya ${nextRole}`,
+        });
+      }
+
+      // Check if all processes are completed
+      if (currentIndex === workflow.length - 1) {
+        if (req.file) {
+          const fs = require("fs");
+          fs.unlinkSync(req.file.path);
+        }
+        audioPlayer.playError();
+        return res.status(400).send({
+          success: false,
+          message: "Resi telah selesai diproses",
+        });
+      }
+
+      // Validate if the current page matches the required next role
+      if (thisPage !== nextRole) {
+        if (req.file) {
+          const fs = require("fs");
+          fs.unlinkSync(req.file.path);
+        }
+        audioPlayer.playError();
+        return res.status(400).send({
+          success: false,
+          message: `Kamu bukan bagian dari ${nextRole}`,
+        });
+      }
+
+      // Check if worker has required role
+      if (!workerRoleTypes.includes(nextRole)) {
+        if (req.file) {
+          const fs = require("fs");
+          fs.unlinkSync(req.file.path);
+        }
+        audioPlayer.playError();
+        return res.status(400).send({
+          success: false,
+          message: `Kamu tidak memiliki akses sebagai ${nextRole}`,
+        });
+      }
+
+      // Check for duplicate scan in log_proses
+      const [existingScan] = await mysqlPool.query(
+        `SELECT lp.*, p.username 
+         FROM log_proses lp
+         JOIN pekerja p ON lp.id_pekerja = p.id_pekerja
+         WHERE lp.resi_id = ? AND lp.status_proses = ?
+         ORDER BY lp.created_at DESC
+         LIMIT 1`,
+        [resi_id, nextRole]
+      );
+
+      if (existingScan && existingScan.length > 0) {
+        if (req.file) {
+          const fs = require("fs");
+          fs.unlinkSync(req.file.path);
+        }
+        audioPlayer.playError();
+        return res.status(400).send({
+          success: false,
+          message: `Resi ini sudah di scan ${nextRole} oleh ${existingScan[0].username} pada ${new Date(existingScan[0].created_at).toLocaleString("id-ID")}`,
+        });
+      }
+
+      allowedRole = nextRole;
+    }
+
+    // Handle photo upload
+    let photoPath = null;
+    if (req.file) {
+      photoPath = req.file.path;
+    }
+
+    // Process the scan with transaction
+    const connection = await mysqlPool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      if (!currentProcess || currentProcess.length === 0) {
+        // If no previous process exists, INSERT new record
+        [result] = await mysqlPool.query(
+          `INSERT INTO proses (resi_id, id_pekerja, status_proses, gambar_resi) 
+           VALUES (?, ?, ?, ?)`,
+          [resi_id, id_pekerja, allowedRole, photoPath]
+        );
+
+        await mysqlPool.query(
+          `
+          INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi)
+          VALUES (?, ?, ?, ?);`,
+          [resi_id, id_pekerja, allowedRole, photoPath]
+        );
+      } else {
+        // If process exists, UPDATE the existing record
+        [result] = await mysqlPool.query(
+          `UPDATE proses 
+           SET status_proses = ?, 
+               id_pekerja = ?, 
+               gambar_resi = ?,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE resi_id = ?`,
+          [allowedRole, id_pekerja, photoPath, resi_id]
+        );
+
+        await mysqlPool.query(
+          `
+          INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi)
+          VALUES (?, ?, ?, ?);`,
+          [resi_id, id_pekerja, allowedRole, photoPath]
+        );
+      }
+
+      await connection.commit();
 
       audioPlayer.playSuccess();
       return res.status(200).send({
         success: true,
         message: "Resi berhasil di scan",
+        page: allowedRole,
         data: {
-          nama_pekerja: workerData[0].nama_pekerja,
-          proses_scan: workerRole,
+          nama_pekerja,
+          username,
+          proses_scan: allowedRole,
           ...(photoPath && { gambar_resi: photoPath }),
         },
       });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    audioPlayer.playError();
-    res.status(404).send({
-      success: false,
-      message: "Resi not valid or not found",
-    });
   } catch (error) {
     if (req.file) {
       const fs = require("fs");
@@ -456,4 +494,11 @@ const uploadPhoto = async (req, res) => {
   }
 };
 
-module.exports = { showAllData, scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, checkStatusResi };
+module.exports = {
+  showAllData,
+  scaneHandler,
+  showAllActiviy,
+  getActivityByName,
+  showDataByResi,
+  uploadPhoto,
+};

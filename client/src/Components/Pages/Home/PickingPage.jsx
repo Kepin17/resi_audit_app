@@ -12,7 +12,7 @@ import { playSuccessSound, playErrorSound } from "../../../utils/audio";
 import { FaCartFlatbed } from "react-icons/fa6";
 import Unauthorized from "../Unauthorized";
 
-const HomePage = () => {
+const PickingPage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
   const [scanMode, setScanMode] = useState("barcode-only"); // Add this new state
   const [data, setData] = useState([]);
@@ -20,16 +20,14 @@ const HomePage = () => {
   const [scanning, setScanning] = useState(true);
   const [currentResi, setCurrentResi] = useState(null);
   const [isPhotoMode, setIsPhotoMode] = useState(false);
-  const [user, setUser] = useState("");
-  const [thisPage, setThisPage] = useState("picker");
+  const [user, setUser] = useState({});
+  const [thisPage, setThisPage] = useState("packing");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const decodeToken = jwtDecode(token);
-    setUser(decodeToken.roles);
-    console.log(decodeToken.roles);
+    setUser(decodeToken);
   }, []);
-
   // Improved scan mode buttons component
   const ScanModeButtons = () => (
     <div className="grid grid-cols-2 gap-4 w-full max-w-md">
@@ -209,14 +207,13 @@ const HomePage = () => {
     return () => clearInterval(interval);
   }, []); // Empty dependency array
 
-  if (!user.includes("picker")) {
+  if (!user?.roles?.includes("packing")) {
     return (
       <MainLayout>
         <Unauthorized />
       </MainLayout>
     );
   }
-
   return (
     <MainLayout>
       <ToastContainer />
@@ -268,10 +265,11 @@ const HomePage = () => {
           {/* Main Content */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Stats Cards */}
+
             <div className="bg-blue-100 text-blue-500 w-[22rem] h-full p-1 rounded-md flex items-center justify-center border-2 mb-6">
               <h1 className="text-4xl flex items-center gap-4 font-bold">
                 <FaCartFlatbed />
-                Pickup Barcode
+                Packing Barcode
               </h1>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -335,4 +333,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage;
+export default PickingPage;
