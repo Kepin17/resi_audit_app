@@ -342,7 +342,7 @@ const PackingPage = () => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(number);
   };
   return (
-    <MainLayout>
+    <MainLayout getPage={thisPage}>
       <ToastContainer />
 
       {isPhotoMode || isBarcodeActive ? (
@@ -384,9 +384,7 @@ const PackingPage = () => {
         <div className="min-h-screen bg-gray-50">
           {/* Header Section */}
           <div className="bg-white shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              <h1 className="text-2xl font-bold text-gray-900">Packing Dashboard</h1>
-            </div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"></div>
           </div>
 
           {/* Main Content */}

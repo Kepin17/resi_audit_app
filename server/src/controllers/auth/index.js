@@ -4,7 +4,6 @@ const jwt = require("jsonwebtoken");
 const UAParser = require("ua-parser-js");
 const excelJS = require("exceljs");
 const moment = require("moment");
-const fs = require("fs");
 
 require("dotenv").config();
 const secretKey = process.env.SECRET_KEY;

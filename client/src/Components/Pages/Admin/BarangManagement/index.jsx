@@ -36,9 +36,7 @@ const AdminBarangSection = () => {
   const [resiDetail, setResiDetail] = useState([]);
   const [Img, setImg] = useState("");
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
-  const [getJenisPekerja, setJenisPekerja] = useState("");
   const [totalDeg, setTotalDeg] = useState(0);
-  const [exportModal, setExportModal] = useState(false);
   const [user, setUser] = useState(null);
   const { RangePicker } = DatePicker;
   const [sortBy, setSortBy] = useState("newest"); // Add this state
@@ -589,8 +587,6 @@ const AdminBarangSection = () => {
                     dataIndex="status_proses"
                     key="status_proses"
                     render={(text) => {
-                      setJenisPekerja(text);
-
                       return <span>{text === "picker" ? "Pickup" : text === "packing" ? "Packing" : text === "pickout" ? "Shipper" : "Cancelled"}</span>;
                     }}
                   />
@@ -630,6 +626,8 @@ const AdminBarangSection = () => {
                         onClick={() => {
                           setIsImageViewerOpen(true);
                           if (totalDeg === 0) setTotalDeg(90);
+                          else if (totalDeg === 90) setTotalDeg(180);
+                          else if (totalDeg === 180) setTotalDeg(270);
                           else setTotalDeg(0);
                         }}
                       >
@@ -648,7 +646,7 @@ const AdminBarangSection = () => {
                       </button>
                     </div>
                     <div className="relative">
-                      <img src={`${urlApi}/${Img}`} alt={Img} className={`object-contain rounded-lg shadow-2xl rotate-[${totalDeg}deg]`} onClick={(e) => e.stopPropagation()} width={"500"} id="imagedetail" />
+                      <img src={`${urlApi}/${Img}`} alt={Img} className={`object-contain rounded-lg shadow-2xl `} style={{ transform: `rotate(${totalDeg}deg)` }} onClick={(e) => e.stopPropagation()} width={"500"} id="imagedetail" />
                     </div>
                   </div>
                 </div>

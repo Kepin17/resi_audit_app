@@ -216,7 +216,7 @@ const scaneHandler = async (req, res) => {
         audioPlayer.playError();
         return res.status(400).send({
           success: false,
-          message: `Kamu sudah melakukan scan, resi akan ke proses selanjutnya ${nextRole}`,
+          message: ` ${nextRole ? `Kamu sudah melakukan scan, resi akan ke proses selanjutnya ${nextRole}` : "Semua proses telah selesai"}`,
         });
       }
 

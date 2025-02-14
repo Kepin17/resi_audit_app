@@ -255,7 +255,7 @@ const HomePage = () => {
   }
 
   return (
-    <MainLayout>
+    <MainLayout getPage={thisPage}>
       <ToastContainer />
 
       {isPhotoMode || isBarcodeActive ? (
@@ -295,17 +295,10 @@ const HomePage = () => {
         </div>
       ) : (
         <div className="min-h-screen bg-gray-50">
-          {/* Header Section */}
-          <div className="bg-white shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              <h1 className="text-2xl font-bold text-gray-900">Package Audit Dashboard</h1>
-            </div>
-          </div>
-
           {/* Main Content */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Stats Cards */}
-            <div className="bg-blue-100 text-blue-500 w-[22rem] h-full p-1 rounded-md flex items-center justify-center border-2 mb-6">
+            <div className="bg-blue-100 text-blue-500 w-[22rem] h-full p-1 my-10 rounded-md flex items-center justify-center border-2 mb-6">
               <h1 className="text-4xl flex items-center gap-4 font-bold">
                 <FaCartFlatbed />
                 Pickup Barcode
@@ -342,11 +335,11 @@ const HomePage = () => {
 
             {/* Activity List */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="flex items-center gap-5">
+              <div className="flex items-center gap-5  mb-4">
                 <DatePicker onChange={handleDateChange} value={selectedDate} format="YYYY-MM-DD" />
                 <SearchFragment onSearch={handleSearch} value={searchQuery} placeholder={"Cari Resi"} />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Pickup Activity</h2>
               <div className="space-y-4">
                 {data.map((item, index) => (
                   <div

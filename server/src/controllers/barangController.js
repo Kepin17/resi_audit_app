@@ -252,15 +252,22 @@ const cancelBarang = async (req, res) => {
       });
     }
 
-    // Update or insert into proses table
+    // Updated query with correct parameter order and WHERE clause
     await connection.query(
-      `INSERT INTO proses (resi_id, id_pekerja, status_proses)
-       SELECT ?, ?, 'cancelled'
-       WHERE NOT EXISTS (
-         SELECT 1 FROM proses 
-         WHERE resi_id = ? AND status_proses = 'cancelled'
+      `UPDATE proses 
+       SET status_proses = 'cancelled', 
+           id_pekerja = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE resi_id = ? 
+       AND id_proses = (
+         SELECT id_proses 
+         FROM (
+           SELECT MAX(id_proses) as id_proses 
+           FROM proses 
+           WHERE resi_id = ?
+         ) as latest
        )`,
-      [resi_id, req.user.id_pekerja, resi_id]
+      [req.user.id_pekerja, resi_id, resi_id]
     );
 
     // Log the cancellation only if not already logged

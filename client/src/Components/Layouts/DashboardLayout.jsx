@@ -200,6 +200,24 @@ const DashboardLayout = ({ children }) => {
             </div>
           </nav>
           {children}
+          <footer className="bg-blue-800 text-white rounded-lg shadow-lg p-4 mt-auto">
+            <div className="container mx-auto">
+              <div className="flex flex-col md:flex-row justify-between items-center">
+                <div className="mb-4 md:mb-0">
+                  <h3 className="text-lg font-semibold">SIAR Dashboard</h3>
+                  <p className="text-sm text-gray-300">Sistem Informasi Audit Resi</p>
+                </div>
+                <div className="text-center mb-4 md:mb-0">
+                  <p className="text-sm">&copy; {new Date().getFullYear()} All rights reserved.</p>
+                  <p className="text-xs text-gray-300">Version 1.0.0</p>
+                </div>
+                <div className="text-sm text-gray-300">
+                  <p>Made with ❤️ by Olyzano Team</p>
+                  <p>{currentTime.toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+          </footer>
         </div>
       </div>
     </div>
