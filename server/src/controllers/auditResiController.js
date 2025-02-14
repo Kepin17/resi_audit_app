@@ -1,5 +1,4 @@
 const mysqlPool = require("../config/db");
-const audioPlayer = require("../utils/AudioPlayer");
 
 const handleError = (error, res, operation) => {
   console.error(`Error in ${operation}:`, error);
@@ -67,7 +66,6 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
-      audioPlayer.playError();
       return res.status(400).send({
         success: false,
         message: "resi_id and id_pekerja are required",
@@ -89,7 +87,6 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
-      audioPlayer.playError();
       return res.status(404).send({
         success: false,
         message: "Worker not found or has no roles",
@@ -108,7 +105,6 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
-      audioPlayer.playError();
       return res.status(404).send({
         success: false,
         message: "Resi not found in system",
@@ -120,7 +116,6 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
-      audioPlayer.playError();
       return res.status(400).send({
         success: false,
         message: "Resi has been cancelled",
@@ -156,7 +151,6 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
-      audioPlayer.playError();
       return res.status(400).send({
         success: false,
         message: `Resi ini telah di cancel oleh ${cancelledCheck[0].nama_pekerja} pada ${new Date(cancelledCheck[0].cancelled_at).toLocaleString("id-ID")}`,
@@ -174,7 +168,6 @@ const scaneHandler = async (req, res) => {
           const fs = require("fs");
           fs.unlinkSync(req.file.path);
         }
-        audioPlayer.playError();
         return res.status(400).send({
           success: false,
           message: "Resi harus di scan oleh picker terlebih dahulu",
@@ -186,7 +179,6 @@ const scaneHandler = async (req, res) => {
           const fs = require("fs");
           fs.unlinkSync(req.file.path);
         }
-        audioPlayer.playError();
         return res.status(400).send({
           success: false,
           message: "Kamu bukan bagian dari picker",
@@ -213,7 +205,6 @@ const scaneHandler = async (req, res) => {
           const fs = require("fs");
           fs.unlinkSync(req.file.path);
         }
-        audioPlayer.playError();
         return res.status(400).send({
           success: false,
           message: ` ${nextRole ? `Kamu sudah melakukan scan, resi akan ke proses selanjutnya ${nextRole}` : "Semua proses telah selesai"}`,
@@ -226,7 +217,6 @@ const scaneHandler = async (req, res) => {
           const fs = require("fs");
           fs.unlinkSync(req.file.path);
         }
-        audioPlayer.playError();
         return res.status(400).send({
           success: false,
           message: "Resi telah selesai diproses",
@@ -256,7 +246,6 @@ const scaneHandler = async (req, res) => {
 
         // If someone with same role has already scanned
         if (existingScan && existingScan.length > 0) {
-          audioPlayer.playError();
           return res.status(400).send({
             success: false,
             message: `Resi ini sudah di scan oleh ${existingScan[0].nama_pekerja} pada ${new Date(existingScan[0].created_at).toLocaleString("id-ID")}`,
@@ -264,7 +253,6 @@ const scaneHandler = async (req, res) => {
         }
 
         // If wrong sequence
-        audioPlayer.playError();
         return res.status(400).send({
           success: false,
           message: `Resi harus di scan ${nextRole} terlebih dahulu`,
@@ -307,7 +295,6 @@ const scaneHandler = async (req, res) => {
 
       await connection.commit();
 
-      audioPlayer.playSuccess();
       return res.status(200).send({
         success: true,
         message: "Resi berhasil di scan",
@@ -330,7 +317,6 @@ const scaneHandler = async (req, res) => {
       const fs = require("fs");
       fs.unlinkSync(req.file.path);
     }
-    audioPlayer.playError();
     handleError(error, res, "processing scan and photo");
   }
 };
