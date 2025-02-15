@@ -194,7 +194,7 @@ CREATE TABLE gaji_pegawai (
 ALTER TABLE gaji_pegawai ADD COLUMN is_dibayar BOOLEAN DEFAULT FALSE;
 ALTER TABLE gaji_pegawai ADD INDEX idx_salary_calc (id_pekerja, created_at, is_dibayar);
 
-
+use db_pack;
 DELIMITER $$
 
 CREATE TRIGGER trg_delete_barang_after_delete_proses
@@ -204,15 +204,8 @@ BEGIN
     DELETE FROM barang
     WHERE resi_id = OLD.resi_id;
 END$$
-DELIMITER $$
 
-CREATE TRIGGER trg_delete_proses_after_delete_barang
-AFTER DELETE ON barang
-FOR EACH ROW
-BEGIN
-    DELETE FROM proses
-    WHERE resi_id = OLD.resi_id;
-END$$
+DROP TRIGGER IF EXISTS trigger_hitung_gaji;
 
 DELIMITER $$
 
@@ -223,6 +216,7 @@ BEGIN
     DECLARE v_id_gaji INT;
     DECLARE v_gaji_per_scan DECIMAL(10, 2);
     DECLARE v_existing_record INT;
+    DECLARE v_current_scan INT;
     
     -- Get current gaji settings
     SELECT id_gaji, total_gaji_per_scan 
@@ -240,19 +234,24 @@ BEGIN
         AND b.jenis_pekerja = 'packing'
     ) AND NEW.status_proses = 'packing' THEN
         -- Check if there's an existing record for today
-       
         SELECT COUNT(*) INTO v_existing_record
         FROM gaji_pegawai
         WHERE id_pekerja = NEW.id_pekerja
         AND DATE(created_at) = CURDATE()
         AND is_dibayar = FALSE;
 
-
         IF v_existing_record > 0 THEN
+            -- Get current scan count first
+            SELECT jumlah_scan INTO v_current_scan
+            FROM gaji_pegawai
+            WHERE id_pekerja = NEW.id_pekerja
+            AND DATE(created_at) = CURDATE()
+            AND is_dibayar = FALSE;
+            
             -- Update existing record
             UPDATE gaji_pegawai
-            SET jumlah_scan = jumlah_scan + 1,
-                gaji_total = (jumlah_scan + 1) * v_gaji_per_scan,
+            SET jumlah_scan = v_current_scan + 1,
+                gaji_total = (v_current_scan + 1) * v_gaji_per_scan,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id_pekerja = NEW.id_pekerja
             AND DATE(created_at) = CURDATE()
@@ -269,7 +268,7 @@ DELIMITER ;
 
 use db_pack;
 
-
+DROP TRIGGER IF EXISTS trg_update_salary_on_proses_cancelled;
 DELIMITER $$
 
 CREATE TRIGGER trg_update_salary_on_proses_cancelled
@@ -279,6 +278,8 @@ BEGIN
     DECLARE v_id_gaji INT;
     DECLARE v_gaji_per_scan DECIMAL(10, 2);
     DECLARE v_existing_record INT;
+    DECLARE v_new_scan_count INT;
+    DECLARE v_packing_worker_id VARCHAR(9);
     
     -- Get current gaji settings
     SELECT id_gaji, total_gaji_per_scan 
@@ -286,41 +287,49 @@ BEGIN
     FROM gaji 
     LIMIT 1;
     
+    -- Get the worker who did the packing
+    SELECT id_pekerja INTO v_packing_worker_id
+    FROM log_proses
+    WHERE resi_id = NEW.resi_id 
+    AND status_proses = 'packing'
+    ORDER BY created_at DESC
+    LIMIT 1;
+
     -- Only update salary if:
-    -- 1. Worker has a "packing" role
+    -- 1. There was a packing worker found
     -- 2. The process status is "cancelled"
-    IF EXISTS (
-        SELECT 1 FROM role_pekerja rp
-        JOIN bagian b ON rp.id_bagian = b.id_bagian
-        WHERE rp.id_pekerja = NEW.id_pekerja
-        AND b.jenis_pekerja = 'packing'
-    ) AND NEW.status_proses = 'cancelled' THEN
-        -- Check if there's an existing salary record for today
+    IF v_packing_worker_id IS NOT NULL AND NEW.status_proses = 'cancelled' THEN
+        -- Check if there's an existing salary record for the packing worker
         SELECT COUNT(*) INTO v_existing_record
         FROM gaji_pegawai
-        WHERE id_pekerja = NEW.id_pekerja
+        WHERE id_pekerja = v_packing_worker_id
         AND DATE(created_at) = CURDATE()
         AND is_dibayar = FALSE;
 
         IF v_existing_record > 0 THEN
-            -- Update existing record and ensure proper subtraction
+            -- Calculate new scan count
+            SET v_new_scan_count = (
+                SELECT GREATEST(jumlah_scan - 1, 0)
+                FROM gaji_pegawai
+                WHERE id_pekerja = v_packing_worker_id
+                AND DATE(created_at) = CURDATE()
+                AND is_dibayar = FALSE
+                LIMIT 1
+            );
+            
+            -- Update existing record with correct calculations
             UPDATE gaji_pegawai
-            SET jumlah_scan = GREATEST(jumlah_scan - 1, 0),
-                gaji_total = GREATEST(jumlah_scan - 1, 0) * v_gaji_per_scan,
+            SET jumlah_scan = v_new_scan_count,
+                gaji_total = v_new_scan_count * v_gaji_per_scan,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id_pekerja = NEW.id_pekerja
+            WHERE id_pekerja = v_packing_worker_id
             AND DATE(created_at) = CURDATE()
             AND is_dibayar = FALSE;
-        ELSE
-            -- Create new record with 0 scans instead of negative values
-            INSERT INTO gaji_pegawai (id_gaji, id_pekerja, jumlah_scan, gaji_total, created_at)
-            VALUES (v_id_gaji, NEW.id_pekerja, 0, 0, CURRENT_TIMESTAMP);
         END IF;
     END IF;
 END$$
 
 DELIMITER ;
-
 
 -- Add trigger to prevent deleting last role
 CREATE TRIGGER before_delete_role_pekerja
@@ -448,3 +457,4 @@ BEGIN
 END
 
 DELIMITER ;
+K

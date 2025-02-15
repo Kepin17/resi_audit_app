@@ -55,7 +55,7 @@ router.get("/resi-terpack-export", authToken, roleMiddleware([roles.admin, roles
 router.get("/resi-terpack-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupPackToExcel);
 router.post("/resi-terpack-import", authToken, roleMiddleware([roles.admin, roles.supadmin]), upload.single("file"), importPackFromExcel);
 
-router.get("/resi-not-complited/:thisPage", authToken, roleMiddleware([roles.admin, roles.supadmin]), upload.single("file"), getActivityNotComplited);
+router.get("/resi-not-complited/:thisPage", authToken, roleMiddleware([roles.admin, roles.supadmin, roles.packing, roles.picker, roles.pickout]), upload.single("file"), getActivityNotComplited);
 
 // bagian
 router.get("/bagian", authToken, roleMiddleware([roles.supadmin]), upload.single("file"), getBagian);

@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 const mysqlPool = require("./config/db");
 const protectedRoute = require("./routes/protectedRoute");
 const cors = require("cors");
+const cleanupOldImages = require("./utils/imageCleanup");
 
 dotenv.config();
 
@@ -26,6 +27,14 @@ app.use("/uploads", express.static("uploads"));
 
 app.use("/api/v1", routes);
 app.use("/api/v1", protectedRoute);
+
+// Schedule image cleanup to run daily at midnight
+setInterval(() => {
+  const now = new Date();
+  if (now.getHours() === 0 && now.getMinutes() === 0) {
+    cleanupOldImages();
+  }
+}, 60000); // Check every minute
 
 const PORT = process.env.PORT || 3000;
 

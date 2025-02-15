@@ -533,6 +533,7 @@ const AdminBarangSection = () => {
 
   return (
     <DashboardLayout activePage={"barang"}>
+      f
       <div className="w-full h-full rounded-md flex flex-col gap-2">
         <Modal
           title="Tambah Resi Baru"

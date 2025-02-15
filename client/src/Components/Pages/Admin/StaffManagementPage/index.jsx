@@ -13,7 +13,6 @@ const StaffManagementPage = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [editingStaff, setEditingStaff] = useState(null);
-  const [bagian, setBagian] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,21 +76,6 @@ const StaffManagementPage = () => {
   useEffect(() => {
     fetchStaff(currentPage, searchTerm);
   }, [currentPage, searchTerm]);
-
-  useEffect(() => {
-    axios
-      .get(`${urlApi}/api/v1/bagian`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
-      .then((response) => {
-        setBagian(response.data.data);
-      })
-      .catch((error) => {
-        message.error(error.response.data.message);
-      });
-  }, []);
 
   const handleAdd = () => {
     setEditingStaff(null);
@@ -368,9 +352,6 @@ const StaffManagementPage = () => {
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
               Add Staff
             </Button>
-            <Button icon={<DownloadOutlined />} onClick={() => setExcelModalOpen(true)}>
-              Excel Action
-            </Button>
           </Space>
           <SearchFragment onSearch={handleSearchInput} value={searchInput} placeholder="Search by name or role..." style={{ width: "250px" }} allowClear />
         </div>
@@ -389,8 +370,6 @@ const StaffManagementPage = () => {
             showQuickJumper
           />
         </div>
-
-        <ExcelActionModal isOpen={ExcelModalOpen} onCancel={() => setExcelModalOpen(false)} ImportFromExcelHandler={ImportFromExcelHandler} handleBackup={handleBackup} handleExport={handleExport} />
 
         <Modal
           open={isModalVisible}

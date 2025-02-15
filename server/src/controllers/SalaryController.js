@@ -626,7 +626,6 @@ const getDailyEarnings = async (req, res) => {
     });
   }
 };
-
 module.exports = {
   getSalary,
   editGaji,

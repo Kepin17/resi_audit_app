@@ -15,7 +15,7 @@ import { DatePicker, Pagination } from "antd";
 import SearchFragment from "../Fragments/SearchFragment";
 import { FaTruck } from "react-icons/fa";
 
-const ScanMainLayout = ({ goTo }) => {
+const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
   const [scanMode, setScanMode] = useState("barcode-only"); // Add this new state
   const [data, setData] = useState([]);
@@ -434,6 +434,11 @@ const ScanMainLayout = ({ goTo }) => {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-sm font-medium text-gray-500">Scan Mode</h3>
                 <p className={`text-2xl font-bold ${thisPage === "picker" ? "text-blue-500" : thisPage === "packing" ? "text-green-500" : "text-indigo-500"} mt-2`}>{scanMode === "barcode-only" ? "Basic" : "Advanced"}</p>
+              </div>
+
+              <div className={`bg-white rounded-xl shadow-sm p-6 ${thisPage !== "packing" ? "hidden" : "block"}`}>
+                <h3 className="text-sm font-medium text-gray-500">Daily Earns</h3>
+                <p className="text-2xl font-bold text-green-500 mt-2">{dailyEarnings}</p>
               </div>
             </div>
 
