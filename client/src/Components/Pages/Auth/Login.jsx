@@ -34,7 +34,7 @@ const LoginPage = () => {
           if (allowedRoles.includes(decodeToken.role)) {
             window.location.href = "/admin";
           } else {
-            window.location.href = "/";
+            window.location.href = "/admin";
           }
         }, 1000);
       })

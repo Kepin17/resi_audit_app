@@ -40,6 +40,8 @@ const AdminBarangSection = () => {
   const [user, setUser] = useState(null);
   const { RangePicker } = DatePicker;
   const [sortBy, setSortBy] = useState("newest"); // Add this state
+  const [importResults, setImportResults] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -253,7 +255,7 @@ const AdminBarangSection = () => {
         message.loading({ content: "Mengimport data...", key: "import" });
 
         const formData = new FormData();
-        formData.append("file", file); // Changed field name to 'file'
+        formData.append("file", file);
 
         const response = await axios.post(`${urlApi}/api/v1/barang/import`, formData, {
           headers: {
@@ -264,13 +266,18 @@ const AdminBarangSection = () => {
 
         if (response.data?.success) {
           message.success({
-            content: "Data berhasil diimport",
+            content: `Berhasil import ${response.data.results.successful} data`,
             key: "import",
             duration: 3,
           });
+
+          // Set import results and show modal if there are any issues
+          if (response.data.results.failed > 0 || response.data.results.duplicates > 0) {
+            setImportResults(response.data.results);
+            setShowImportModal(true);
+          }
+
           fetchBarang(currentPage);
-        } else {
-          throw new Error(response.data?.message || "Gagal mengimport data");
         }
       } catch (error) {
         console.error("Error importing file:", error);
@@ -279,6 +286,11 @@ const AdminBarangSection = () => {
           key: "import",
           duration: 4,
         });
+
+        if (error.response?.data?.results) {
+          setImportResults(error.response.data.results);
+          setShowImportModal(true);
+        }
       } finally {
         setImportLoading(false);
         input.value = "";
@@ -341,12 +353,12 @@ const AdminBarangSection = () => {
       setExportLoading(false);
     }
   };
-  const handleBackup = async () => {
+  const templateDownload = async () => {
     try {
       setExportLoading(true);
-      message.loading({ content: "Memproses backup...", key: "backup" });
+      message.loading({ content: "Memproses download...", key: "download" });
 
-      const response = await axios.get(`${urlApi}/api/v1/barang-backup`, {
+      const response = await axios.get(`${urlApi}/api/v1/template-resi`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -357,7 +369,7 @@ const AdminBarangSection = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      const fileName = `backup_barang_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`;
+      const fileName = `template-resi${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`;
       link.setAttribute("download", fileName);
       document.body.appendChild(link);
       link.click();
@@ -365,14 +377,14 @@ const AdminBarangSection = () => {
       window.URL.revokeObjectURL(url);
 
       message.success({
-        content: "Backup berhasil disimpan",
+        content: "template berhasil di download",
         key: "backup",
         duration: 3,
       });
     } catch (error) {
-      console.error("Error backing up data:", error);
+      console.error("Error download up data:", error);
       message.error({
-        content: "Gagal melakukan backup: " + (error.response?.data?.message || "Terjadi kesalahan"),
+        content: "Gagal melakukan download template: " + (error.response?.data?.message || "Terjadi kesalahan"),
         key: "backup",
         duration: 3,
       });
@@ -438,8 +450,89 @@ const AdminBarangSection = () => {
     setCurrentPage(1);
   };
 
+  const ImportResultsModal = ({ visible, onClose, results }) => {
+    if (!results) return null;
+
+    return (
+      <Modal
+        title="Hasil Import Data"
+        open={visible}
+        onCancel={onClose}
+        footer={[
+          <Button key="close" onClick={onClose}>
+            Tutup
+          </Button>,
+        ]}
+        width={800}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-blue-700">Total Diproses</h3>
+              <p className="text-2xl font-bold text-blue-800">{results.totalProcessed}</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-green-700">Berhasil Import</h3>
+              <p className="text-2xl font-bold text-green-800">{results.successful}</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-yellow-700">Data Duplikat</h3>
+              <p className="text-2xl font-bold text-yellow-800">{results.duplicates}</p>
+            </div>
+            <div className="bg-red-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-red-700">Gagal Import</h3>
+              <p className="text-2xl font-bold text-red-800">{results.failed}</p>
+            </div>
+          </div>
+
+          {results.problemRows && results.problemRows.length > 0 && (
+            <div className="mt-6">
+              <h3 className="font-semibold text-gray-700 mb-2">Detail Error:</h3>
+              <div className="max-h-60 overflow-y-auto">
+                <Table
+                  dataSource={results.problemRows}
+                  columns={[
+                    {
+                      title: "Baris",
+                      dataIndex: "row",
+                      key: "row",
+                    },
+                    {
+                      title: "No Resi",
+                      dataIndex: "resi",
+                      key: "resi",
+                    },
+                    {
+                      title: "Keterangan",
+                      dataIndex: "reason",
+                      key: "reason",
+                      render: (text) => <span className="text-red-600">{text}</span>,
+                    },
+                  ]}
+                  pagination={false}
+                  size="small"
+                />
+              </div>
+            </div>
+          )}
+
+          {results.errors && results.errors.length > 0 && (
+            <div className="mt-4 p-4 bg-red-50 rounded-lg">
+              <h3 className="font-semibold text-red-700 mb-2">System Errors:</h3>
+              <ul className="list-disc list-inside text-red-600">
+                {results.errors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </Modal>
+    );
+  };
+
   return (
-    <DashboardLayout>
+    <DashboardLayout activePage={"barang"}>
       <div className="w-full h-full rounded-md flex flex-col gap-2">
         <Modal
           title="Tambah Resi Baru"
@@ -544,6 +637,11 @@ const AdminBarangSection = () => {
                     </>
                   )}
                 </Button>
+                <Button buttonStyle="bg-blue-500 flex items-center gap-2 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 shadow-md hover:shadow-lg font-medium" onClick={templateDownload}>
+                  <PiMicrosoftExcelLogoFill className="text-lg" />
+                  <span className="text-sm">Template</span>
+                </Button>
+
                 <Button buttonStyle="bg-blue-500 flex items-center gap-2 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 shadow-md hover:shadow-lg font-medium" onClick={() => setIsModalOpen(true)}>
                   <IoIosCreate className="text-lg" />
                   <span className="text-sm">Buat Resi</span>
@@ -590,7 +688,7 @@ const AdminBarangSection = () => {
                       return <span>{text === "picker" ? "Pickup" : text === "packing" ? "Packing" : text === "pickout" ? "Shipper" : "Cancelled"}</span>;
                     }}
                   />
-                  <Table.Column title="Created At" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("DD/MM/YYYY HH:mm:ss")} />
+                  <Table.Column title="Created At" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("LLLL")} />
                   <Table.Column
                     title="Images View"
                     dataIndex="gambar_resi"
@@ -704,7 +802,7 @@ const AdminBarangSection = () => {
                             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Create at: {moment(item.created_at).format("DD/MM/YYYY")}
+                            Create at: {moment(item.created_at).format("LLLL")}
                           </span>
                         </div>
 
@@ -713,7 +811,7 @@ const AdminBarangSection = () => {
                             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Last Scan: {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("DD/MM/YYYY")}
+                            Last Scan: {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("LLLL")}
                           </span>
                         </div>
                       </div>
@@ -790,6 +888,7 @@ const AdminBarangSection = () => {
           )}
         </div>
       </div>
+      <ImportResultsModal visible={showImportModal} onClose={() => setShowImportModal(false)} results={importResults} />
     </DashboardLayout>
   );
 };

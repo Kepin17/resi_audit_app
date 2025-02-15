@@ -1,7 +1,7 @@
 -- Active: 1739431700514@@127.0.0.1@3306
 
 CREATE DATABASE coba;
-USE coba;
+USE db_pack;
 
 
 -- DROP TABLE IF EXISTS barang, proses, log_proses, gaji_pegawai, status_logs;
@@ -21,9 +21,13 @@ INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
   ('BGN002', 'packing'),
   ('BGN003', 'pickout'),
   ('BGN004', 'admin'),
-  ('BGN005', 'superadmin');
+  ('BGN005', 'superadmin'),
+  ('BGN006', 'finance');
 
 
+INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
+  ('BGN007', 'fulltime'),
+  ('BGN008', 'freelance');
 
 CREATE TABLE pekerja (
     id_pekerja VARCHAR(9) PRIMARY KEY,
@@ -112,7 +116,6 @@ CREATE TABLE proses (
   CONSTRAINT FK_Pekerja_proses FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT FK_Proses_resi FOREIGN KEY (resi_id) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
--- Now add the foreign key to barang table
 
 ALTER TABLE proses ADD COLUMN gambar_resi VARCHAR(255) NULL ;
 
@@ -187,12 +190,31 @@ CREATE TABLE gaji_pegawai (
     FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja)
 );
 
+
 ALTER TABLE gaji_pegawai ADD COLUMN is_dibayar BOOLEAN DEFAULT FALSE;
+ALTER TABLE gaji_pegawai ADD INDEX idx_salary_calc (id_pekerja, created_at, is_dibayar);
 
 
 DELIMITER $$
 
--- DROP TRIGGER IF EXISTS trigger_hitung_gaji$$
+CREATE TRIGGER trg_delete_barang_after_delete_proses
+AFTER DELETE ON proses
+FOR EACH ROW
+BEGIN
+    DELETE FROM barang
+    WHERE resi_id = OLD.resi_id;
+END$$
+DELIMITER $$
+
+CREATE TRIGGER trg_delete_proses_after_delete_barang
+AFTER DELETE ON barang
+FOR EACH ROW
+BEGIN
+    DELETE FROM proses
+    WHERE resi_id = OLD.resi_id;
+END$$
+
+DELIMITER $$
 
 CREATE TRIGGER trigger_hitung_gaji
 AFTER INSERT ON log_proses
@@ -218,11 +240,13 @@ BEGIN
         AND b.jenis_pekerja = 'packing'
     ) AND NEW.status_proses = 'packing' THEN
         -- Check if there's an existing record for today
+       
         SELECT COUNT(*) INTO v_existing_record
         FROM gaji_pegawai
         WHERE id_pekerja = NEW.id_pekerja
         AND DATE(created_at) = CURDATE()
         AND is_dibayar = FALSE;
+
 
         IF v_existing_record > 0 THEN
             -- Update existing record
@@ -243,9 +267,62 @@ END$$
 
 DELIMITER ;
 
--- Add trigger to prevent deleting last role
+use db_pack;
+
+
 DELIMITER $$
 
+CREATE TRIGGER trg_update_salary_on_proses_cancelled
+AFTER INSERT ON log_proses 
+FOR EACH ROW
+BEGIN
+    DECLARE v_id_gaji INT;
+    DECLARE v_gaji_per_scan DECIMAL(10, 2);
+    DECLARE v_existing_record INT;
+    
+    -- Get current gaji settings
+    SELECT id_gaji, total_gaji_per_scan 
+    INTO v_id_gaji, v_gaji_per_scan
+    FROM gaji 
+    LIMIT 1;
+    
+    -- Only update salary if:
+    -- 1. Worker has a "packing" role
+    -- 2. The process status is "cancelled"
+    IF EXISTS (
+        SELECT 1 FROM role_pekerja rp
+        JOIN bagian b ON rp.id_bagian = b.id_bagian
+        WHERE rp.id_pekerja = NEW.id_pekerja
+        AND b.jenis_pekerja = 'packing'
+    ) AND NEW.status_proses = 'cancelled' THEN
+        -- Check if there's an existing salary record for today
+        SELECT COUNT(*) INTO v_existing_record
+        FROM gaji_pegawai
+        WHERE id_pekerja = NEW.id_pekerja
+        AND DATE(created_at) = CURDATE()
+        AND is_dibayar = FALSE;
+
+        IF v_existing_record > 0 THEN
+            -- Update existing record and ensure proper subtraction
+            UPDATE gaji_pegawai
+            SET jumlah_scan = GREATEST(jumlah_scan - 1, 0),
+                gaji_total = GREATEST(jumlah_scan - 1, 0) * v_gaji_per_scan,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id_pekerja = NEW.id_pekerja
+            AND DATE(created_at) = CURDATE()
+            AND is_dibayar = FALSE;
+        ELSE
+            -- Create new record with 0 scans instead of negative values
+            INSERT INTO gaji_pegawai (id_gaji, id_pekerja, jumlah_scan, gaji_total, created_at)
+            VALUES (v_id_gaji, NEW.id_pekerja, 0, 0, CURRENT_TIMESTAMP);
+        END IF;
+    END IF;
+END$$
+
+DELIMITER ;
+
+
+-- Add trigger to prevent deleting last role
 CREATE TRIGGER before_delete_role_pekerja
 BEFORE DELETE ON role_pekerja
 FOR EACH ROW
@@ -313,6 +390,7 @@ DELIMITER ;
 ALTER TABLE proses ADD INDEX idx_created_at (created_at);
 ALTER TABLE proses ADD INDEX idx_status_process (status_proses);
 ALTER TABLE proses ADD INDEX idx_worker_status (id_pekerja, status_proses);
+ALTER TABLE proses ADD INDEX idx_log_proses (id_pekerja, status_proses);
 
 DELIMITER $$
 
@@ -370,4 +448,3 @@ BEGIN
 END
 
 DELIMITER ;
-

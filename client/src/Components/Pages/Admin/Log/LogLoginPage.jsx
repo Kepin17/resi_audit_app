@@ -114,7 +114,7 @@ const LogLoginPage = () => {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout activePage={"log"}>
       <div className="w-full h-[84vh] bg-slate-200 rounded-md p-4 overflow-y-scroll">
         <div className="mb-4 flex space-x-4">
           <RangePicker onChange={handleDateChange} format="YYYY-MM-DD HH:mm:ss" showTime={{ format: "HH:mm:ss" }} />

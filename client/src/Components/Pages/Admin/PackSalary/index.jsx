@@ -343,7 +343,7 @@ const PackSalary = () => {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout activePage="Packing Salary">
       <div className="w-full h-full bg-white rounded-lg shadow-md p-6">
         {/* Modified Card Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -363,9 +363,9 @@ const PackSalary = () => {
           <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm opacity-80">Active Workers Today</p>
+                <p className="text-sm opacity-80">Packing Workers Today</p>
                 <h2 className="text-2xl font-bold mt-2">{statsLoading ? "Loading..." : todayStats.totalWorkers}</h2>
-                <p className="text-xs opacity-70 mt-2">{statsLoading ? "Loading..." : `${todayStats.activePacking} Items Packed`}</p>
+                <p className="text-xs opacity-70 mt-2">{statsLoading ? "Loading..." : `Items Packed`}</p>
               </div>
               <div className="text-4xl opacity-80">
                 <MdEdit />
@@ -438,20 +438,8 @@ const PackSalary = () => {
               )}
             </div>
             <div className="flex gap-4">
-              <RangePicker
-                onChange={handleDateChange}
-                showTime={false}
-                allowSame={true}
-                format="YYYY-MM-DD"
-                className="flex-1 h-12" // Added fixed height
-              />
-              <Search
-                placeholder="Search by Name"
-                onSearch={handleSearch}
-                enterButton
-                className="flex-1 h-12" // Added fixed height
-                size="large" // Makes the search input larger
-              />
+              <RangePicker onChange={handleDateChange} showTime={false} allowSame={true} format="YYYY-MM-DD" className="flex-1 h-12" />
+              <Search placeholder="Search by Name" onSearch={handleSearch} enterButton className="flex-1 h-12" size="large" />
             </div>
           </div>
         </div>

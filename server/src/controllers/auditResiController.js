@@ -349,7 +349,8 @@ const showAllActiviy = async (req, res) => {
 const getActivityByName = async (req, res) => {
   try {
     const { thisPage, username } = req.params;
-    const { date, search } = req.query;
+    const { date, search, page = 1, limit = 5 } = req.query;
+    const offset = (page - 1) * limit;
 
     let query = `
       SELECT pekerja.nama_pekerja, 
@@ -374,21 +375,24 @@ const getActivityByName = async (req, res) => {
       queryParams.push(`%${search}%`);
     }
 
-    query += ` ORDER BY log_proses.created_at DESC`;
+    // Get total count for pagination
+    const [totalRows] = await mysqlPool.query(`SELECT COUNT(*) as total FROM (${query}) as count_table`, queryParams);
+
+    query += ` ORDER BY log_proses.created_at DESC LIMIT ? OFFSET ?`;
+    queryParams.push(parseInt(limit), offset);
 
     const [rows] = await mysqlPool.query(query, queryParams);
-
-    if (rows.length === 0) {
-      return res.status(404).send({
-        success: false,
-        message: "Data not found",
-      });
-    }
 
     res.status(200).send({
       success: true,
       message: "Data found",
-      data: rows,
+      data: rows || [],
+      pagination: {
+        currentPage: parseInt(page),
+        limit: parseInt(limit),
+        totalItems: totalRows[0].total,
+        totalPages: Math.ceil(totalRows[0].total / parseInt(limit)),
+      },
     });
   } catch (error) {
     handleError(error, res, "fetching activities by name");
@@ -500,6 +504,67 @@ const uploadPhoto = async (req, res) => {
   }
 };
 
+const getActivityNotComplited = async (req, res) => {
+  try {
+    const { thisPage } = req.params;
+    const { date, search, page = 1, limit = 5 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let statusToCheck;
+    if (thisPage === "picker") {
+      statusToCheck = "pending";
+    } else if (thisPage === "packing") {
+      statusToCheck = "picker";
+    } else {
+      statusToCheck = "packing";
+    }
+
+    let query = `
+      SELECT 
+        proses.resi_id as resi, 
+        proses.status_proses as status, 
+        proses.created_at as proses_scan,
+        pekerja.nama_pekerja
+      FROM proses 
+      LEFT JOIN pekerja ON proses.id_pekerja = pekerja.id_pekerja
+      WHERE proses.status_proses = ?`;
+
+    const queryParams = [statusToCheck];
+
+    if (date) {
+      query += ` AND DATE(proses.created_at) = ?`;
+      queryParams.push(date);
+    }
+
+    if (search) {
+      query += ` AND proses.resi_id LIKE ?`;
+      queryParams.push(`%${search}%`);
+    }
+
+    // Get total count for pagination
+    const [totalRows] = await mysqlPool.query(`SELECT COUNT(*) as total FROM (${query}) as count_table`, queryParams);
+
+    query += ` ORDER BY proses.created_at DESC LIMIT ? OFFSET ?`;
+    queryParams.push(parseInt(limit), offset);
+
+    const [rows] = await mysqlPool.query(query, queryParams);
+
+    res.status(200).send({
+      success: true,
+      message: "Data found",
+      data: rows || [],
+      pagination: {
+        currentPage: parseInt(page),
+        limit: parseInt(limit),
+        totalItems: totalRows[0].total,
+        totalPages: Math.ceil(totalRows[0].total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    handleError(error, res, "fetching activities not completed");
+  }
+};
+
 module.exports = {
   showAllData,
   scaneHandler,
@@ -507,4 +572,5 @@ module.exports = {
   getActivityByName,
   showDataByResi,
   uploadPhoto,
+  getActivityNotComplited,
 };

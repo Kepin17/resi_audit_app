@@ -1,18 +1,50 @@
 let currentAudio = null;
+let isLoading = false;
 
-export const playSound = (type) => {
-  // Stop previous audio if it exists and is playing
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
-  }
+const loadAudio = (type) => {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio(`/audios/${type}.mp3`);
+    audio.preload = "auto";
 
-  const audio = new Audio(`/audios/${type}.mp3`);
-  currentAudio = audio;
+    audio.addEventListener(
+      "canplaythrough",
+      () => {
+        resolve(audio);
+      },
+      { once: true }
+    );
 
-  audio.play().catch((error) => {
-    console.error("Error playing sound:", error);
+    audio.addEventListener(
+      "error",
+      (e) => {
+        reject(new Error(`Failed to load audio: ${e.message}`));
+      },
+      { once: true }
+    );
+
+    audio.load();
   });
+};
+
+export const playSound = async (type) => {
+  if (isLoading) return;
+
+  try {
+    isLoading = true;
+
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    }
+
+    const audio = await loadAudio(type);
+    currentAudio = audio;
+    await audio.play();
+  } catch (error) {
+    console.error("Error playing sound:", error);
+  } finally {
+    isLoading = false;
+  }
 };
 
 export const stopSound = () => {
@@ -22,15 +54,17 @@ export const stopSound = () => {
     currentAudio = null;
   }
 };
-export const playSuccessSound = () => {
-  playSound("acc");
+
+export const playSuccessSound = async () => {
+  await playSound("acc");
   setTimeout(() => {
     stopSound();
-  }, 2000);
+  }, 1000);
 };
-export const playErrorSound = () => {
-  playSound("error");
+
+export const playErrorSound = async () => {
+  await playSound("error");
   setTimeout(() => {
     stopSound();
-  }, 2000);
+  }, 1000);
 };

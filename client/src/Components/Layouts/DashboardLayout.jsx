@@ -1,22 +1,18 @@
 import React, { useEffect, useState } from "react";
-import Title from "../Elements/Title";
 import { jwtDecode } from "jwt-decode";
-import { IoIosArrowUp, IoIosArrowDown } from "react-icons/io";
 import { Link } from "react-router-dom";
 import { HiMenuAlt3 } from "react-icons/hi";
-
+import { FaUsers, FaBoxes, FaHistory, FaMoneyBillWave, FaQrcode, FaDatabase, FaSignOutAlt } from "react-icons/fa";
+import Title from "../Elements/Title";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { backupEndpoint } from "../../utils/url";
 
-const DashboardLayout = ({ children }) => {
+const DashboardLayout = ({ children, activePage }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isAuthDropdownOpen, setIsAuthDropdownOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-
   useEffect(() => {
     const token = localStorage.getItem("token");
     const user = jwtDecode(token);
@@ -30,14 +26,6 @@ const DashboardLayout = ({ children }) => {
 
     return () => clearInterval(timer);
   }, []);
-
-  const toggleAuthDropdown = () => {
-    setIsAuthDropdownOpen(!isAuthDropdownOpen);
-  };
-
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -94,95 +82,111 @@ const DashboardLayout = ({ children }) => {
         {/* Sidebar */}
         <nav
           className={`
-          sidebar w-[85%] md:w-[40vh] bg-blue-800 shadow-xl rounded-md h-screen
-          fixed md:sticky top-0 left-0  z-40
+          sidebar w-[85%] md:w-[300px] bg-gradient-to-b from-blue-800 to-blue-900 shadow-xl rounded-md h-screen
+          fixed md:sticky top-0 left-0 z-40
           transform transition-transform duration-300 ease-in-out 
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
         >
-          {/* Sidebar Content */}
-          <div className="h-[8rem] flex items-center justify-between px-5">
+          {/* Sidebar Header */}
+          <div className="h-[8rem] flex items-center justify-between px-5 border-b border-blue-700">
             <Link to="/admin">
-              <Title titleStyle="text-white font-semibold text-xl flex items-center gap-2">SIAR DASHBOARD</Title>
+              <Title titleStyle="text-white font-semibold text-xl flex items-center gap-2">
+                <FaDatabase className="text-2xl" /> SIAR DASHBOARD
+              </Title>
             </Link>
-            <button onClick={toggleSidebar} className="md:hidden text-white text-2xl">
+            <button onClick={toggleSidebar} className="md:hidden text-white text-2xl hover:text-gray-300">
               ✕
             </button>
           </div>
 
-          <ul className="list-wrapper px-5 flex flex-col gap-5  ">
-            <li className="bg-blue-200 p-2 rounded-md cursor-pointer ">
-              <div className="flex items-center justify-between" onClick={toggleAuthDropdown}>
-                Staff Management
-                {isAuthDropdownOpen ? <IoIosArrowUp /> : <IoIosArrowDown />}
-              </div>
-              <div className={`transition-all duration-300 overflow-hidden ${isAuthDropdownOpen ? "h-30 mt-2" : "h-0"}`}>
-                <ul className="list-inside space-y-2">
+          {/* Sidebar Menu */}
+          <div className="px-3 py-4 overflow-y-auto">
+            <ul className="space-y-3">
+              {/* Staff Management Section */}
+              <li className="menu-section">
+                <ul className="space-y-1">
                   {user?.roles?.includes("superadmin") && (
                     <>
-                      <li className="hover:bg-blue-300 p-2 rounded">
-                        <Link to="/admin/staff" className="text-blue-800 block">
-                          Data Staff
+                      <div className="text-gray-300 text-sm font-medium mb-2 px-3">STAFF MANAGEMENT</div>
+                      <li>
+                        <Link to="/admin/staff" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "staff" && "bg-blue-700"}`}>
+                          <FaUsers className="w-5 h-5" />
+                          <span className="ml-3">Data Staff</span>
                         </Link>
                       </li>
-                      <li className="hover:bg-blue-300 p-2 rounded">
-                        <Link to="/admin/staff/log-login" className="text-blue-800 block">
-                          log login Staff
+                      <li>
+                        <Link to="/admin/staff/log-login" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "log" && "bg-blue-700"}`}>
+                          <FaHistory className="w-5 h-5" />
+                          <span className="ml-3">Log Login Staff</span>
                         </Link>
                       </li>
                     </>
                   )}
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/admin/staff/packer-salary" className="text-blue-800 block">
-                      Packer Salary Staff
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-            </li>
-
-            <li className="bg-blue-200 p-2 rounded-md cursor-pointer ">
-              <div className="flex items-center justify-between" onClick={toggleDropdown}>
-                Barang Management
-                {isDropdownOpen ? <IoIosArrowUp /> : <IoIosArrowDown />}
-              </div>
-              <div className={`transition-all duration-300 overflow-hidden ${isDropdownOpen ? "h-30 mt-2" : "h-0"}`}>
-                <ul className="list-inside space-y-2">
-                  <li className="hover:bg-blue-300 p-2 rounded">
-                    <Link to="/admin/barang" className="text-blue-800 block">
-                      Data Resi
-                    </Link>
-                  </li>
-                  {user?.roles?.includes("picker") || user?.roles?.includes("packing") || user?.roles?.includes("pickout") ? (
-                    <li className="hover:bg-blue-300 p-2 rounded">
-                      <Link to="/" className="text-blue-800 block">
-                        Scan Resi
+                  {user?.roles?.includes("finance") && (
+                    <li>
+                      <Link to="/admin/staff/packer-salary" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "Packing Salary" && "bg-blue-700"}`}>
+                        <FaMoneyBillWave className="w-5 h-5" />
+                        <span className="ml-3">Packer Salary</span>
                       </Link>
                     </li>
-                  ) : (
-                    ""
                   )}
                 </ul>
-              </div>
-            </li>
+              </li>
 
-            <li
-              className={`${isLoading ? "bg-gray-500" : "bg-green-700 hover:bg-green-600"} p-2 rounded-md cursor-pointer text-white flex items-center justify-left ${user?.roles?.includes("superadmin") ? "" : "hidden"}`}
-              onClick={!isLoading ? handleBackup : undefined}
-            >
-              {isLoading ? "Sedang memproses..." : "Backup"}
-            </li>
+              {/* Data Management Section */}
+              <li className="menu-section">
+                <div className="text-gray-300 text-sm font-medium mb-2 px-3">DATA MANAGEMENT</div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link to="/admin/barang" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "barang" && "bg-blue-700"}`}>
+                      <FaBoxes className="w-5 h-5" />
+                      <span className="ml-3">Data Resi</span>
+                    </Link>
+                  </li>
+                  {(user?.roles?.includes("picker") || user?.roles?.includes("packing") || user?.roles?.includes("pickout")) && (
+                    <li>
+                      <Link to="/" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "scan" && "bg-blue-700"}`}>
+                        <FaQrcode className="w-5 h-5" />
+                        <span className="ml-3">Scan Resi</span>
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              </li>
 
-            <li
-              className="bg-red-500 p-2 rounded-md cursor-pointer text-white"
-              onClick={() => {
-                localStorage.removeItem("token");
-                window.location.href = "/login";
-              }}
-            >
-              Logout
-            </li>
-          </ul>
+              {/* System Actions */}
+              <li className="menu-section mt-auto">
+                <div className="text-gray-300 text-sm font-medium mb-2 px-3">SYSTEM</div>
+                <ul className="space-y-1">
+                  {user?.roles?.includes("superadmin") && (
+                    <li>
+                      <button
+                        onClick={!isLoading ? handleBackup : undefined}
+                        className={`w-full flex items-center p-3 text-white rounded-lg transition-colors ${isLoading ? "bg-gray-600 cursor-not-allowed" : "bg-green-700 hover:bg-green-600"}`}
+                        disabled={isLoading}
+                      >
+                        <FaDatabase className="w-5 h-5" />
+                        <span className="ml-3">{isLoading ? "Processing..." : "Backup"}</span>
+                      </button>
+                    </li>
+                  )}
+                  <li>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem("token");
+                        window.location.href = "/login";
+                      }}
+                      className="w-full flex items-center p-3 text-white rounded-lg hover:bg-red-600 bg-red-700 transition-colors"
+                    >
+                      <FaSignOutAlt className="w-5 h-5" />
+                      <span className="ml-3">Logout</span>
+                    </button>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
         </nav>
 
         {/* Overlay for mobile */}

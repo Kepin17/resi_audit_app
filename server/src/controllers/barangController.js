@@ -270,15 +270,12 @@ const cancelBarang = async (req, res) => {
       [req.user.id_pekerja, resi_id, resi_id]
     );
 
-    // Log the cancellation only if not already logged
     await connection.query(
-      `INSERT INTO log_proses (resi_id, id_pekerja, status_proses)
-       SELECT ?, ?, 'cancelled'
-       WHERE NOT EXISTS (
-         SELECT 1 FROM log_proses 
-         WHERE resi_id = ? AND status_proses = 'cancelled'
-       )`,
-      [resi_id, req.user.id_pekerja, resi_id]
+      `
+      DELETE FROM log_proses
+      WHERE resi_id = ? AND status_proses != 'cancelled'
+      `,
+      [resi_id]
     );
 
     await connection.commit();
@@ -301,6 +298,74 @@ const cancelBarang = async (req, res) => {
   }
 };
 
+const createExcelTemplate = async (req, res) => {
+  try {
+    const workbook = new excelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Template Import Resi");
+
+    // Add title and info
+    worksheet.mergeCells("A1:D1");
+    worksheet.getCell("A1").value = "TEMPLATE IMPORT DATA RESI";
+    worksheet.getCell("A1").font = { bold: true, size: 14 };
+    worksheet.getCell("A1").alignment = { horizontal: "center" };
+
+    // Add instruction
+    worksheet.mergeCells("A3:D3");
+    worksheet.getCell("A3").value = "Petunjuk Pengisian:";
+    worksheet.getCell("A3").font = { bold: true };
+
+    worksheet.mergeCells("A4:D4");
+    worksheet.getCell("A4").value = "1. Nomor Resi wajib diisi dan tidak boleh duplikat";
+
+    worksheet.mergeCells("A5:D5");
+    worksheet.getCell("A5").value = "2. Format Tanggal & Waktu: YYYY-MM-DD HH:mm:ss (contoh: 2024-01-30 14:30:00)";
+
+    worksheet.mergeCells("A6:D6");
+    worksheet.getCell("A6").value = "3. Jika waktu dikosongkan, akan menggunakan waktu saat ini";
+
+    // Add headers at row 8
+    worksheet.getRow(8).values = ["Nomor Resi", "Tanggal & Waktu"];
+    worksheet.getRow(8).font = { bold: true };
+    worksheet.getRow(8).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+
+    // Set column widths
+    worksheet.getColumn(1).width = 25;
+    worksheet.getColumn(2).width = 30;
+
+    // Add borders to header
+    worksheet.getRow(8).eachCell({ includeEmpty: true }, (cell) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+
+    // Add example row
+    const exampleRow = worksheet.getRow(9);
+    exampleRow.values = ["123456789", moment().format("YYYY-MM-DD HH:mm:ss")];
+    exampleRow.font = { italic: true, color: { argb: "FF808080" } };
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=template_import_resi.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Template creation error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error creating template",
+      error: error.message,
+    });
+  }
+};
+
 const importResiFromExcel = async (req, res) => {
   try {
     if (!req.file) {
@@ -310,26 +375,129 @@ const importResiFromExcel = async (req, res) => {
       });
     }
 
+    // Validate file type
+    const allowedTypes = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid file type. Please upload an Excel file (.xlsx)",
+      });
+    }
+
     const workbook = new excelJS.Workbook();
     await workbook.xlsx.readFile(req.file.path);
     const worksheet = workbook.getWorksheet(1);
 
+    // Validate template format
+    const titleCell = worksheet.getCell("A1").value;
+    if (titleCell !== "TEMPLATE IMPORT DATA RESI") {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid template format. Please use the provided template.",
+      });
+    }
+
     const connection = await mysqlPool.getConnection();
+    const results = {
+      success: 0,
+      failed: 0,
+      duplicates: 0,
+      errors: [],
+      problemRows: [],
+    };
+
     try {
       await connection.beginTransaction();
+      const batchSize = 100;
+      let batch = [];
+      let totalRows = 0;
 
-      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
+      // Start reading from row 10 (after headers and example)
+      for (let rowNumber = 10; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
-        const resi_id = row.getCell(1).value;
+        const resi_id = row.getCell(1).value?.toString().trim();
+        let dateTime = row.getCell(2).value;
 
-        if (resi_id) {
-          // Insert into barang table
-          await connection.query(
-            `INSERT INTO barang (resi_id) 
-             VALUES (?)
-             ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP`,
-            [resi_id]
-          );
+        // Skip empty rows
+        if (!resi_id) continue;
+        totalRows++;
+
+        // Validate resi_id format
+        if (!/^[A-Za-z0-9-]+$/.test(resi_id)) {
+          results.failed++;
+          results.problemRows.push({
+            row: rowNumber,
+            resi: resi_id,
+            reason: "Invalid resi format (only alphanumeric and hyphen allowed)",
+          });
+          continue;
+        }
+
+        // Validate and format datetime
+        let created_at;
+        if (dateTime instanceof Date) {
+          created_at = moment(dateTime).format("YYYY-MM-DD HH:mm:ss");
+        } else if (typeof dateTime === "string") {
+          const parsedDate = moment(dateTime, ["YYYY-MM-DD HH:mm:ss", "YYYY-MM-DD HH:mm", "YYYY-MM-DD", "DD-MM-YYYY HH:mm:ss", "DD/MM/YYYY HH:mm:ss"], true);
+
+          if (!parsedDate.isValid()) {
+            results.failed++;
+            results.problemRows.push({
+              row: rowNumber,
+              resi: resi_id,
+              reason: "Invalid date format",
+            });
+            continue;
+          }
+          created_at = parsedDate.format("YYYY-MM-DD HH:mm:ss");
+        } else {
+          created_at = moment().format("YYYY-MM-DD HH:mm:ss");
+        }
+
+        // Check for duplicate in current batch
+        if (batch.some((item) => item.resi_id === resi_id)) {
+          results.duplicates++;
+          results.problemRows.push({
+            row: rowNumber,
+            resi: resi_id,
+            reason: "Duplicate entry in import file",
+          });
+          continue;
+        }
+
+        batch.push({ resi_id, created_at });
+
+        // Process batch
+        if (batch.length === batchSize || rowNumber === worksheet.rowCount) {
+          try {
+            const resiIds = batch.map((item) => item.resi_id);
+            const [existingResis] = await connection.query("SELECT resi_id FROM barang WHERE resi_id IN (?)", [resiIds]);
+
+            const existingResiSet = new Set(existingResis.map((row) => row.resi_id));
+            const newRecords = batch.filter((item) => !existingResiSet.has(item.resi_id));
+
+            // Track existing resis as duplicates
+            batch.forEach((item) => {
+              if (existingResiSet.has(item.resi_id)) {
+                results.duplicates++;
+                results.problemRows.push({
+                  resi: item.resi_id,
+                  reason: "Resi already exists in database",
+                });
+              }
+            });
+
+            if (newRecords.length > 0) {
+              await connection.query("INSERT INTO barang (resi_id, created_at) VALUES ?", [newRecords.map((item) => [item.resi_id, item.created_at])]);
+              results.success += newRecords.length;
+            }
+          } catch (error) {
+            console.error(`Batch insert error:`, error);
+            results.failed += batch.length;
+            results.errors.push(`Error processing batch: ${error.message}`);
+          }
+
+          batch = [];
         }
       }
 
@@ -339,10 +507,22 @@ const importResiFromExcel = async (req, res) => {
       const fs = require("fs");
       fs.unlinkSync(req.file.path);
 
-      res.status(200).send({
-        success: true,
-        message: "Data imported successfully",
-      });
+      const response = {
+        success: results.success > 0,
+        message: `Import completed with ${results.success} successful imports`,
+        results: {
+          totalProcessed: totalRows,
+          successful: results.success,
+          duplicates: results.duplicates,
+          failed: results.failed,
+          errors: results.errors,
+          problemRows: results.problemRows,
+        },
+      };
+
+      // Determine appropriate status code
+      const statusCode = results.success > 0 ? 200 : 400;
+      res.status(statusCode).send(response);
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -350,7 +530,7 @@ const importResiFromExcel = async (req, res) => {
       connection.release();
     }
   } catch (error) {
-    console.error(error);
+    console.error("Import error:", error);
     res.status(500).send({
       success: false,
       message: "Error importing data",
@@ -564,4 +744,5 @@ module.exports = {
   importResiFromExcel,
   exportBarang,
   backupBarang,
+  createExcelTemplate,
 };

@@ -219,7 +219,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout activePage={"Dashboard"}>
       {/* Stats Cards Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 p-4">
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
@@ -312,30 +312,15 @@ const AdminDashboard = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Picked</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Packed</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pickout</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Scans</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Scans/Hour</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours Worked</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Performance</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {workerStats.map((worker, index) => (
                   <tr key={worker.id_pekerja} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{worker.nama_pekerja}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">{worker.picker_count}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">{worker.packing_count}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-purple-600 font-semibold">{worker.pickout_count}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{worker.total_scans}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{worker.scans_per_hour}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{worker.hours_worked}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-grow h-2 bg-gray-200 rounded-full">
-                          <div className="h-2 bg-green-500 rounded-full" style={{ width: `${worker.performance_score}%` }} />
-                        </div>
-                        <span className="ml-2 text-sm text-gray-600">{worker.performance_score}%</span>
-                      </div>
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">{worker.picker_count} scan</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">{worker.packing_count} scan</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-purple-600 font-semibold">{worker.pickout_count} scan</td>
                   </tr>
                 ))}
               </tbody>
@@ -412,10 +397,10 @@ const AdminDashboard = () => {
                             : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {`Telah ${order.status_proses} barang`}
+                        {`Telah ${order.status_proses} resi`}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{moment(order.created_at).format("DD/MM/YY | HH:mm:ss")}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{moment(order.created_at).format("LLLL")}</td>
                   </tr>
                 ))}
               </tbody>

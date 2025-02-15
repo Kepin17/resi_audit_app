@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
-import { Button, Table, Modal, Form, Input, Space, message, Select, Pagination, Upload, Checkbox, Card, Avatar, Tag, Row, Col, Badge } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined, UploadOutlined, DownloadOutlined, UserOutlined } from "@ant-design/icons";
+import { Button, Modal, Form, Input, Space, message, Pagination, Checkbox, Card, Avatar, Tag, Row, Col } from "antd";
+import { EditOutlined, DeleteOutlined, PlusOutlined, DownloadOutlined, UserOutlined } from "@ant-design/icons";
 import axios from "axios";
 import "./staff.css";
 import SearchFragment from "../../../Fragments/SearchFragment";
@@ -99,13 +99,41 @@ const StaffManagementPage = () => {
     setIsModalVisible(true);
   };
 
+  const roleGroups = {
+    office: [
+      { label: "Superadmin", value: "BGN005" },
+      { label: "Admin", value: "BGN004" },
+      { label: "Finance", value: "BGN006" },
+    ],
+    warehouse: [
+      { label: "Picker", value: "BGN001" },
+      { label: "Packing", value: "BGN002" },
+      { label: "Pickout", value: "BGN003" },
+    ],
+    staffType: [
+      { label: "Fulltime", value: "BGN007" },
+      { label: "Freelance", value: "BGN008" },
+    ],
+  };
+
+  // Modify handleEdit to work with id_bagian
   const handleEdit = (staff) => {
     setEditingStaff(staff);
     setShowPasswordEdit(false);
+
+    // Convert role names to id_bagian values
+    const officeRoles = staff.bagian_ids.filter((id) => roleGroups.office.some((r) => r.value === id));
+    const warehouseRoles = staff.bagian_ids.filter((id) => roleGroups.warehouse.some((r) => r.value === id));
+    const staffTypeRoles = staff.bagian_ids.filter((id) => roleGroups.staffType.some((r) => r.value === id));
+
     form.setFieldsValue({
       username: staff.username,
       nama_pekerja: staff.nama_pekerja,
-      roles: staff.bagian_ids, // Set initial role values from bagian_ids
+      roles: {
+        office: officeRoles,
+        warehouse: warehouseRoles,
+        staffType: staffTypeRoles,
+      },
       changePassword: false,
     });
     setIsModalVisible(true);
@@ -136,14 +164,6 @@ const StaffManagementPage = () => {
     }
   };
 
-  const roles = [
-    { label: "Super Admin", value: "BGN005" },
-    { label: "Admin", value: "BGN004" },
-    { label: "Pickout", value: "BGN003" },
-    { label: "Packing", value: "BGN002" },
-    { label: "Picker", value: "BGN001" },
-  ];
-
   const handlePasswordEditChange = (e) => {
     setShowPasswordEdit(e.target.checked);
     if (!e.target.checked) {
@@ -153,10 +173,13 @@ const StaffManagementPage = () => {
 
   const handleSubmit = async (values) => {
     try {
+      // Combine all selected roles into a single array
+      const allRoles = [...(values.roles.office || []), ...(values.roles.warehouse || []), ...(values.roles.staffType || [])];
+
       const formattedValues = {
         username: values.username,
         nama_pekerja: values.nama_pekerja,
-        bagian_roles: values.roles, // Use roles as bagian_roles
+        bagian_roles: allRoles,
       };
 
       if (editingStaff) {
@@ -283,6 +306,12 @@ const StaffManagementPage = () => {
 
   const [ExcelModalOpen, setExcelModalOpen] = useState(false);
 
+  const getRoleLabel = (id) => {
+    const allRoles = [...roleGroups.office, ...roleGroups.warehouse, ...roleGroups.staffType];
+    const role = allRoles.find((r) => r.value === id);
+    return role ? role.label : "";
+  };
+
   const StaffCards = ({ data }) => {
     return (
       <Row gutter={[16, 16]}>
@@ -295,9 +324,30 @@ const StaffManagementPage = () => {
                   <h3 className="staff-name">{staff.nama_pekerja}</h3>
                   <p className="staff-username">@{staff.username}</p>
                   <div className="staff-roles">
-                    {staff.roles?.map((role, index) => (
-                      <Tag key={index} color={role === "superadmin" ? "red" : role === "admin" ? "blue" : role === "pickout" ? "green" : role === "packing" ? "orange" : "default"}>
-                        {role}
+                    {staff.bagian_ids?.map((id, index) => (
+                      <Tag
+                        key={index}
+                        color={
+                          id === "BGN005"
+                            ? "red" // superadmin
+                            : id === "BGN004"
+                            ? "blue" // admin
+                            : id === "BGN006"
+                            ? "purple" // finance
+                            : id === "BGN001"
+                            ? "green" // picker
+                            : id === "BGN002"
+                            ? "orange" // packing
+                            : id === "BGN003"
+                            ? "cyan" // pickout
+                            : id === "BGN007"
+                            ? "gold" // fulltime
+                            : id === "BGN008"
+                            ? "lime" // freelance
+                            : "default"
+                        }
+                      >
+                        {getRoleLabel(id)}
                       </Tag>
                     ))}
                   </div>
@@ -311,7 +361,7 @@ const StaffManagementPage = () => {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout activePage={"staff"}>
       <div style={{ padding: "24px" }}>
         <div style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between" }} className="mobile:flex mobile:flex-col mobile:gap-5">
           <Space>
@@ -361,8 +411,31 @@ const StaffManagementPage = () => {
               <Input />
             </Form.Item>
 
-            <Form.Item name="roles" label="Roles" rules={[{ required: true, message: "Please select at least one role!" }]}>
-              <Checkbox.Group options={roles} />
+            <Form.Item label="Roles" required>
+              <Space direction="vertical" style={{ width: "100%" }}>
+                <div>
+                  <h4 className="font-bold">Office Roles:</h4>
+                  <Form.Item name={["roles", "office"]} noStyle>
+                    <Checkbox.Group options={roleGroups.office} />
+                  </Form.Item>
+                </div>
+
+                <div>
+                  <h4 className="font-bold">Warehouse Roles:</h4>
+                  <Form.Item name={["roles", "warehouse"]} noStyle>
+                    <Checkbox.Group options={roleGroups.warehouse} />
+                  </Form.Item>
+                </div>
+
+                <div>
+                  <h4 className="font-bold flex gap-1">
+                    Staff Type <span className="text-red-500 ">*</span>
+                  </h4>
+                  <Form.Item name={["roles", "staffType"]} noStyle rules={[{ required: true, message: "Please select a staff type!" }]} required>
+                    <Checkbox.Group options={roleGroups.staffType} />
+                  </Form.Item>
+                </div>
+              </Space>
             </Form.Item>
 
             {editingStaff ? (
