@@ -3,7 +3,7 @@ const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, getActivityNotComplited } = require("../controllers/auditResiController");
-const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang, createExcelTemplate } = require("../controllers/barangController");
+const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang, createExcelTemplate, deleteResi } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel, getSalaryByID, getGajiPackingStats, getDailyEarnings } = require("../controllers/SalaryController");
@@ -34,6 +34,7 @@ router.get("/auth-export", authToken, roleMiddleware([roles.admin, roles.supadmi
 
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllBarang);
+router.delete("/barang/:resi_id", authToken, roleMiddleware([roles.supadmin]), deleteResi);
 router.post("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), addNewBarang);
 router.put("/barang-cancel/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), cancelBarang);
 router.get("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDetailByResi);

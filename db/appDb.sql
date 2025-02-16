@@ -1,14 +1,12 @@
 -- Active: 1739431700514@@127.0.0.1@3306
 
-CREATE DATABASE coba;
+CREATE DATABASE db_pack;
 USE db_pack;
 
 
--- DROP TABLE IF EXISTS barang, proses, log_proses, gaji_pegawai, status_logs;
-
 CREATE TABLE BAGIAN (
   id_bagian VARCHAR(7) PRIMARY KEY NOT NULL,
-  jenis_pekerja ENUM('picker', 'packing', 'pickout', "admin", "superadmin") NOT NULL CHECK (jenis_pekerja IN ('picker', 'packing', 'pickout', "admin", "superadmin")),
+  jenis_pekerja ENUM('picker', 'packing', 'pickout', "admin", "superadmin", "finance", "fulltime", "freelance") NOT NULL CHECK (jenis_pekerja IN ('picker', 'packing', 'pickout', "admin", "superadmin", "finance", "fulltime", "freelance")),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT CheckBagian1 CHECK (CHAR_LENGTH(id_bagian) = 6),
@@ -102,15 +100,32 @@ CREATE TABLE barang (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+ALTER TABLE barang ADD COLUMN jenis_ekspedisi VARCHAR(50) NULL;
 
--- DROP TABLE proses
+CREATE TABLE ekpedisi (
+    id_ekspedisi VARCHAR(3) PRIMARY KEY NOT NULL,
+    nama_ekspedisi VARCHAR(50) NOT NULL,
+    CHECK (id_ekspedisi IN ("JNE", "JTR", "JNT", "JCG", "GJK")),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)
+
+INSERT INTO ekpedisi (id_ekspedisi, nama_ekspedisi) VALUES
+    ('JNE', 'Jalur Nugraha Ekakurir'),
+    ('JTR', 'J&T Trucking'),
+    ('JNT', 'J&T Express'),
+    ('JCG', 'J&T Cargo'),
+    ('GJK', 'Gojek');
+
+
+ALTER TABLE barang ADD COLUMN id_ekspedisi VARCHAR(3) NULL;
 
 -- Create proses table
 CREATE TABLE proses (
   id_proses int AUTO_INCREMENT PRIMARY KEY NOT NULL,
   resi_id VARCHAR(20),
   id_pekerja VARCHAR(9),
-  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('pending','picker', 'packing', 'pickout', 'konfirmasi', 'cancelled')) DEFAULT 'pending',
+  status_proses VARCHAR(10) NOT NULL DEFAULT 'pending' CHECK (status_proses IN ('pending','picker', 'packing', 'pickout', 'konfirmasi', 'cancelled')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT FK_Pekerja_proses FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
@@ -144,26 +159,6 @@ CREATE TABLE log_proses (
   CONSTRAINT FK_BarangLog FOREIGN KEY (resi_id) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
-ALTER TABLE log_proses 
-DROP CHECK log_proses_chk_1,
-MODIFY COLUMN status_proses VARCHAR(10) NOT NULL 
-CHECK (status_proses IN ('pending', 'picker', 'packing', 'pickout', 'konfirmasi', 'cancelled'));
-
-
-
-DELIMITER $$
-
-CREATE TRIGGER trigger_log_cancelled_status
-AFTER UPDATE ON proses
-FOR EACH ROW
-BEGIN
-    IF NEW.status_proses = 'cancelled' THEN
-        INSERT INTO log_proses (resi_id, id_pekerja, status_proses)
-        VALUES (NEW.resi_id, NEW.id_pekerja, 'cancelled');
-    END IF;
-END$$
-
-DELIMITER ;
 
 
 CREATE TABLE gaji (
@@ -196,6 +191,7 @@ ALTER TABLE gaji_pegawai ADD INDEX idx_salary_calc (id_pekerja, created_at, is_d
 
 use db_pack;
 DELIMITER $$
+
 
 CREATE TRIGGER trg_delete_barang_after_delete_proses
 AFTER DELETE ON proses
@@ -231,7 +227,7 @@ BEGIN
         SELECT 1 FROM role_pekerja rp
         JOIN bagian b ON rp.id_bagian = b.id_bagian
         WHERE rp.id_pekerja = NEW.id_pekerja
-        AND b.jenis_pekerja = 'packing'
+        AND b.jenis_pekerja = 'packing' AND b.jenis_pekerja != 'fulltime'
     ) AND NEW.status_proses = 'packing' THEN
         -- Check if there's an existing record for today
         SELECT COUNT(*) INTO v_existing_record
@@ -268,7 +264,6 @@ DELIMITER ;
 
 use db_pack;
 
-DROP TRIGGER IF EXISTS trg_update_salary_on_proses_cancelled;
 DELIMITER $$
 
 CREATE TRIGGER trg_update_salary_on_proses_cancelled
@@ -403,6 +398,8 @@ ALTER TABLE proses ADD INDEX idx_log_proses (id_pekerja, status_proses);
 
 DELIMITER $$
 
+-- use db_pack;
+DROP TRIGGER trg_barang_after_insert;
 
 -- Single trigger for new barang that creates initial process
 CREATE TRIGGER trg_barang_after_insert
@@ -457,4 +454,3 @@ BEGIN
 END
 
 DELIMITER ;
-K

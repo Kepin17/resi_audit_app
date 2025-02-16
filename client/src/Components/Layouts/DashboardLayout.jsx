@@ -7,8 +7,6 @@ import Title from "../Elements/Title";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { backupEndpoint } from "../../utils/url";
-import { AnimatePresence } from "framer-motion";
-import PageTransition from "../Elements/PageTransition";
 
 const DashboardLayout = ({ children, activePage }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -205,9 +203,8 @@ const DashboardLayout = ({ children, activePage }) => {
               </div>
             </div>
           </nav>
-          <AnimatePresence mode="wait">
-            <PageTransition>{children}</PageTransition>
-          </AnimatePresence>
+          {children}
+
           <footer className="bg-blue-800 text-white rounded-lg shadow-lg p-4 mt-auto">
             <div className="container mx-auto">
               <div className="flex flex-col md:flex-row justify-between items-center">

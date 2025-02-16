@@ -736,6 +736,48 @@ const backupBarang = async (req, res) => {
   }
 };
 
+const deleteResi = async (req, res) => {
+  const connection = await mysqlPool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const { resi_id } = req.params;
+
+    // First check if resi exists
+    const [existingResi] = await connection.query("SELECT resi_id FROM barang WHERE resi_id = ?", [resi_id]);
+
+    if (existingResi.length === 0) {
+      await connection.rollback();
+      return res.status(404).send({
+        success: false,
+        message: "Resi not found",
+      });
+    }
+
+    // Delete related records first (foreign key constraints)
+    await connection.query("DELETE FROM log_proses WHERE resi_id = ?", [resi_id]);
+    await connection.query("DELETE FROM proses WHERE resi_id = ?", [resi_id]);
+
+    await connection.commit();
+
+    res.status(200).send({
+      success: true,
+      message: "Resi successfully deleted",
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Delete resi error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to delete resi",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   addNewBarang,
   showAllBarang,
@@ -745,4 +787,5 @@ module.exports = {
   exportBarang,
   backupBarang,
   createExcelTemplate,
+  deleteResi,
 };

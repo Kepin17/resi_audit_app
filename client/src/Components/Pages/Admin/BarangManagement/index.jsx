@@ -15,6 +15,7 @@ import { FaBoxArchive, FaBoxesPacking, FaRotate, FaSort } from "react-icons/fa6"
 import urlApi from "../../../../utils/url";
 import { PiNoteBlankFill } from "react-icons/pi";
 import { jwtDecode } from "jwt-decode";
+import { FaTrash } from "react-icons/fa";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -531,9 +532,60 @@ const AdminBarangSection = () => {
     );
   };
 
+  const deleteResi = async (resi_id) => {
+    try {
+      Modal.confirm({
+        title: "Konfirmasi Pembatalan",
+        content: `Apakah anda yakin ingin menghapus resi ${resi_id}?`,
+        okText: "Ya, Batalkan",
+        cancelText: "Tidak",
+        onOk: async () => {
+          try {
+            message.loading({ content: "menghapus pesanan...", key: "hapusResi" });
+
+            const response = await axios.delete(`${urlApi}/api/v1/barang/${resi_id}`, {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                "Content-Type": "application/json",
+              },
+            });
+
+            if (response.data?.success) {
+              message.success({
+                content: "Pesanan berhasil menghapus",
+                key: "hapusResi",
+                duration: 3,
+              });
+              fetchBarang(currentPage);
+            } else {
+              throw new Error(response.data?.message || "Failed to delete order");
+            }
+          } catch (error) {
+            console.error("Error deleting order:", error);
+            let errorMsg = "Gagal menghapus pesanan";
+
+            if (error.response?.status === 404) {
+              errorMsg = "Resi tidak ditemukan";
+            } else if (error.response?.data?.message) {
+              errorMsg = error.response.data.message;
+            }
+
+            message.error({
+              content: errorMsg,
+              key: "hapusResi",
+              duration: 3,
+            });
+          }
+        },
+      });
+    } catch (error) {
+      console.error("Error in confirmation modal:", error);
+      message.error("Terjadi kesalahan sistem");
+    }
+  };
+
   return (
     <DashboardLayout activePage={"barang"}>
-      f
       <div className="w-full h-full rounded-md flex flex-col gap-2">
         <Modal
           title="Tambah Resi Baru"
@@ -776,7 +828,7 @@ const AdminBarangSection = () => {
                       }
                     }}
                   >
-                    <div className="flex flex-col space-y-4">
+                    <div className="flex flex-col space-y-4 relative">
                       {/* Header with Status Icon */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
@@ -791,6 +843,18 @@ const AdminBarangSection = () => {
                             </span>
                           </div>
                         </div>
+
+                        <button
+                          className={`absolute top-0 right-0 bg-white shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ease-in border-2 p-1 rounded-md
+                              ${user.roles.includes("superadmin") ? "block" : "hidden"}
+                            `}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteResi(item.resi_id);
+                          }}
+                        >
+                          <FaTrash className="text-red-500" />
+                        </button>
                       </div>
 
                       {/* Content */}
