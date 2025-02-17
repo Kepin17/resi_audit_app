@@ -3,7 +3,7 @@ const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, getActivityNotComplited } = require("../controllers/auditResiController");
-const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang, createExcelTemplate, deleteResi } = require("../controllers/barangController");
+const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang, createExcelTemplate, deleteResi, getCalendarData } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel, getSalaryByID, getGajiPackingStats, getDailyEarnings } = require("../controllers/SalaryController");
@@ -11,6 +11,7 @@ const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExc
 const upload = require("../config/multerConfig");
 const { getStatistics, getWorkerStatistics } = require("../controllers/statisticsController");
 const { createBackup } = require("../controllers/backupController");
+const { getAllEkspedisi } = require("../controllers/ekspedisiController");
 
 const roles = {
   picker: "picker",
@@ -22,7 +23,7 @@ const roles = {
 
 // add staff area
 
-router.post("/auth/register", RegisterHandler);
+router.post("/auth/register", authToken, roleMiddleware([roles.supadmin]), RegisterHandler);
 router.get("/auth/show", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllStaff);
 router.get("/auth/show/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), showStaffDetail);
 router.delete("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), deleteStaff);
@@ -34,6 +35,7 @@ router.get("/auth-export", authToken, roleMiddleware([roles.admin, roles.supadmi
 
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllBarang);
+router.get("/barang/calendar-data", authToken, roleMiddleware([roles.admin, roles.supadmin]), getCalendarData);
 router.delete("/barang/:resi_id", authToken, roleMiddleware([roles.supadmin]), deleteResi);
 router.post("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), addNewBarang);
 router.put("/barang-cancel/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), cancelBarang);
@@ -81,5 +83,8 @@ router.get("/worker-statistics", authToken, roleMiddleware([roles.supadmin]), ge
 router.get("/backup/create", authToken, roleMiddleware([roles.supadmin]), createBackup);
 
 router.get("/template-resi", authToken, roleMiddleware([roles.supadmin, roles.admin]), createExcelTemplate);
+
+// ekspedisi
+router.get("/ekspedisi", authToken, roleMiddleware([roles.supadmin, roles.admin]), getAllEkspedisi);
 
 module.exports = router;

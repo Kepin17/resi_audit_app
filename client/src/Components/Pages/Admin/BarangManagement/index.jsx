@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import SearchFragment from "../../../Fragments/SearchFragment";
 import moment from "moment";
-import { DatePicker, Form, Input, message, Table } from "antd";
+import { DatePicker, Form, Input, message, Table, Calendar, Badge } from "antd";
 import Button from "../../../Elements/Button";
 import { MdOutlinePendingActions, MdLocalShipping } from "react-icons/md";
 import { MdCancelScheduleSend } from "react-icons/md";
@@ -15,12 +15,14 @@ import { FaBoxArchive, FaBoxesPacking, FaRotate, FaSort } from "react-icons/fa6"
 import urlApi from "../../../../utils/url";
 import { PiNoteBlankFill } from "react-icons/pi";
 import { jwtDecode } from "jwt-decode";
-import { FaTrash } from "react-icons/fa";
+import { FaTrash, FaTruck } from "react-icons/fa";
+import { RiEBikeFill } from "react-icons/ri";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeButton, setActiveButton] = useState("Semua");
+  const [ekspedisiActiveButton, setEkspedisiActiveButton] = useState("Semua");
   const [barang, setBarang] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -43,6 +45,32 @@ const AdminBarangSection = () => {
   const [sortBy, setSortBy] = useState("newest"); // Add this state
   const [importResults, setImportResults] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [ekspedisi, setEkspedisi] = useState([]);
+  const [calendarData, setCalendarData] = useState({});
+  const [isCalendarModalVisible, setIsCalendarModalVisible] = useState(false);
+
+  useEffect(() => {
+    const fetchEkspedisi = async () => {
+      try {
+        const response = await axios.get(`${urlApi}/api/v1/ekspedisi`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+
+        if (response.data?.success) {
+          setEkspedisi(response.data.data);
+          console.log(response.data.data);
+        } else {
+          throw new Error(response.data?.message || "Invalid response format");
+        }
+      } catch (error) {
+        message.error("Gagal memuat data ekspedisi");
+      }
+    };
+
+    fetchEkspedisi();
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -71,6 +99,11 @@ const AdminBarangSection = () => {
     setCurrentPage(1); // Reset to first page when changing status
   };
 
+  const handleEkspedisiButtonClick = (ekspedisiId) => {
+    setEkspedisiActiveButton(ekspedisiId);
+    setCurrentPage(1);
+  };
+
   const fetchBarang = async (page) => {
     setLoading(true);
     setError(null);
@@ -88,6 +121,10 @@ const AdminBarangSection = () => {
       }
       if (activeButton !== "Semua") {
         params.append("status", activeButton);
+      }
+
+      if (ekspedisiActiveButton !== "Semua") {
+        params.append("ekspedisi", ekspedisiActiveButton);
       }
       if (dateRange?.[0] && dateRange?.[1]) {
         params.append("startDate", dateRange[0].format("YYYY-MM-DD"));
@@ -129,7 +166,7 @@ const AdminBarangSection = () => {
 
   useEffect(() => {
     fetchBarang(currentPage);
-  }, [currentPage, searchTerm, activeButton, dateRange, sortBy]);
+  }, [currentPage, searchTerm, activeButton, ekspedisiActiveButton, dateRange, sortBy]); // Add ekspedisiActiveButton to dependencies
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -441,6 +478,14 @@ const AdminBarangSection = () => {
     { value: "cancelled", label: "Cancelled" },
   ];
 
+  const ekspedisiOptions = [
+    { value: "Semua", label: "Semua" },
+    ...ekspedisi.map((ekspedisi) => ({
+      value: ekspedisi.id_ekspedisi,
+      label: ekspedisi.nama_ekspedisi,
+    })),
+  ];
+
   const handleModalDetailClose = () => {
     setModalDetailOpen(false);
     setResiDetail([]); // Clear detail data when modal closes
@@ -584,6 +629,86 @@ const AdminBarangSection = () => {
     }
   };
 
+  // Fix the ekspedisi buttons rendering
+  const ekspedisiButtons = [
+    { value: "Semua", label: "Semua" },
+    ...ekspedisi.map((eks) => ({
+      value: eks.id_ekspedisi,
+      label: eks.nama_ekspedisi,
+    })),
+  ];
+
+  const fetchCalendarData = async () => {
+    try {
+      // Create URL with query parameters
+      let url = new URL(`${urlApi}/api/v1/barang/calendar-data`);
+      const params = new URLSearchParams();
+
+      if (searchTerm?.trim()) {
+        params.append("search", searchTerm.trim());
+      }
+      if (activeButton !== "Semua") {
+        params.append("status", activeButton);
+      }
+      if (ekspedisiActiveButton !== "Semua") {
+        params.append("ekspedisi", ekspedisiActiveButton);
+      }
+
+      url.search = params.toString();
+
+      const response = await axios.get(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.data?.success) {
+        const formattedData = {};
+        response.data.data.forEach((item) => {
+          formattedData[item.date] = {
+            statuses: item.statuses,
+            counts: item.counts,
+          };
+        });
+        setCalendarData(formattedData);
+      }
+    } catch (error) {
+      console.error("Error fetching calendar data:", error);
+      message.error("Gagal memuat data kalender");
+    }
+  };
+
+  // Update useEffect to include new dependencies
+  useEffect(() => {
+    fetchCalendarData();
+  }, [searchTerm, activeButton, ekspedisiActiveButton]);
+
+  // Update dateCellRender to show counts
+  const dateCellRender = (date) => {
+    const dateStr = date.format("YYYY-MM-DD");
+    const data = calendarData[dateStr];
+
+    if (!data) return null;
+
+    const getBackgroundColor = () => {
+      if (data.statuses.includes("pending")) return "bg-yellow-100";
+      if (data.statuses.includes("picker")) return "bg-blue-100";
+      if (data.statuses.includes("packing")) return "bg-orange-100";
+      return "";
+    };
+
+    return (
+      <div className="relative h-full">
+        <div className={`absolute inset-0 ${getBackgroundColor()} opacity-50`} />
+        {Object.entries(data.counts).map(([status, count]) => (
+          <div key={status} className="relative z-10 text-xs">
+            {status}: {count}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <DashboardLayout activePage={"barang"}>
       <div className="w-full h-full rounded-md flex flex-col gap-2">
@@ -622,7 +747,18 @@ const AdminBarangSection = () => {
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ">
               {/* Left side: Date, Search, and Sort */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
-                <RangePicker onChange={handleDateChange} className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
+                <div className="relative">
+                  <RangePicker onChange={handleDateChange} className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
+                </div>
+
+                <div>
+                  <Button buttonStyle="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600" onClick={() => setIsCalendarModalVisible(true)}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                    </svg>
+                  </Button>
+                </div>
+
                 <div className="flex items-center gap-2 w-full sm:w-auto mobile:flex-col">
                   <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nomor resi" className="w-full sm:w-[250px] shadow-sm" />
                 </div>
@@ -659,7 +795,7 @@ const AdminBarangSection = () => {
               </div>
 
               {/* Right side: Action Buttons */}
-              <div className="flex items-center gap-2 w-full lg:w-auto justify-start">
+              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start">
                 <Button buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg" onClick={handleExport} disabled={exportLoading}>
                   {exportLoading ? (
                     <span className="flex items-center gap-2">
@@ -713,6 +849,22 @@ const AdminBarangSection = () => {
                     hover:text-white font-medium text-sm min-w-[90px] flex items-center justify-center
                   `}
                   onClick={() => handleButtonClick(value)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-4">
+              {ekspedisiButtons.map(({ value, label }) => (
+                <Button
+                  key={value}
+                  buttonStyle={`
+                    ${ekspedisiActiveButton === value ? "bg-blue-500 text-white shadow-md" : "bg-white text-gray-700 border border-blue-500 hover:shadow-md"} 
+                    px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 
+                    hover:text-white font-medium text-sm min-w-[90px] flex items-center justify-center
+                  `}
+                  onClick={() => handleEkspedisiButtonClick(value)}
                 >
                   {label}
                 </Button>
@@ -803,8 +955,33 @@ const AdminBarangSection = () => {
                 </div>
               )}
 
-              {barang.map((item) => {
-                return (
+              {barang.length <= 0 ? (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-full max-w-md text-center my-5">
+                  <div className="mb-4">
+                    <svg className="w-24 h-24 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-medium text-gray-900 mb-2">Belum ada data barang</h3>
+                  <p className="text-gray-500 mb-6">Data barang yang Anda cari tidak ditemukan. Silakan tambah data baru atau ubah filter pencarian Anda.</p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setSearchInput("");
+                        setSearchTerm("");
+                        setDateRange([null, null]);
+                        setActiveButton("Semua");
+                        setEkspedisiActiveButton("Semua");
+                      }}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition duration-200"
+                    >
+                      <FaRotate className="mr-2" />
+                      Reset Filter
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                barang.map((item) => (
                   <div
                     key={item.resi_id}
                     className="card bg-white p-5 rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
@@ -835,19 +1012,21 @@ const AdminBarangSection = () => {
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getStatusClass(item.status_proses)}`}>{getStatusIcon(item.status_proses)}</div>
                           <div>
                             <h3 className="font-semibold text-gray-900">{item.resi_id}</h3>
-                            <span
-                              className={`text-sm px-2.5 py-1 rounded-full inline-block mt-1
-                ${getStatusClass(item.status_proses)}`}
+                            <h3
+                              className={`text-sm px-2.5 py-1 rounded-full  mt-1 flex gap-2 items-center justify-center
+                           ${item.status_proses === "cancelled" ? "text-red-500 bg-red-100" : "text-[#321F74] bg-indigo-100"}
+                           `}
                             >
-                              {item.status_description}
-                            </span>
+                              <span>{item.id_ekspedisi === "GJK" ? <RiEBikeFill /> : item.status_proses !== "cancelled" ? <FaTruck /> : ""}</span>
+                              {!item.nama_ekspedisi ? "Ekspedisi Bermasalah" : item.nama_ekspedisi}
+                            </h3>
                           </div>
                         </div>
 
                         <button
                           className={`absolute top-0 right-0 bg-white shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ease-in border-2 p-1 rounded-md
-                              ${user.roles.includes("superadmin") ? "block" : "hidden"}
-                            `}
+                           ${user.roles.includes("superadmin") ? "block" : "hidden"}
+                         `}
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteResi(item.resi_id);
@@ -862,6 +1041,7 @@ const AdminBarangSection = () => {
                         <p className="text-sm text-gray-600">
                           {item.status_description} {item.status_proses !== "pending" && item.status_proses !== "cancelled" ? <span className="font-medium text-gray-900">• {item.nama_pekerja}</span> : ""}
                         </p>
+
                         <div className="flex items-center text-xs text-gray-500">
                           <span className="flex items-center">
                             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -900,8 +1080,8 @@ const AdminBarangSection = () => {
                       )}
                     </div>
                   </div>
-                );
-              })}
+                ))
+              )}
             </div>
           )}
 
@@ -918,7 +1098,6 @@ const AdminBarangSection = () => {
               <div className="flex gap-1">
                 {[...Array(totalPages)].map((_, index) => {
                   const pageNumber = index + 1;
-                  // Show first page, last page, current page, and one page before and after current
                   if (pageNumber === 1 || pageNumber === totalPages || (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)) {
                     return (
                       <button
@@ -931,7 +1110,6 @@ const AdminBarangSection = () => {
                       </button>
                     );
                   } else if (pageNumber === currentPage - 2 || pageNumber === currentPage + 2) {
-                    // Show ellipsis
                     return (
                       <span key={pageNumber} className="px-2 py-1">
                         ...
@@ -954,6 +1132,32 @@ const AdminBarangSection = () => {
         </div>
       </div>
       <ImportResultsModal visible={showImportModal} onClose={() => setShowImportModal(false)} results={importResults} />
+      <Modal title="Calendar View" open={isCalendarModalVisible} onCancel={() => setIsCalendarModalVisible(false)} footer={null} width={800}>
+        <div className="p-4">
+          <div className="mb-4 flex gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-yellow-100 rounded"></div>
+              <span>Pending</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-blue-100 rounded"></div>
+              <span>Picked</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-orange-100 rounded"></div>
+              <span>Packed</span>
+            </div>
+          </div>
+          <Calendar
+            cellRender={dateCellRender}
+            onSelect={(date) => {
+              setDateRange([date, date]);
+              setIsCalendarModalVisible(false);
+            }}
+            className="border rounded-lg p-4"
+          />
+        </div>
+      </Modal>
     </DashboardLayout>
   );
 };

@@ -1,7 +1,7 @@
 -- Active: 1739431700514@@127.0.0.1@3306
 
-CREATE DATABASE db_pack;
-USE db_pack;
+CREATE DATABASE siar_db;
+use siar_db;
 
 
 CREATE TABLE BAGIAN (
@@ -146,7 +146,6 @@ DELIMITER ;
 
 
 
-
 CREATE TABLE log_proses (
   id_log INT PRIMARY KEY AUTO_INCREMENT,
   resi_id VARCHAR(20),
@@ -189,7 +188,7 @@ CREATE TABLE gaji_pegawai (
 ALTER TABLE gaji_pegawai ADD COLUMN is_dibayar BOOLEAN DEFAULT FALSE;
 ALTER TABLE gaji_pegawai ADD INDEX idx_salary_calc (id_pekerja, created_at, is_dibayar);
 
-use db_pack;
+use siar_db;
 DELIMITER $$
 
 
@@ -201,7 +200,6 @@ BEGIN
     WHERE resi_id = OLD.resi_id;
 END$$
 
-DROP TRIGGER IF EXISTS trigger_hitung_gaji;
 
 DELIMITER $$
 
@@ -262,7 +260,7 @@ END$$
 
 DELIMITER ;
 
-use db_pack;
+use siar_db;
 
 DELIMITER $$
 
@@ -371,23 +369,23 @@ DELIMITER ;
 -- Add trigger to prevent having no roles on update
 DELIMITER $$
 
-CREATE TRIGGER before_update_role_pekerja
-BEFORE UPDATE ON role_pekerja
-FOR EACH ROW
-BEGIN
-    DECLARE role_count INT;
+-- CREATE TRIGGER before_update_role_pekerja
+-- BEFORE UPDATE ON role_pekerja
+-- FOR EACH ROW
+-- BEGIN
+--     DECLARE role_count INT;
     
-    -- Count remaining roles for this worker
-    SELECT COUNT(*) INTO role_count
-    FROM role_pekerja
-    WHERE id_pekerja = NEW.id_pekerja;
+--     -- Count remaining roles for this worker
+--     SELECT COUNT(*) INTO role_count
+--     FROM role_pekerja
+--     WHERE id_pekerja = NEW.id_pekerja;
     
-    -- If this would leave no roles, prevent update
-    IF role_count = 0 THEN
-        SIGNAL SQLSTATE '45000' 
-        SET MESSAGE_TEXT = 'Worker must have at least one role';
-    END IF;
-END$$
+--     -- If this would leave no roles, prevent update
+--     IF role_count = 0 THEN
+--         SIGNAL SQLSTATE '45000' 
+--         SET MESSAGE_TEXT = 'Worker must have at least one role';
+--     END IF;
+-- END$$
 
 DELIMITER ;
 
@@ -398,6 +396,7 @@ ALTER TABLE proses ADD INDEX idx_log_proses (id_pekerja, status_proses);
 
 DELIMITER $$
 
+-- use siar_db;
 -- use db_pack;
 DROP TRIGGER trg_barang_after_insert;
 

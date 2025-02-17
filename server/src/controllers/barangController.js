@@ -5,6 +5,7 @@ const moment = require("moment");
 const addNewBarang = async (req, res) => {
   try {
     const { resi_id } = req.body;
+    let ekspedisi = "";
 
     // Validate required fields
     if (!resi_id) {
@@ -16,8 +17,41 @@ const addNewBarang = async (req, res) => {
 
     const [rows] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
 
+    const allowResiCode = ["JX", "JP", "TG", "CM", "JT", "GK"];
+    const resiCode = resi_id.substring(0, 2);
+    const numberOnly = /^\d+$/;
+
+    const isValidExpedition = allowResiCode.includes(resiCode);
+    const isValidNumber = numberOnly.test(resi_id);
+
+    if (!isValidExpedition && !isValidNumber) {
+      return res.status(400).send({
+        success: false,
+        message: "Format resi tidak valid. Gunakan format ekspedisi (Cth: CM1234567) atau nomor saja",
+      });
+    }
+
+    if (resi_id.length < 8) {
+      return res.status(400).send({
+        success: false,
+        message: "Resi ID must be at least 8 characters long",
+      });
+    }
+
+    if (resiCode === "JX" || resiCode === "JP") {
+      ekspedisi = "JNT";
+    } else if (resiCode === "TG" || resiCode === "CM") {
+      ekspedisi = "JNE";
+    } else if (resiCode === "JT") {
+      ekspedisi = "JTR";
+    } else if (resiCode === "GK") {
+      ekspedisi = "GJK";
+    } else {
+      ekspedisi = "JCG";
+    }
+
     if (rows.length === 0) {
-      await mysqlPool.query("INSERT INTO barang (resi_id) VALUES (?)", [resi_id]);
+      await mysqlPool.query("INSERT INTO barang (resi_id, id_ekspedisi) VALUES (?, ?)", [resi_id, ekspedisi]);
     } else {
       return res.status(400).send({
         success: false,
@@ -44,7 +78,7 @@ const showAllBarang = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const offset = (page - 1) * limit;
-    const { search, status, startDate, endDate, sortBy } = req.query;
+    const { search, status, startDate, endDate, sortBy, ekspedisi } = req.query;
 
     // Build the WHERE clause dynamically
     let whereConditions = [];
@@ -53,6 +87,12 @@ const showAllBarang = async (req, res) => {
     if (search) {
       whereConditions.push("(b.resi_id LIKE ?)");
       queryParams.push(`%${search}%`);
+    }
+
+    // Fix ekspedisi filter
+    if (ekspedisi && ekspedisi !== "Semua") {
+      whereConditions.push("e.id_ekspedisi = ?");
+      queryParams.push(ekspedisi);
     }
 
     // Update the status filtering logic
@@ -73,10 +113,11 @@ const showAllBarang = async (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
-    // Get total count with filters
+    // Update the count query to include ekspedisi join
     const [countResult] = await mysqlPool.query(
       `SELECT COUNT(DISTINCT b.resi_id) as count 
        FROM barang b
+       LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
        LEFT JOIN (
          SELECT p1.resi_id, p1.status_proses
          FROM proses p1
@@ -112,12 +153,14 @@ const showAllBarang = async (req, res) => {
         orderClause = "ORDER BY b.created_at DESC";
     }
 
-    // Get filtered and paginated data with latest process status
+    // Fix table name in main query from ekpedisi to ekspedisi
     const [rows] = await mysqlPool.query(
       `SELECT 
         b.resi_id,
         b.created_at,
         b.updated_at,
+        b.id_ekspedisi,
+        e.nama_ekspedisi,
         COALESCE(latest_process.status_proses, 'pending') as status_proses,
         latest_process.nama_pekerja,
         latest_process.last_scan,
@@ -136,6 +179,7 @@ const showAllBarang = async (req, res) => {
           WHERE l.resi_id = b.resi_id
         ) as process_history
        FROM barang b
+       LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
        LEFT JOIN (
          SELECT p1.resi_id, 
                 p1.status_proses, 
@@ -404,6 +448,7 @@ const importResiFromExcel = async (req, res) => {
       duplicates: 0,
       errors: [],
       problemRows: [],
+      invalidFormat: 0,
     };
 
     try {
@@ -411,6 +456,7 @@ const importResiFromExcel = async (req, res) => {
       const batchSize = 100;
       let batch = [];
       let totalRows = 0;
+      const processedResis = new Set(); // Track all processed resis
 
       // Start reading from row 10 (after headers and example)
       for (let rowNumber = 10; rowNumber <= worksheet.rowCount; rowNumber++) {
@@ -422,22 +468,61 @@ const importResiFromExcel = async (req, res) => {
         if (!resi_id) continue;
         totalRows++;
 
-        // Validate resi_id format
-        if (!/^[A-Za-z0-9-]+$/.test(resi_id)) {
+        // Check for minimum length
+        if (resi_id.length < 8) {
           results.failed++;
           results.problemRows.push({
             row: rowNumber,
             resi: resi_id,
-            reason: "Invalid resi format (only alphanumeric and hyphen allowed)",
+            reason: "Resi ID must be at least 8 characters long",
           });
           continue;
         }
 
+        // Check for duplicate in current import
+        if (processedResis.has(resi_id)) {
+          results.duplicates++;
+          results.problemRows.push({
+            row: rowNumber,
+            resi: resi_id,
+            reason: "Duplicate entry in import file",
+          });
+          continue;
+        }
+
+        // Validate resi format and determine expedition
+        const resiCode = resi_id.substring(0, 2);
+        const numberOnly = /^\d+$/;
+        const allowResiCode = ["JX", "JP", "TG", "CM", "JT", "GK"];
+        const isValidExpedition = allowResiCode.includes(resiCode);
+        const isValidNumber = numberOnly.test(resi_id);
+
+        if (!isValidExpedition && !isValidNumber) {
+          results.invalidFormat++;
+          results.problemRows.push({
+            row: rowNumber,
+            resi: resi_id,
+            reason: "Invalid resi format",
+          });
+          continue;
+        }
+
+        let ekspedisi = "JCG";
+        if (isValidExpedition) {
+          ekspedisi =
+            {
+              JX: "JNT",
+              JP: "JNT",
+              TG: "JNE",
+              CM: "JNE",
+              JT: "JTR",
+              GK: "GJK",
+            }[resiCode] || "JCG";
+        }
+
         // Validate and format datetime
-        let created_at;
-        if (dateTime instanceof Date) {
-          created_at = moment(dateTime).format("YYYY-MM-DD HH:mm:ss");
-        } else if (typeof dateTime === "string") {
+        let created_at = moment().format("YYYY-MM-DD HH:mm:ss");
+        if (dateTime) {
           const parsedDate = moment(dateTime, ["YYYY-MM-DD HH:mm:ss", "YYYY-MM-DD HH:mm", "YYYY-MM-DD", "DD-MM-YYYY HH:mm:ss", "DD/MM/YYYY HH:mm:ss"], true);
 
           if (!parsedDate.isValid()) {
@@ -450,31 +535,23 @@ const importResiFromExcel = async (req, res) => {
             continue;
           }
           created_at = parsedDate.format("YYYY-MM-DD HH:mm:ss");
-        } else {
-          created_at = moment().format("YYYY-MM-DD HH:mm:ss");
         }
 
-        // Check for duplicate in current batch
-        if (batch.some((item) => item.resi_id === resi_id)) {
-          results.duplicates++;
-          results.problemRows.push({
-            row: rowNumber,
-            resi: resi_id,
-            reason: "Duplicate entry in import file",
-          });
-          continue;
-        }
-
-        batch.push({ resi_id, created_at });
+        processedResis.add(resi_id);
+        batch.push({ resi_id, created_at, ekspedisi });
 
         // Process batch
         if (batch.length === batchSize || rowNumber === worksheet.rowCount) {
           try {
-            const resiIds = batch.map((item) => item.resi_id);
-            const [existingResis] = await connection.query("SELECT resi_id FROM barang WHERE resi_id IN (?)", [resiIds]);
+            const [existingResis] = await connection.query("SELECT resi_id FROM barang WHERE resi_id IN (?)", [batch.map((item) => item.resi_id)]);
 
             const existingResiSet = new Set(existingResis.map((row) => row.resi_id));
             const newRecords = batch.filter((item) => !existingResiSet.has(item.resi_id));
+
+            if (newRecords.length > 0) {
+              await connection.query("INSERT INTO barang (resi_id, created_at, id_ekspedisi) VALUES ?", [newRecords.map((item) => [item.resi_id, item.created_at, item.ekspedisi])]);
+              results.success += newRecords.length;
+            }
 
             // Track existing resis as duplicates
             batch.forEach((item) => {
@@ -486,17 +563,11 @@ const importResiFromExcel = async (req, res) => {
                 });
               }
             });
-
-            if (newRecords.length > 0) {
-              await connection.query("INSERT INTO barang (resi_id, created_at) VALUES ?", [newRecords.map((item) => [item.resi_id, item.created_at])]);
-              results.success += newRecords.length;
-            }
           } catch (error) {
             console.error(`Batch insert error:`, error);
             results.failed += batch.length;
-            results.errors.push(`Error processing batch: ${error.message}`);
+            results.errors.push(error.message);
           }
-
           batch = [];
         }
       }
@@ -515,12 +586,12 @@ const importResiFromExcel = async (req, res) => {
           successful: results.success,
           duplicates: results.duplicates,
           failed: results.failed,
+          invalidFormat: results.invalidFormat,
           errors: results.errors,
           problemRows: results.problemRows,
         },
       };
 
-      // Determine appropriate status code
       const statusCode = results.success > 0 ? 200 : 400;
       res.status(statusCode).send(response);
     } catch (error) {
@@ -778,6 +849,89 @@ const deleteResi = async (req, res) => {
   }
 };
 
+const getCalendarData = async (req, res) => {
+  try {
+    const { search, status, ekspedisi } = req.query;
+
+    // Build WHERE conditions
+    let whereConditions = ["(latest_process.status_proses IN ('pending', 'picker', 'packing') OR latest_process.status_proses IS NULL)", "b.created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)"];
+    let queryParams = [];
+
+    if (search) {
+      whereConditions.push("(b.resi_id LIKE ?)");
+      queryParams.push(`%${search}%`);
+    }
+
+    if (status && status !== "Semua") {
+      whereConditions.push("latest_process.status_proses = ?");
+      queryParams.push(status.toLowerCase());
+    }
+
+    if (ekspedisi && ekspedisi !== "Semua") {
+      whereConditions.push("b.id_ekspedisi = ?");
+      queryParams.push(ekspedisi);
+    }
+
+    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
+
+    const [rows] = await mysqlPool.query(
+      `
+      SELECT DISTINCT
+        DATE(b.created_at) as date,
+        COALESCE(latest_process.status_proses, 'pending') as status_proses,
+        COUNT(b.resi_id) as count
+      FROM barang b
+      LEFT JOIN (
+        SELECT p1.resi_id, 
+               p1.status_proses
+        FROM proses p1
+        WHERE p1.id_proses = (
+          SELECT p2.id_proses 
+          FROM proses p2 
+          WHERE p2.resi_id = p1.resi_id 
+          ORDER BY p2.updated_at DESC 
+          LIMIT 1
+        )
+      ) latest_process ON b.resi_id = latest_process.resi_id
+      ${whereClause}
+      GROUP BY DATE(b.created_at), status_proses
+      ORDER BY date DESC
+    `,
+      queryParams
+    );
+
+    const formattedData = rows.reduce((acc, curr) => {
+      const date = moment(curr.date).format("YYYY-MM-DD");
+      if (!acc[date]) {
+        acc[date] = {
+          statuses: new Set(),
+          counts: {},
+        };
+      }
+      acc[date].statuses.add(curr.status_proses);
+      acc[date].counts[curr.status_proses] = curr.count;
+      return acc;
+    }, {});
+
+    return res.status(200).json({
+      success: true,
+      message: rows.length > 0 ? "Data found" : "No data available",
+      data: Object.entries(formattedData).map(([date, data]) => ({
+        date,
+        statuses: Array.from(data.statuses),
+        counts: data.counts,
+      })),
+    });
+  } catch (error) {
+    console.error("Calendar data error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching calendar data",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   addNewBarang,
   showAllBarang,
@@ -788,4 +942,5 @@ module.exports = {
   backupBarang,
   createExcelTemplate,
   deleteResi,
+  getCalendarData,
 };
