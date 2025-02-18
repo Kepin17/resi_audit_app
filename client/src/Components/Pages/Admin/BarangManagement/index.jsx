@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import SearchFragment from "../../../Fragments/SearchFragment";
 import moment from "moment";
-import { DatePicker, Form, Input, message, Table, Calendar, Badge } from "antd";
+import { DatePicker, Form, Input, message, Table, Calendar } from "antd";
 import Button from "../../../Elements/Button";
 import { MdOutlinePendingActions, MdLocalShipping } from "react-icons/md";
 import { MdCancelScheduleSend } from "react-icons/md";
@@ -741,62 +741,68 @@ const AdminBarangSection = () => {
             </Form.Item>
           </Form>
         </Modal>
-        <div className="w-full h-auto bg-slate-50 rounded-md px-6 py-5">
-          <div className="flex flex-col gap-5 max-w-[1400px] mx-auto">
+        <div className="w-full h-auto bg-slate-50 rounded-md px-3 sm:px-6 py-4 sm:py-5">
+          <div className="flex flex-col gap-4 max-w-[1400px] mx-auto">
             {/* Search and Filter Section */}
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ">
-              {/* Left side: Date, Search, and Sort */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
-                <div className="relative">
-                  <RangePicker onChange={handleDateChange} className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
-                </div>
-
-                <div>
-                  <Button buttonStyle="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600" onClick={() => setIsCalendarModalVisible(true)}>
+            <div className="flex flex-col gap-4">
+              {/* Top Controls */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Date and Search */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <div className="w-full sm:w-auto">
+                    <RangePicker onChange={handleDateChange} className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
+                  </div>
+                  <Button buttonStyle="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 w-full sm:w-auto" onClick={() => setIsCalendarModalVisible(true)}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                     </svg>
                   </Button>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto mobile:flex-col">
-                  <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nomor resi" className="w-full sm:w-[250px] shadow-sm" />
+                {/* Search Bar */}
+                <div className="w-full">
+                  <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nomor resi" className="w-full" />
+                </div>
+
+                {/* Sort Buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        ${sortBy === "today-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
+                        hover:bg-green-600 hover:text-white text-xs`}
+                    onClick={() => handleSort("today-first")}
+                  >
+                    <FaSort className="text-sm" />
+                    <span>Hari Ini</span>
+                  </Button>
+                  <Button
+                    buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        ${sortBy === "oldest-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
+                        hover:bg-green-600 hover:text-white text-xs`}
+                    onClick={() => handleSort("oldest-first")}
+                  >
+                    <FaSort className="text-sm" />
+                    <span>Terlama</span>
+                  </Button>
+                  <Button
+                    buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        ${sortBy === "last-update" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
+                        hover:bg-green-600 hover:text-white text-xs`}
+                    onClick={() => handleSort("last-update")}
+                  >
+                    <FaSort className="text-sm" />
+                    <span>Update</span>
+                  </Button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
-                  buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
-                        ${sortBy === "today-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
-                        hover:bg-green-600 hover:text-white text-xs`}
-                  onClick={() => handleSort("today-first")}
+                  buttonStyle="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg"
+                  onClick={handleExport}
+                  disabled={exportLoading}
                 >
-                  <FaSort className="text-sm" />
-                  <span>Hari Ini</span>
-                </Button>
-                <Button
-                  buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
-                        ${sortBy === "oldest-first" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
-                        hover:bg-green-600 hover:text-white text-xs`}
-                  onClick={() => handleSort("oldest-first")}
-                >
-                  <FaSort className="text-sm" />
-                  <span>Terlama</span>
-                </Button>
-                <Button
-                  buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
-                        ${sortBy === "last-update" ? "bg-green-500 text-white" : "bg-white text-gray-700 border border-green-500"}
-                        hover:bg-green-600 hover:text-white text-xs`}
-                  onClick={() => handleSort("last-update")}
-                >
-                  <FaSort className="text-sm" />
-                  <span>Update</span>
-                </Button>
-              </div>
-
-              {/* Right side: Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start">
-                <Button buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg" onClick={handleExport} disabled={exportLoading}>
                   {exportLoading ? (
                     <span className="flex items-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -810,7 +816,7 @@ const AdminBarangSection = () => {
                   )}
                 </Button>
                 <Button
-                  buttonStyle="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg"
+                  buttonStyle="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 text-sm shadow-md hover:shadow-lg"
                   onClick={ImportFromExcelHandler}
                   disabled={importLoading}
                 >
@@ -839,14 +845,14 @@ const AdminBarangSection = () => {
             </div>
 
             {/* Status Filter Buttons */}
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2">
               {statusOptions.map(({ value, label }) => (
                 <Button
                   key={value}
                   buttonStyle={`
                     ${activeButton === value ? "bg-blue-500 text-white shadow-md" : "bg-white text-gray-700 border border-blue-500 hover:shadow-md"} 
                     px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 
-                    hover:text-white font-medium text-sm min-w-[90px] flex items-center justify-center
+                    hover:text-white font-medium text-sm w-full md:w-auto min-w-[90px] flex items-center justify-center
                   `}
                   onClick={() => handleButtonClick(value)}
                 >
@@ -855,14 +861,15 @@ const AdminBarangSection = () => {
               ))}
             </div>
 
-            <div className="flex flex-wrap gap-2 mt-4">
+            {/* Ekspedisi Filter Buttons */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2">
               {ekspedisiButtons.map(({ value, label }) => (
                 <Button
                   key={value}
                   buttonStyle={`
                     ${ekspedisiActiveButton === value ? "bg-blue-500 text-white shadow-md" : "bg-white text-gray-700 border border-blue-500 hover:shadow-md"} 
                     px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-600 
-                    hover:text-white font-medium text-sm min-w-[90px] flex items-center justify-center
+                    hover:text-white font-medium text-sm w-full md:w-auto min-w-[90px] flex items-center justify-center
                   `}
                   onClick={() => handleEkspedisiButtonClick(value)}
                 >
@@ -872,7 +879,7 @@ const AdminBarangSection = () => {
             </div>
           </div>
         </div>
-        <div className="content-card w-full  mx-auto h-[66vh] p-5 rounded-lg shadow-lg overflow-y-auto bg-slate-50 relative">
+        <div className="content-card w-full mx-auto h-[calc(100vh-380px)] sm:h-[66vh] p-3 sm:p-5 rounded-lg shadow-lg overflow-y-auto bg-slate-50 relative">
           {loading ? (
             <div className="flex justify-center items-center h-full">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -880,8 +887,8 @@ const AdminBarangSection = () => {
           ) : error ? (
             <div className="text-red-500 text-center py-4">{error}</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 relative">
-              <Modal className=" w-[100rem] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" open={isModalDetailOpen} onCancel={handleModalDetailClose} title="Detail Resi" footer={null}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 relative">
+              <Modal width={"1000px"} className="  absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" open={isModalDetailOpen} onCancel={handleModalDetailClose} title="Detail Resi" footer={null}>
                 <Table dataSource={resiDetail} pagination={false}>
                   <Table.Column title="Resi ID" dataIndex="resi_id" key="resi_id" />
                   <Table.Column title="Nama Pekerja" dataIndex="nama_pekerja" key="nama_pekerja" />
@@ -1086,7 +1093,7 @@ const AdminBarangSection = () => {
           )}
 
           {!loading && !error && totalPages > 1 && (
-            <div className="pagination flex items-center justify-end gap-2 my-5">
+            <div className="pagination flex flex-wrap items-center justify-center sm:justify-end gap-2 my-5 px-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}

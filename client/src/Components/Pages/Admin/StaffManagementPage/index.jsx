@@ -93,6 +93,7 @@ const StaffManagementPage = () => {
       { label: "Picker", value: "BGN001" },
       { label: "Packing", value: "BGN002" },
       { label: "Pickout", value: "BGN003" },
+      { label: "Retur Barang", value: "BGN009" },
     ],
     staffType: [
       { label: "Fulltime", value: "BGN007" },
@@ -301,7 +302,7 @@ const StaffManagementPage = () => {
       <Row gutter={[16, 16]}>
         {data.map((staff) => (
           <Col xs={24} sm={12} md={8} lg={6} key={staff.id_pekerja}>
-            <Card hoverable className="staff-card" actions={[<Button icon={<EditOutlined />} onClick={() => handleEdit(staff)} />, <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(staff.id_pekerja)} />]}>
+            <Card hoverable className="staff-card bg-slate-50" actions={[<Button icon={<EditOutlined />} onClick={() => handleEdit(staff)} />, <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(staff.id_pekerja)} />]}>
               <div className="staff-card-content">
                 <Avatar size={64} icon={<UserOutlined />} className="staff-avatar" style={{ backgroundColor: "#1890ff" }} />
                 <div className="staff-info">
@@ -328,6 +329,8 @@ const StaffManagementPage = () => {
                             ? "gold" // fulltime
                             : id === "BGN008"
                             ? "lime" // freelance
+                            : id === "BGN009"
+                            ? "#CC7568"
                             : "default"
                         }
                       >

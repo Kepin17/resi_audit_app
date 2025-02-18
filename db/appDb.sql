@@ -6,7 +6,7 @@ use siar_db;
 
 CREATE TABLE BAGIAN (
   id_bagian VARCHAR(7) PRIMARY KEY NOT NULL,
-  jenis_pekerja ENUM('picker', 'packing', 'pickout', "admin", "superadmin", "finance", "fulltime", "freelance") NOT NULL CHECK (jenis_pekerja IN ('picker', 'packing', 'pickout', "admin", "superadmin", "finance", "fulltime", "freelance")),
+  jenis_pekerja ENUM('picker', 'packing', 'pickout', "admin", "superadmin", "finance", "fulltime", "freelance", "retur_barang") NOT NULL CHECK (jenis_pekerja IN ('picker', 'packing', 'pickout', "admin", "superadmin", "finance", "fulltime", "freelance", "retur_barang")),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT CheckBagian1 CHECK (CHAR_LENGTH(id_bagian) = 6),
@@ -26,6 +26,11 @@ INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
 INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
   ('BGN007', 'fulltime'),
   ('BGN008', 'freelance');
+
+
+
+INSERT INTO BAGIAN (id_bagian, jenis_pekerja) VALUES
+  ('BGN009', 'retur_barang');
 
 CREATE TABLE pekerja (
     id_pekerja VARCHAR(9) PRIMARY KEY,
@@ -92,7 +97,6 @@ DELIMITER ;
 
 
 
--- DROP TABLE barang, COMMENT proses, log_proses, gaji_pegawai;
 
 CREATE TABLE barang (
   resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
@@ -100,7 +104,9 @@ CREATE TABLE barang (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE barang ADD COLUMN jenis_ekspedisi VARCHAR(50) NULL;
+
+use siar_db;
+
 
 CREATE TABLE ekpedisi (
     id_ekspedisi VARCHAR(3) PRIMARY KEY NOT NULL,
@@ -111,10 +117,7 @@ CREATE TABLE ekpedisi (
 )
 
 INSERT INTO ekpedisi (id_ekspedisi, nama_ekspedisi) VALUES
-    ('JNE', 'Jalur Nugraha Ekakurir'),
-    ('JTR', 'J&T Trucking'),
-    ('JNT', 'J&T Express'),
-    ('JCG', 'J&T Cargo'),
+ 
     ('GJK', 'Gojek');
 
 
@@ -131,6 +134,7 @@ CREATE TABLE proses (
   CONSTRAINT FK_Pekerja_proses FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT FK_Proses_resi FOREIGN KEY (resi_id) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
+
 
 ALTER TABLE proses ADD COLUMN gambar_resi VARCHAR(255) NULL ;
 
@@ -366,28 +370,7 @@ BEGIN
 END
 DELIMITER ;
 
--- Add trigger to prevent having no roles on update
-DELIMITER $$
 
--- CREATE TRIGGER before_update_role_pekerja
--- BEFORE UPDATE ON role_pekerja
--- FOR EACH ROW
--- BEGIN
---     DECLARE role_count INT;
-    
---     -- Count remaining roles for this worker
---     SELECT COUNT(*) INTO role_count
---     FROM role_pekerja
---     WHERE id_pekerja = NEW.id_pekerja;
-    
---     -- If this would leave no roles, prevent update
---     IF role_count = 0 THEN
---         SIGNAL SQLSTATE '45000' 
---         SET MESSAGE_TEXT = 'Worker must have at least one role';
---     END IF;
--- END$$
-
-DELIMITER ;
 
 ALTER TABLE proses ADD INDEX idx_created_at (created_at);
 ALTER TABLE proses ADD INDEX idx_status_process (status_proses);
@@ -398,7 +381,6 @@ DELIMITER $$
 
 -- use siar_db;
 -- use db_pack;
-DROP TRIGGER trg_barang_after_insert;
 
 -- Single trigger for new barang that creates initial process
 CREATE TRIGGER trg_barang_after_insert
@@ -453,3 +435,78 @@ BEGIN
 END
 
 DELIMITER ;
+
+use siar_db;
+CREATE TABLE barang_retur (
+    resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
+    id_ekspedisi VARCHAR(3) NULL,
+    note VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT FK_EkspedisiRetur FOREIGN KEY (id_ekspedisi) 
+        REFERENCES ekpedisi(id_ekspedisi) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE proses_barang_retur (
+    id_proses INT AUTO_INCREMENT PRIMARY KEY,
+    resi_id VARCHAR(20),
+    id_pekerja VARCHAR(9),
+    status_retur VARCHAR(10) NOT NULL DEFAULT 'diproses' CHECK (status_retur IN ('diproses', 'selesai')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    gambar_retur VARCHAR(255) NULL,
+    CONSTRAINT FK_BarangRetur FOREIGN KEY (resi_id) 
+        REFERENCES barang_retur(resi_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT FK_PekerjaRetur FOREIGN KEY (id_pekerja) 
+        REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL    
+);
+
+CREATE TABLE log_retur (
+    id_log INT AUTO_INCREMENT PRIMARY KEY,
+    resi_id VARCHAR(20),
+    id_pekerja VARCHAR(9),
+    status_retur VARCHAR(10) NOT NULL CHECK (status_retur IN ('diproses', 'selesai')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    gambar_retur VARCHAR(255) NULL,
+    CONSTRAINT FK_BarangLogRetur FOREIGN KEY (resi_id) 
+        REFERENCES barang_retur(resi_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT FK_PekerjaLogRetur FOREIGN KEY (id_pekerja) 
+        REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
+)
+
+DELIMITER $$
+CREATE TRIGGER trg_to_insert_status_retur
+AFTER INSERT ON barang_retur
+FOR EACH ROW
+BEGIN
+    INSERT INTO proses_barang_retur (resi_id, status_retur)
+    VALUES (NEW.resi_id, 'diproses');
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER trg_proses_retur_log_changes
+AFTER UPDATE ON proses_barang_retur
+FOR EACH ROW
+BEGIN
+    -- Only log when status changes and is not the initial pending status
+    IF NEW.status_retur != OLD.status_retur AND 
+       (NEW.status_retur != 'diproses' OR OLD.status_retur != 'diproses') THEN
+        INSERT INTO log_proses (
+            resi_id, 
+            id_pekerja, 
+            status_retur, 
+            gambar_resi
+        )
+        VALUES (
+            NEW.resi_id,
+            NEW.id_pekerja,
+            NEW.status_retur,
+            NEW.gambar_retur
+        );
+    END IF;
+END$$
+DELIMITER ;
+
+

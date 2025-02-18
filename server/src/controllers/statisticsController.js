@@ -228,7 +228,7 @@ const getWorkerStatistics = async (req, res) => {
           COUNT(DISTINCT DATE_FORMAT(l.created_at, '%Y-%m-%d %H:00:00')) as active_hours
         FROM log_proses l
         JOIN pekerja pek ON l.id_pekerja = pek.id_pekerja
-        WHERE ${dateFilter}
+        WHERE ${dateFilter} AND l.status_proses IN ('picker', 'packing', 'pickout')
         GROUP BY pek.id_pekerja, pek.nama_pekerja
       )
       SELECT 

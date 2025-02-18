@@ -14,6 +14,8 @@ import PickoutPage from "./Components/Pages/Home/PickoutPage";
 import { jwtDecode } from "jwt-decode";
 import PackingPage from "./Components/Pages/Home/PackingPage";
 import { useEffect, useState } from "react";
+import ReturBarang from "./Components/Pages/Home/ReturBarang";
+import ReturBarangPage from "./Components/Pages/Admin/ReturBarangPage";
 function App() {
   const [getRole, setRole] = useState("");
   useEffect(() => {
@@ -48,6 +50,8 @@ function App() {
                 <PackingPage />
               ) : getRole.includes("pickout") ? (
                 <PickoutPage />
+              ) : getRole.includes("retur_barang") ? (
+                <ReturBarang />
               ) : getRole.includes("admin") || getRole.includes("superadmin") ? (
                 <AdminDashboard />
               ) : (
@@ -71,6 +75,15 @@ function App() {
           element={
             <ProtectedRoute>
               <PickoutPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/retur-barang"
+          element={
+            <ProtectedRoute>
+              <ReturBarang />
             </ProtectedRoute>
           }
         />
@@ -118,6 +131,15 @@ function App() {
           element={
             <AdminProtectedRoute>
               <PackSalary />
+            </AdminProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/retur-barang"
+          element={
+            <AdminProtectedRoute>
+              <ReturBarangPage />
             </AdminProtectedRoute>
           }
         />

@@ -273,25 +273,16 @@ const scaneHandler = async (req, res) => {
     try {
       await connection.beginTransaction();
 
-      if (!currentProcess || currentProcess.length === 0) {
-        // If no previous process exists, INSERT new record
-        [result] = await mysqlPool.query(
-          `INSERT INTO proses (resi_id, id_pekerja, status_proses, gambar_resi) 
-           VALUES (?, ?, ?, ?)`,
-          [resi_id, id_pekerja, allowedRole, photoPath]
-        );
-      } else {
-        // If process exists, UPDATE the existing record
-        [result] = await mysqlPool.query(
-          `UPDATE proses 
+      // If process exists, UPDATE the existing record
+      [result] = await mysqlPool.query(
+        `UPDATE proses 
            SET status_proses = ?, 
                id_pekerja = ?, 
                gambar_resi = ?,
                updated_at = CURRENT_TIMESTAMP
            WHERE resi_id = ?`,
-          [allowedRole, id_pekerja, photoPath, resi_id]
-        );
-      }
+        [allowedRole, id_pekerja, photoPath, resi_id]
+      );
 
       await connection.commit();
 

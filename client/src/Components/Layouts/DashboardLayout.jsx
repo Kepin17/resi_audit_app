@@ -7,6 +7,7 @@ import Title from "../Elements/Title";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { backupEndpoint } from "../../utils/url";
+import { TbTruckReturn } from "react-icons/tb";
 
 const DashboardLayout = ({ children, activePage }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -82,14 +83,14 @@ const DashboardLayout = ({ children, activePage }) => {
         {/* Sidebar */}
         <nav
           className={`
-          sidebar w-[85%] md:w-[300px] bg-gradient-to-b from-blue-800 to-blue-900 shadow-xl rounded-md h-screen
+          sidebar w-[85%] md:w-[250px] lg:w-[300px] bg-gradient-to-b from-blue-800 to-blue-900 shadow-xl rounded-md h-screen
           fixed md:sticky top-0 left-0 z-40
           transform transition-transform duration-300 ease-in-out 
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
         >
           {/* Sidebar Header */}
-          <div className="h-[8rem] flex items-center justify-between px-5 border-b border-blue-700">
+          <div className="h-[6rem] flex items-center justify-between px-4 border-b border-blue-700">
             <Link to="/admin">
               <Title titleStyle="text-white font-semibold text-xl flex items-center gap-2">
                 <FaDatabase className="text-2xl" /> SIAR DASHBOARD
@@ -144,7 +145,15 @@ const DashboardLayout = ({ children, activePage }) => {
                       <span className="ml-3">Data Resi</span>
                     </Link>
                   </li>
-                  {(user?.roles?.includes("picker") || user?.roles?.includes("packing") || user?.roles?.includes("pickout")) && (
+                  {(user?.roles?.includes("retur_barang") || user?.roles?.includes("packing") || user?.roles?.includes("pickout")) && (
+                    <li>
+                      <Link to="/admin/retur-barang" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "retur" && "bg-blue-700"}`}>
+                        <TbTruckReturn className="w-5 h-5" />
+                        <span className="ml-3">Retur Barang</span>
+                      </Link>
+                    </li>
+                  )}
+                  {(user?.roles?.includes("picker") || user?.roles?.includes("packing") || user?.roles?.includes("pickout") || user?.roles?.includes("retur_barang")) && (
                     <li>
                       <Link to="/" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "scan" && "bg-blue-700"}`}>
                         <FaQrcode className="w-5 h-5" />

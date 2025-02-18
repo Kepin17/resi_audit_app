@@ -422,7 +422,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
             <div className={`${thisPage === "picker" ? "bg-blue-500" : thisPage === "packing" ? "bg-green-500" : "bg-indigo-500"} w-[22rem] h-full p-1 my-10 rounded-md flex items-center justify-center border-2 mb-6`}>
               <h1 className="text-4xl flex items-center gap-4 font-bold text-white">
                 {thisPage === "picker" ? <FaCartFlatbed /> : thisPage === "packing" ? <FaBoxesPacking /> : <FaTruck />}
-                {thisPage === "picker" ? "Pickup" : thisPage === "packing" ? "Packing" : "Delivery"} Station
+                {thisPage === "picker" ? "Pickup" : thisPage === "packing" ? "Packing" : thisPage === "pickout" ? "Delivery" : "Retur"} Station
               </h1>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
