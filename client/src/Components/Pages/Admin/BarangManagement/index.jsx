@@ -751,6 +751,11 @@ const AdminBarangSection = () => {
                     </svg>
                     {totalCountPending !== 0 && <div className="w-4 h-4 bg-red-400 rounded-full absolute -bottom-1 -right-2 flex items-center justify-center"></div>}
                   </Button>
+
+                  <div className="bg-orange-100 text-orange-500 p-2 w-32 rounded-md font-bold text-xl flex items-center gap-1">
+                    <MdOutlinePendingActions />
+                    {totalCountPending > 999 ? "999+" : totalCountPending}
+                  </div>
                 </div>
 
                 {/* Search Bar */}
