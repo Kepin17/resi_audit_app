@@ -18,7 +18,7 @@ const MainLayout = ({ children, getPage }) => {
         <NavFragment />
       </header>
       <main className="flex-1 w-full p-4">{children}</main>
-      <footer className={`${getPage === "picker" ? "bg-blue-600" : getPage === "packing" ? "bg-green-600" : getPage === "pickout" ? "bg-indigo-500" : ""} text-white rounded-lg shadow-lg p-4 mx-4 mb-4`}>
+      <footer className={`${getPage === "picker" ? "bg-blue-600" : getPage === "packing" ? "bg-green-600" : getPage === "pickout" ? "bg-indigo-500" : "bg-indigo-500"} text-white rounded-lg shadow-lg p-4 mx-4 mb-4`}>
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-4 md:mb-0 mobile:text-center">

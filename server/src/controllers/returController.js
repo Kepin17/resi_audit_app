@@ -118,6 +118,7 @@ const showAllBarangRetur = async (req, res) => {
       LEFT JOIN (
         SELECT p1.resi_id, 
                p1.status_retur,
+               p1.gambar_retur,
                p1.updated_at as last_scan,
                pek.nama_pekerja
         FROM proses_barang_retur p1
@@ -179,9 +180,11 @@ const showAllBarangRetur = async (req, res) => {
         b.updated_at,
         COALESCE(latest_process.status_retur, 'diproses') as status_retur,
         latest_process.nama_pekerja,
-        latest_process.last_scan
+        latest_process.last_scan,
+        latest_process.gambar_retur
         ${baseQuery}
         ${whereClause}
+        GROUP BY b.resi_id
         ORDER BY b.created_at DESC
         LIMIT ?, ?`,
       [...queryParams, offset, limit]
@@ -556,10 +559,218 @@ const downloadReturTemplate = async (req, res) => {
   }
 };
 
+const scanResiRetur = async (req, res) => {
+  try {
+    const { id_pekerja } = req.body;
+    const { resi_id } = req.params;
+
+    // Validate required fields
+    if (!resi_id || !id_pekerja) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).send({
+        success: false,
+        message: "resi_id and id_pekerja are required",
+      });
+    }
+
+    // Get worker data with roles
+    const [workerRoles] = await mysqlPool.query(
+      `SELECT p.*, b.jenis_pekerja, b.id_bagian
+       FROM pekerja p 
+       JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
+       JOIN bagian b ON rp.id_bagian = b.id_bagian
+       WHERE p.id_pekerja = ?`,
+      [id_pekerja]
+    );
+
+    if (!workerRoles || workerRoles.length === 0) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(404).send({
+        success: false,
+        message: "Worker not found or has no roles",
+      });
+    }
+
+    // Check if worker has retur_barang role
+    const hasReturRole = workerRoles.some((role) => role.jenis_pekerja === "retur_barang");
+    if (!hasReturRole) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(403).send({
+        success: false,
+        message: "You don't have permission to scan retur items",
+      });
+    }
+
+    // Check if resi exists in barang_retur
+    const [checkBarangRow] = await mysqlPool.query("SELECT * FROM barang_retur WHERE resi_id = ?", [resi_id]);
+
+    if (checkBarangRow.length === 0) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(404).send({
+        success: false,
+        message: "Resi not found in system",
+      });
+    }
+
+    // Handle photo upload
+    let photoPath = null;
+    if (req.file) {
+      photoPath = req.file.path;
+    }
+
+    // Process the scan with transaction
+    const connection = await mysqlPool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // First check if a record exists
+      const [existingRecord] = await connection.query(
+        `SELECT * FROM proses_barang_retur 
+         WHERE resi_id = ?`,
+        [resi_id]
+      );
+
+      if (existingRecord.length === 0) {
+        // If no record exists, create a new one
+        await connection.query(
+          `INSERT INTO proses_barang_retur 
+           (resi_id, id_pekerja, status, gambar)
+           VALUES (?, ?, 'diproses', ?)`,
+          [resi_id, id_pekerja, photoPath]
+        );
+      } else {
+        // If record exists, update it
+        await connection.query(
+          `UPDATE proses_barang_retur 
+           SET id_pekerja = ?, 
+               gambar_retur = ?,
+               status_retur = 'selesai',
+               updated_at = NOW()
+           WHERE resi_id = ?`,
+          [id_pekerja, photoPath, resi_id]
+        );
+      }
+
+      await connection.commit();
+
+      return res.status(200).send({
+        success: true,
+        message: "Resi berhasil di scan",
+        data: {
+          nama_pekerja: workerRoles[0].nama_pekerja,
+          username: workerRoles[0].username,
+          status: existingRecord.length === 0 ? "diproses" : "selesai",
+        },
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    if (req.file) {
+      const fs = require("fs");
+      fs.unlinkSync(req.file.path);
+    }
+    console.error("Error in scanResiRetur:", error);
+    res.status(500).send({
+      success: false,
+      message: "Internal server error while processing scan",
+      error: error.message,
+    });
+  }
+};
+
+const showAllReturActiviy = async (req, res) => {
+  const { id_pekerja } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+  const search = req.query.search || "";
+  const date = req.query.date;
+
+  try {
+    let queryConditions = ["lr.id_pekerja = ?"];
+    let queryParams = [id_pekerja];
+
+    if (search) {
+      queryConditions.push("lr.resi_id LIKE ?");
+      queryParams.push(`%${search}%`);
+    }
+
+    if (date) {
+      queryConditions.push("DATE(lr.created_at) = ?");
+      queryParams.push(date);
+    }
+
+    const whereClause = queryConditions.join(" AND ");
+
+    // Get total count for pagination
+    const [countResult] = await mysqlPool.query(
+      `SELECT COUNT(*) as total 
+       FROM log_retur lr
+       WHERE ${whereClause}`,
+      queryParams
+    );
+
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // Get paginated data
+    const [rows] = await mysqlPool.query(
+      `SELECT 
+        lr.resi_id,
+        pek.nama_pekerja,
+        lr.status_retur as status,
+        lr.created_at as proses_scan
+      FROM log_retur lr
+      LEFT JOIN pekerja pek ON lr.id_pekerja = pek.id_pekerja
+      WHERE ${whereClause}
+      ORDER BY lr.created_at DESC
+      LIMIT ?, ?`,
+      [...queryParams, offset, limit]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Data found",
+      data: rows,
+      pagination: {
+        totalPages,
+        currentPage: page,
+        totalItems,
+        limit,
+      },
+    });
+  } catch (error) {
+    console.error("Database error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error when trying to fetch data",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   addRetur,
   showAllBarangRetur,
   importRetur,
   exportRetur,
   downloadReturTemplate,
+  scanResiRetur,
+  showAllReturActiviy,
 };

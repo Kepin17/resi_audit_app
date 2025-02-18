@@ -26,6 +26,9 @@ const ReturBarangPage = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [ekspedisi, setEkspedisi] = useState("all");
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState("");
+  const [rotationDegree, setRotationDegree] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -44,9 +47,6 @@ const ReturBarangPage = () => {
         endDate: dateRange?.[1]?.format("YYYY-MM-DD"),
       };
 
-      console.log("Fetching with params:", params);
-      console.log("URL:", `${urlApi}/api/v1/retur`);
-
       const response = await axios.get(`${urlApi}/api/v1/barang-retur`, {
         params,
         headers: {
@@ -54,19 +54,26 @@ const ReturBarangPage = () => {
         },
       });
 
-      console.log("Response:", response.data);
-
       if (response.data.success) {
         setData(response.data.data);
         setFilteredData(response.data.data);
         setTotalItems(response.data.pagination.totalItems);
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
       message.error("Gagal mengambil data retur");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePreview = (imageUrl) => {
+    setPreviewImage(imageUrl);
+    setPreviewVisible(true);
+    setRotationDegree(0); // Reset rotation when opening new image
+  };
+
+  const handleRotate = () => {
+    setRotationDegree((prev) => (prev + 90) % 360);
   };
 
   const columns = [
@@ -116,6 +123,20 @@ const ReturBarangPage = () => {
       width: 150,
       render: (date) => (date ? moment(date).format("DD/MM/YYYY HH:mm") : "-"),
     },
+    {
+      title: "Image",
+      dataIndex: "gambar_retur",
+      key: "gambar_retur",
+      width: 150,
+      render: (imageUrl) =>
+        imageUrl ? (
+          <Button type="link" onClick={() => handlePreview(imageUrl)}>
+            View Image
+          </Button>
+        ) : (
+          "-"
+        ),
+    },
   ];
 
   const handleDateRangeChange = (dates) => {
@@ -140,11 +161,11 @@ const ReturBarangPage = () => {
 
   const ekspedisiOptions = [
     { label: "Semua", value: "all" },
-    { label: "JNT Express", value: "JNT" },
+    { label: "J&T ", value: "JNT" },
     { label: "JNE", value: "JNE" },
-    { label: "J&T", value: "JTR" },
+    { label: "J&T Truck", value: "JTR" },
+    { label: "JNT Cargo", value: "JCG" },
     { label: "Gosend", value: "GJK" },
-    { label: "JNE Cargo", value: "JCG" },
   ];
 
   const downloadTemplate = async () => {
@@ -178,7 +199,6 @@ const ReturBarangPage = () => {
         duration: 3,
       });
     } catch (error) {
-      console.error("Error downloading template:", error);
       message.error({
         content: "Gagal download template",
         key: "template",
@@ -238,7 +258,6 @@ const ReturBarangPage = () => {
           fetchData();
         }
       } catch (error) {
-        console.error("Error importing file:", error);
         message.error({
           content: error.response?.data?.message || "Gagal mengimport data. Pastikan format file sesuai template.",
           key: "import",
@@ -296,7 +315,6 @@ const ReturBarangPage = () => {
         duration: 3,
       });
     } catch (error) {
-      console.error("Error exporting data:", error);
       message.error({
         content: "Gagal mengexport data",
         key: "export",
@@ -309,7 +327,7 @@ const ReturBarangPage = () => {
 
   const handleAddRetur = async (values) => {
     try {
-      const response = await axios.post(`${urlApi}/api/v1/retur`, values, {
+      const response = await axios.post(`${urlApi}/api/v1/barang-retur`, values, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -322,7 +340,6 @@ const ReturBarangPage = () => {
         setRefreshKey((old) => old + 1);
       }
     } catch (error) {
-      console.error("Error adding retur:", error);
       message.error(error.response?.data?.message || "Gagal menambahkan retur");
     }
   };
@@ -487,6 +504,34 @@ const ReturBarangPage = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Add Image Preview Modal */}
+      <Modal
+        visible={previewVisible}
+        footer={[
+          <Button key="rotate" onClick={handleRotate}>
+            Rotate
+          </Button>,
+          <Button key="close" onClick={() => setPreviewVisible(false)}>
+            Close
+          </Button>,
+        ]}
+        onCancel={() => setPreviewVisible(false)}
+        width={800}
+      >
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+          <img
+            alt="preview"
+            style={{
+              maxWidth: "100%",
+              maxHeight: "600px",
+              transform: `rotate(${rotationDegree}deg)`,
+              transition: "transform 0.3s ease",
+            }}
+            src={`${urlApi}/${previewImage}`}
+          />
+        </div>
       </Modal>
     </DashboardLayout>
   );

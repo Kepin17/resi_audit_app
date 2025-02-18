@@ -111,7 +111,6 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
       const user = decodeToken.id_pekerja;
-
       const formData = new FormData();
       formData.append("id_pekerja", user);
       formData.append("thisPage", thisPage);

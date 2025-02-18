@@ -447,6 +447,7 @@ CREATE TABLE barang_retur (
         REFERENCES ekpedisi(id_ekspedisi) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+
 CREATE TABLE proses_barang_retur (
     id_proses INT AUTO_INCREMENT PRIMARY KEY,
     resi_id VARCHAR(20),
@@ -509,4 +510,47 @@ BEGIN
 END$$
 DELIMITER ;
 
+use siar_db;
+DELIMITER $$
+CREATE TRIGGER trg_update_resi_status_after_proses_retur
+AFTER UPDATE ON proses_barang_retur
+FOR EACH ROW
+BEGIN
+    -- Update barang_retur status when proses_barang_retur status changes
+    UPDATE barang_retur
+    SET status_retur = "selesai"
+    WHERE resi_id = NEW.resi_id AND OLD.status_retur = "diproses";
+END$$
 
+DELIMITER ;
+
+
+DELIMITER $$
+CREATE TRIGGER delete_barang_retur_after_delete_proses_retur
+AFTER DELETE ON proses_barang_retur
+FOR EACH ROW
+BEGIN
+    DELETE FROM barang_retur
+    WHERE resi_id = OLD.resi_id;
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER add_to_log_retur_after_insert_proses_retur
+AFTER INSERT ON proses_barang_retur
+FOR EACH ROW
+BEGIN
+    INSERT INTO log_retur (resi_id, id_pekerja, status_retur, gambar_retur)
+    VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_retur, NEW.gambar_retur);
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER update_log_retur_after_update_proses_retur
+AFTER UPDATE ON proses_barang_retur
+FOR EACH ROW
+BEGIN
+    INSERT INTO log_retur (resi_id, id_pekerja, status_retur, gambar_retur)
+    VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_retur, NEW.gambar_retur);
+END$$
+DELIMITER ;

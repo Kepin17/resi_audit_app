@@ -12,7 +12,7 @@ const upload = require("../config/multerConfig");
 const { getStatistics, getWorkerStatistics } = require("../controllers/statisticsController");
 const { createBackup } = require("../controllers/backupController");
 const { getAllEkspedisi } = require("../controllers/ekspedisiController");
-const { addRetur, showAllBarangRetur, downloadReturTemplate, exportRetur, importRetur } = require("../controllers/returController");
+const { addRetur, showAllBarangRetur, downloadReturTemplate, exportRetur, importRetur, scanResiRetur, showAllReturActiviy } = require("../controllers/returController");
 
 const roles = {
   picker: "picker",
@@ -47,9 +47,9 @@ router.post("/barang/import", authToken, roleMiddleware([roles.admin, roles.supa
 router.get("/barang-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupBarang);
 
 // audit resi
-router.post("/auditResi/scan/:resi_id", authToken, roleMiddleware([roles.packing, roles.pickout, roles.picker, roles.retur, roles.admin, roles.supadmin]), upload.single("photo"), scaneHandler);
+router.post("/auditResi/scan/:resi_id", authToken, roleMiddleware([roles.packing, roles.pickout, roles.picker]), upload.single("photo"), scaneHandler);
 router.get("/auditResi/activity", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllActiviy);
-router.get("/auditResi/activity/:thisPage/:username", authToken, roleMiddleware([roles.picker, roles.packing, roles.pickout, roles.retur]), getActivityByName);
+router.get("/auditResi/activity/:thisPage/:username", authToken, roleMiddleware([roles.picker, roles.packing, roles.pickout]), getActivityByName);
 router.get("/auditResi/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDataByResi);
 router.post("/auditResi/photo", authToken, uploadPhoto);
 router.get("/audit-packed", authToken, roleMiddleware([roles.admin, roles.supadmin]), showResiTerpack);
@@ -96,5 +96,7 @@ router.get("/barang-retur", authToken, roleMiddleware([roles.retur]), showAllBar
 router.post("/retur/import", authToken, roleMiddleware([roles.retur]), upload.single("file"), importRetur);
 router.get("/retur-export", authToken, roleMiddleware([roles.retur]), exportRetur);
 router.get("/retur-template", authToken, roleMiddleware([roles.retur]), downloadReturTemplate);
+router.put("/retur-scan/:resi_id", authToken, roleMiddleware([roles.retur]), upload.single("photo"), scanResiRetur);
+router.get("/auditResi/activity-retur/:id_pekerja", authToken, roleMiddleware([roles.admin, roles.supadmin, roles.retur]), showAllReturActiviy);
 
 module.exports = router;

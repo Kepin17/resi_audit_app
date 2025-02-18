@@ -48,6 +48,7 @@ const AdminBarangSection = () => {
   const [ekspedisi, setEkspedisi] = useState([]);
   const [calendarData, setCalendarData] = useState({});
   const [isCalendarModalVisible, setIsCalendarModalVisible] = useState(false);
+  const [totalCountPending, setTotalCountPending] = useState(0);
 
   useEffect(() => {
     const fetchEkspedisi = async () => {
@@ -60,7 +61,6 @@ const AdminBarangSection = () => {
 
         if (response.data?.success) {
           setEkspedisi(response.data.data);
-          console.log(response.data.data);
         } else {
           throw new Error(response.data?.message || "Invalid response format");
         }
@@ -142,6 +142,7 @@ const AdminBarangSection = () => {
       if (response.data?.success) {
         setBarang(response.data.data);
         setTotalPages(response.data.pagination.totalPages);
+        setTotalCountPending(response.data.countPending);
       } else {
         throw new Error(response.data?.message || "Invalid response format");
       }
@@ -478,14 +479,6 @@ const AdminBarangSection = () => {
     { value: "cancelled", label: "Cancelled" },
   ];
 
-  const ekspedisiOptions = [
-    { value: "Semua", label: "Semua" },
-    ...ekspedisi.map((ekspedisi) => ({
-      value: ekspedisi.id_ekspedisi,
-      label: ekspedisi.nama_ekspedisi,
-    })),
-  ];
-
   const handleModalDetailClose = () => {
     setModalDetailOpen(false);
     setResiDetail([]); // Clear detail data when modal closes
@@ -752,10 +745,11 @@ const AdminBarangSection = () => {
                   <div className="w-full sm:w-auto">
                     <RangePicker onChange={handleDateChange} className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
                   </div>
-                  <Button buttonStyle="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 w-full sm:w-auto" onClick={() => setIsCalendarModalVisible(true)}>
+                  <Button buttonStyle="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 w-full sm:w-auto relative" onClick={() => setIsCalendarModalVisible(true)}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                     </svg>
+                    {totalCountPending !== 0 && <div className="w-4 h-4 bg-red-400 rounded-full absolute -bottom-1 -right-2 flex items-center justify-center"></div>}
                   </Button>
                 </div>
 
@@ -763,7 +757,6 @@ const AdminBarangSection = () => {
                 <div className="w-full">
                   <SearchFragment onSearch={handleSearchInput} onKeyPress={handleSearchSubmit} value={searchInput} placeholder="Cari nomor resi" className="w-full" />
                 </div>
-
                 {/* Sort Buttons */}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button

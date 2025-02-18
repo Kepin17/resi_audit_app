@@ -201,10 +201,17 @@ const showAllBarang = async (req, res) => {
       [...queryParams, offset, limit]
     );
 
+    const [getDataPending] = await mysqlPool.query(
+      `SELECT COUNT(DISTINCT b.resi_id) as count
+      FROM proses b
+      WHERE b.status_proses = 'pending'`
+    );
+
     return res.status(200).json({
       success: true,
       message: "Data found",
       data: rows,
+      countPending: getDataPending[0].count,
       pagination: {
         totalPages,
         currentPage: page,
