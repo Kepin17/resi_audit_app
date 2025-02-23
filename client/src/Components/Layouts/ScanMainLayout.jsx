@@ -11,9 +11,10 @@ import urlApi from "../../utils/url";
 import { playSuccessSound, playErrorSound } from "../../utils/audio";
 import { FaBoxesPacking, FaCartFlatbed } from "react-icons/fa6";
 import Unauthorized from "../Pages/Unauthorized";
-import { DatePicker, Pagination } from "antd";
+import { DatePicker, message, Pagination } from "antd";
 import SearchFragment from "../Fragments/SearchFragment";
 import { FaTruck } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -30,6 +31,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [switchMode, setSwitchMode] = useState(true);
+  const [expeditionCount, setExpeditionCount] = useState([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     limit: 5,
@@ -42,13 +44,38 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     totalItems: 0,
     totalPages: 0,
   });
+  const [isSoundLocked, setIsSoundLocked] = useState(false);
+  const navigate = useNavigate();
 
-  useEffect(() => {
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+
+  const checkTokenExpiration = () => {
     const token = localStorage.getItem("token");
     if (!token) {
-      setIsLoading(false);
-      return;
+      handleLogout();
+      return false;
     }
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded.exp * 1000 < Date.now()) {
+        toast.error("Session expired. Please login again.");
+        handleLogout();
+        return false;
+      }
+      return true;
+    } catch (error) {
+      handleLogout();
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (!checkTokenExpiration()) return;
+
+    const token = localStorage.getItem("token");
     const decodeToken = jwtDecode(token);
     setUser(decodeToken.roles);
     setIsLoading(false);
@@ -107,6 +134,10 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   };
 
   const handleSubmitWithoutPhoto = async (resiId) => {
+    if (!checkTokenExpiration()) return;
+    if (isSoundLocked) return;
+    setIsSoundLocked(true);
+
     try {
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
@@ -136,14 +167,19 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       setScanning(true);
       setCurrentResi(null);
       setIsBarcodeActive(true);
-      setIsBarcodeActive(false);
+      setTimeout(() => setIsSoundLocked(false), 500); // Reduced to 500ms
     }
   };
 
   const handlePhotoCapture = async ({ photo }) => {
+    if (!checkTokenExpiration()) return;
+    if (isSoundLocked) return;
+    setIsSoundLocked(true);
+
     if (!photo) {
       playErrorSound();
       toast.error("Photo is required");
+      setIsSoundLocked(false);
       return;
     }
 
@@ -184,7 +220,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       setIsBarcodeActive(true);
       setScanning(true);
       setCurrentResi(null);
-      setIsBarcodeActive(false);
+      setTimeout(() => setIsSoundLocked(false), 500); // Reduced to 500ms
     }
   };
 
@@ -211,8 +247,36 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     return `${day} ${month} ${year} | ${time}`;
   };
 
+  const fetchExpeditionCounts = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (selectedDate) {
+        params.append("date", selectedDate.format("YYYY-MM-DD "));
+      }
+
+      const response = await axios.get(`${urlApi}/api/v1/expedition-counts?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      setExpeditionCount(response.data.data);
+    } catch (err) {
+      if (err.response?.status !== 401) {
+        message.error("Failed to fetch expedition counts");
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (thisPage === "pickout") {
+      fetchExpeditionCounts();
+    }
+  }, [selectedDate]);
+
   useEffect(() => {
     const fetchData = () => {
+      if (!checkTokenExpiration()) return;
+
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
       const username = decodeToken.username;
@@ -272,6 +336,8 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
 
   useEffect(() => {
     const fetchDataBeloman = () => {
+      if (!checkTokenExpiration()) return;
+
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
 
@@ -379,9 +445,16 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     }, 0);
   };
 
+  const ExpeditionCountCard = ({ name, count, color }) => (
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <h3 className="text-sm font-medium text-gray-500">{name}</h3>
+      <p className={`text-2xl font-bold ${color} mt-2`}>{count || 0}</p>
+    </div>
+  );
+
   return (
     <MainLayout getPage={thisPage}>
-      <ToastContainer />
+      <ToastContainer position="top-right" autoClose={1000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
       {isPhotoMode || isBarcodeActive ? (
         <div className="fixed inset-0 bg-black z-50">
@@ -441,6 +514,20 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
               </div>
             </div>
 
+            {thisPage === "pickout" && (
+              <div className="mb-8">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+                  Today's Deliveries by Expedition
+                  <span className="bg-green-200 text-green-500 p-1 px-4 rounded-md">All Activity</span>
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                  {expeditionCount.map((ekspedisi) => (
+                    <ExpeditionCountCard name={ekspedisi.nama_ekspedisi} count={ekspedisi.total_resi} color="text-indigo-500" />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Scanner Controls */}
             <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -463,6 +550,8 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                 </Button>
               </div>
             </div>
+
+            <div></div>
 
             {/* Activity List */}
             <div className="bg-white rounded-xl shadow-sm p-6">

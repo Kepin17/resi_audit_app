@@ -556,6 +556,45 @@ const getActivityNotComplited = async (req, res) => {
   }
 };
 
+const getExpeditionCounts = async (req, res) => {
+  try {
+    const { startDate, endDate, selectedDate } = req.query;
+
+    let query = `
+      SELECT 
+        ekpedisi.nama_ekspedisi,
+        COUNT(barang.resi_id) as total_resi
+      FROM barang
+      JOIN ekpedisi ON barang.id_ekspedisi = ekpedisi.id_ekspedisi
+      JOIN proses ON barang.resi_id = proses.resi_id
+      WHERE proses.status_proses != 'cancelled'
+    `;
+
+    const queryParams = [];
+
+    if (startDate && endDate) {
+      query += ` WHERE barang.created_at BETWEEN ? AND ?`;
+      queryParams.push(startDate + " 00:00:00", endDate + " 23:59:59");
+    }
+    if (selectedDate) {
+      query += ` WHERE DATE(barang.created_at) = ?`;
+      queryParams.push(selectedDate);
+    }
+
+    query += ` GROUP BY ekpedisi.nama_ekspedisi`;
+
+    const [rows] = await mysqlPool.query(query, queryParams);
+
+    res.status(200).send({
+      success: true,
+      message: "Data found",
+      data: rows,
+    });
+  } catch (error) {
+    handleError(error, res, "fetching expedition counts");
+  }
+};
+
 module.exports = {
   showAllData,
   scaneHandler,
@@ -564,4 +603,5 @@ module.exports = {
   showDataByResi,
   uploadPhoto,
   getActivityNotComplited,
+  getExpeditionCounts,
 };

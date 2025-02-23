@@ -224,12 +224,19 @@ BEGIN
     
     -- Only calculate salary if:
     -- 1. Worker has packing role
-    -- 2. The process status is 'packing'
+    -- 2. Worker is NOT fulltime
+    -- 3. The process status is 'packing'
     IF EXISTS (
         SELECT 1 FROM role_pekerja rp
         JOIN bagian b ON rp.id_bagian = b.id_bagian
         WHERE rp.id_pekerja = NEW.id_pekerja
-        AND b.jenis_pekerja = 'packing' AND b.jenis_pekerja != 'fulltime'
+        AND b.jenis_pekerja = 'packing'
+        AND NOT EXISTS (
+            SELECT 1 FROM role_pekerja rp2
+            JOIN bagian b2 ON rp2.id_bagian = b2.id_bagian
+            WHERE rp2.id_pekerja = NEW.id_pekerja
+            AND b2.jenis_pekerja = 'fulltime'
+        )
     ) AND NEW.status_proses = 'packing' THEN
         -- Check if there's an existing record for today
         SELECT COUNT(*) INTO v_existing_record
@@ -263,6 +270,7 @@ BEGIN
 END$$
 
 DELIMITER ;
+
 
 use siar_db;
 

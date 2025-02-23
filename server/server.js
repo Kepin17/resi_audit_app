@@ -1,11 +1,11 @@
 const express = require("express");
 const app = express();
-const routes = require("./routes");
+const routes = require("./src/routes");
 const dotenv = require("dotenv");
-const mysqlPool = require("./config/db");
-const protectedRoute = require("./routes/protectedRoute");
+const mysqlPool = require("./src/config/db");
+const protectedRoute = require("./src/routes/protectedRoute");
 const cors = require("cors");
-const cleanupOldImages = require("./utils/imageCleanup");
+const cleanupOldImages = require("./src/utils/imageCleanup");
 
 dotenv.config();
 

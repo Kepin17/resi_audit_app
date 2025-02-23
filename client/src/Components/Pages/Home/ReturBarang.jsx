@@ -14,6 +14,7 @@ import Unauthorized from "../../Pages/Unauthorized";
 import { DatePicker, Pagination } from "antd";
 import SearchFragment from "../../Fragments/SearchFragment";
 import { FaTruck } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const ScanMainLayout = ({ dailyEarnings }) => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -43,12 +44,37 @@ const ScanMainLayout = ({ dailyEarnings }) => {
     totalPages: 0,
   });
 
-  useEffect(() => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+
+  const checkTokenExpiration = () => {
     const token = localStorage.getItem("token");
     if (!token) {
-      setIsLoading(false);
-      return;
+      handleLogout();
+      return false;
     }
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded.exp * 1000 < Date.now()) {
+        toast.error("Session expired. Please login again.");
+        handleLogout();
+        return false;
+      }
+      return true;
+    } catch (error) {
+      handleLogout();
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (!checkTokenExpiration()) return;
+
+    const token = localStorage.getItem("token");
     const decodeToken = jwtDecode(token);
     setUser(decodeToken.roles);
     setIsLoading(false);
@@ -107,6 +133,8 @@ const ScanMainLayout = ({ dailyEarnings }) => {
   };
 
   const handleSubmitWithoutPhoto = async (resiId) => {
+    if (!checkTokenExpiration()) return;
+
     try {
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
@@ -140,6 +168,8 @@ const ScanMainLayout = ({ dailyEarnings }) => {
   };
 
   const handlePhotoCapture = async ({ photo }) => {
+    if (!checkTokenExpiration()) return;
+
     if (!photo) {
       playErrorSound();
       toast.error("Photo is required");
@@ -212,6 +242,8 @@ const ScanMainLayout = ({ dailyEarnings }) => {
 
   useEffect(() => {
     const fetchData = () => {
+      if (!checkTokenExpiration()) return;
+
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
       const id_pekerja = decodeToken.id_pekerja;

@@ -514,17 +514,17 @@ const downloadReturTemplate = async (req, res) => {
     const examples = [
       {
         resi_id: "CM1234567",
-        note: "Contoh resi JNE",
+        note: "Barang rusak saat diterima",
         created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       },
       {
         resi_id: "JX1234567",
-        note: "Contoh resi JNT",
+        note: "Pembeli tidak suka warna barang",
         created_at: moment().subtract(1, "days").format("YYYY-MM-DD HH:mm:ss"),
       },
       {
         resi_id: "12345678",
-        note: "Contoh resi angka",
+        note: "Barang tidak sesuai pesanan",
         created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       },
     ];

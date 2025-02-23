@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
-const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, getActivityNotComplited } = require("../controllers/auditResiController");
+const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, getActivityNotComplited, getExpeditionCounts } = require("../controllers/auditResiController");
 const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang, createExcelTemplate, deleteResi, getCalendarData } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
@@ -53,6 +53,7 @@ router.get("/auditResi/activity/:thisPage/:username", authToken, roleMiddleware(
 router.get("/auditResi/:resi_id", authToken, roleMiddleware([roles.admin, roles.supadmin]), showDataByResi);
 router.post("/auditResi/photo", authToken, uploadPhoto);
 router.get("/audit-packed", authToken, roleMiddleware([roles.admin, roles.supadmin]), showResiTerpack);
+router.get("/expedition-counts", authToken, roleMiddleware([roles.admin, roles.supadmin, roles.pickout]), getExpeditionCounts);
 
 // audit packing
 router.get("/resi-terpack", authToken, roleMiddleware([roles.admin, roles.supadmin, roles.packing, roles.pickout, roles.picker]), showResiTerpack);

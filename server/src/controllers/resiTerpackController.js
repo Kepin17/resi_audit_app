@@ -76,6 +76,13 @@ const showResiTerpack = async (req, res) => {
       message: "Data berhasil ditemukan!",
       data: rows,
       todayCount: todayCount[0].today_count,
+      countEkspedisiToday: {
+        jne: 0,
+        jnt: 0,
+        jntc: 0,
+        jntt: 0,
+        gosend: 0,
+      },
       pagination: {
         currentPage: parseInt(page),
         totalPages,

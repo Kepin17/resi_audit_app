@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { HiMenuAlt3 } from "react-icons/hi";
 import { FaUsers, FaBoxes, FaHistory, FaMoneyBillWave, FaQrcode, FaDatabase, FaSignOutAlt } from "react-icons/fa";
 import Title from "../Elements/Title";
@@ -14,13 +14,44 @@ const DashboardLayout = ({ children, activePage }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+
+  const checkTokenExpiration = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      handleLogout();
+      return false;
+    }
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded.exp * 1000 < Date.now()) {
+        toast.error("Session expired. Please login again.");
+        handleLogout();
+        return false;
+      }
+      return true;
+    } catch (error) {
+      handleLogout();
+      return false;
+    }
+  };
+
   useEffect(() => {
+    if (!checkTokenExpiration()) return;
+
     const token = localStorage.getItem("token");
     const user = jwtDecode(token);
     setUser(user);
   }, []);
 
   useEffect(() => {
+    if (!checkTokenExpiration()) return;
+
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
@@ -33,6 +64,8 @@ const DashboardLayout = ({ children, activePage }) => {
   };
 
   const handleBackup = async () => {
+    if (!checkTokenExpiration()) return;
+
     try {
       setIsLoading(true);
       const token = localStorage.getItem("token");
@@ -181,13 +214,7 @@ const DashboardLayout = ({ children, activePage }) => {
                     </li>
                   )}
                   <li>
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem("token");
-                        window.location.href = "/login";
-                      }}
-                      className="w-full flex items-center p-3 text-white rounded-lg hover:bg-red-600 bg-red-700 transition-colors"
-                    >
+                    <button onClick={handleLogout} className="w-full flex items-center p-3 text-white rounded-lg hover:bg-red-600 bg-red-700 transition-colors">
                       <FaSignOutAlt className="w-5 h-5" />
                       <span className="ml-3">Logout</span>
                     </button>
