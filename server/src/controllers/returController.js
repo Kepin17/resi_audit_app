@@ -15,7 +15,7 @@ const addRetur = async (req, res) => {
       });
     }
 
-    const [rows] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
+    const [rows] = await mysqlPool.query("SELECT * FROM barang_retur WHERE resi_id = ?", [resi_id]);
 
     const allowResiCode = ["JX", "JP", "TG", "CM", "JT", "GK"];
     const resiCode = resi_id.substring(0, 2);
@@ -171,22 +171,25 @@ const showAllBarangRetur = async (req, res) => {
 
     // Get filtered data
     const [rows] = await mysqlPool.query(
-      `SELECT 
-        b.resi_id,
-        b.id_ekspedisi,
-        e.nama_ekspedisi,
-        b.note,
-        b.created_at,
-        b.updated_at,
-        COALESCE(latest_process.status_retur, 'diproses') as status_retur,
-        latest_process.nama_pekerja,
-        latest_process.last_scan,
-        latest_process.gambar_retur
-        ${baseQuery}
-        ${whereClause}
-        GROUP BY b.resi_id
-        ORDER BY b.created_at DESC
-        LIMIT ?, ?`,
+      `
+     SELECT
+    b.resi_id,
+    b.id_ekspedisi,
+    e.nama_ekspedisi,
+    b.note,
+    b.created_at,
+    b.updated_at,
+    COALESCE(latest_process.status_retur, 'diproses') as status_retur,
+    latest_process.nama_pekerja,
+    latest_process.last_scan,
+    latest_process.gambar_retur
+    ${baseQuery}
+    ${whereClause}
+    ORDER BY b.created_at DESC
+    LIMIT ?, ?
+
+
+        `,
       [...queryParams, offset, limit]
     );
 

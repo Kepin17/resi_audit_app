@@ -146,14 +146,12 @@ const showAllBarang = async (req, res) => {
         orderClause = "ORDER BY b.created_at ASC";
         break;
       case "last-update":
-        // Fix: use last_scan from latest_process instead of updated_at
         orderClause = "ORDER BY COALESCE(latest_process.last_scan, b.updated_at) DESC";
         break;
       default:
         orderClause = "ORDER BY b.created_at DESC";
     }
 
-    // Fix table name in main query from ekpedisi to ekspedisi
     const [rows] = await mysqlPool.query(
       `SELECT 
         b.resi_id,
@@ -201,6 +199,53 @@ const showAllBarang = async (req, res) => {
       [...queryParams, offset, limit]
     );
 
+    const [barangKeseluruhan] = await mysqlPool.query(
+      `SELECT 
+        b.resi_id,
+        b.created_at,
+        b.updated_at,
+        b.id_ekspedisi,
+        e.nama_ekspedisi,
+        COALESCE(latest_process.status_proses, 'pending') as status_proses,
+        latest_process.nama_pekerja,
+        latest_process.last_scan,
+        CASE 
+          WHEN latest_process.status_proses = 'cancelled' THEN 'Dibatalkan'
+          WHEN latest_process.status_proses = 'pending' OR latest_process.status_proses IS NULL THEN 'Menunggu pickup'
+          WHEN latest_process.status_proses = 'picker' THEN 'Sudah dipickup'
+          WHEN latest_process.status_proses = 'packing' THEN 'Sudah dipacking'
+          WHEN latest_process.status_proses = 'pickout' THEN 'Dalam pengiriman'
+          WHEN latest_process.status_proses = 'konfirmasi' THEN 'Konfirmasi Cancel'
+          ELSE 'Menunggu proses'
+        END as status_description,
+        (
+          SELECT GROUP_CONCAT(DISTINCT l.status_proses ORDER BY l.created_at DESC)
+          FROM log_proses l
+          WHERE l.resi_id = b.resi_id
+        ) as process_history
+       FROM barang b
+       LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
+       LEFT JOIN (
+         SELECT p1.resi_id, 
+                p1.status_proses, 
+                p1.updated_at as last_scan,
+                pek.nama_pekerja
+         FROM proses p1
+         LEFT JOIN pekerja pek ON p1.id_pekerja = pek.id_pekerja
+         WHERE p1.id_proses = (
+           SELECT p2.id_proses 
+           FROM proses p2 
+           WHERE p2.resi_id = p1.resi_id 
+           ORDER BY p2.updated_at DESC 
+           LIMIT 1
+         )
+       ) latest_process ON b.resi_id = latest_process.resi_id
+       ${whereClause}
+       ${orderClause}
+    `,
+      [...queryParams, offset, limit]
+    );
+
     const [getDataPending] = await mysqlPool.query(
       `SELECT COUNT(DISTINCT b.resi_id) as count
       FROM proses b
@@ -211,6 +256,7 @@ const showAllBarang = async (req, res) => {
       success: true,
       message: "Data found",
       data: rows,
+      totalPesanan: barangKeseluruhan.length,
       countPending: getDataPending[0].count,
       pagination: {
         totalPages,
@@ -285,55 +331,61 @@ const cancelBarang = async (req, res) => {
     const { resi_id } = req.params;
     const userRoles = req.user.roles;
 
-    // Check if resi exists and get current status
-    const [existingResi] = await connection.query("SELECT status_proses FROM proses WHERE resi_id = ? ORDER BY updated_at DESC LIMIT 1", [resi_id]);
+    // Support for multiple resi_ids
+    const resiIds = Array.isArray(resi_id) ? resi_id : [resi_id];
 
-    if (existingResi.length === 0) {
+    // Check if resis exist and get current status
+    const [existingResis] = await connection.query("SELECT resi_id, status_proses FROM proses WHERE resi_id IN (?) ORDER BY updated_at DESC", [resiIds]);
+
+    const notFoundResis = resiIds.filter((id) => !existingResis.some((resi) => resi.resi_id === id));
+
+    if (notFoundResis.length > 0) {
       return res.status(404).send({
         success: false,
-        message: "Resi not found",
+        message: `Resi not found: ${notFoundResis.join(", ")}`,
       });
     }
 
-    // Check if already cancelled
-    if (existingResi[0].status_proses === "cancelled") {
+    // Check if any are already cancelled
+    const alreadyCancelled = existingResis.filter((resi) => resi.status_proses === "cancelled");
+    if (alreadyCancelled.length > 0) {
       return res.status(400).send({
         success: false,
-        message: "Resi already cancelled",
+        message: `Some resis are already cancelled: ${alreadyCancelled.map((r) => r.resi_id).join(", ")}`,
       });
     }
 
-    // Updated query with correct parameter order and WHERE clause
-    await connection.query(
-      `UPDATE proses 
-       SET status_proses = 'cancelled', 
-           id_pekerja = ?,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE resi_id = ? 
-       AND id_proses = (
-         SELECT id_proses 
-         FROM (
-           SELECT MAX(id_proses) as id_proses 
-           FROM proses 
-           WHERE resi_id = ?
-         ) as latest
-       )`,
-      [req.user.id_pekerja, resi_id, resi_id]
-    );
+    // Updated query to handle multiple resis
+    for (const resiId of resiIds) {
+      await connection.query(
+        `UPDATE proses 
+         SET status_proses = 'cancelled', 
+             id_pekerja = ?,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE resi_id = ? 
+         AND id_proses = (
+           SELECT id_proses 
+           FROM (
+             SELECT MAX(id_proses) as id_proses 
+             FROM proses 
+             WHERE resi_id = ?
+           ) as latest
+         )`,
+        [req.user.id_pekerja, resiId, resiId]
+      );
 
-    await connection.query(
-      `
-      DELETE FROM log_proses
-      WHERE resi_id = ? AND status_proses != 'cancelled'
-      `,
-      [resi_id]
-    );
+      await connection.query(
+        `DELETE FROM log_proses
+         WHERE resi_id = ? AND status_proses != 'cancelled'`,
+        [resiId]
+      );
+    }
 
     await connection.commit();
 
     res.status(200).send({
       success: true,
-      message: "Resi has been cancelled",
+      message: `${resiIds.length} resi(s) have been cancelled`,
       updatedBy: userRoles,
     });
   } catch (error) {
@@ -822,26 +874,35 @@ const deleteResi = async (req, res) => {
 
     const { resi_id } = req.params;
 
-    // First check if resi exists
-    const [existingResi] = await connection.query("SELECT resi_id FROM barang WHERE resi_id = ?", [resi_id]);
+    // Support for multiple resi_ids
+    const resiIds = Array.isArray(resi_id) ? resi_id : [resi_id];
 
-    if (existingResi.length === 0) {
+    // First check if resis exist
+    const [existingResis] = await connection.query("SELECT resi_id FROM barang WHERE resi_id IN (?)", [resiIds]);
+
+    const notFoundResis = resiIds.filter((id) => !existingResis.some((resi) => resi.resi_id === id));
+
+    if (notFoundResis.length > 0) {
       await connection.rollback();
       return res.status(404).send({
         success: false,
-        message: "Resi not found",
+        message: `Some resis not found: ${notFoundResis.join(", ")}`,
       });
     }
 
-    // Delete related records first (foreign key constraints)
-    await connection.query("DELETE FROM log_proses WHERE resi_id = ?", [resi_id]);
-    await connection.query("DELETE FROM proses WHERE resi_id = ?", [resi_id]);
+    // Delete related records for all resis
+    await connection.query("DELETE FROM log_proses WHERE resi_id IN (?)", [resiIds]);
+
+    await connection.query("DELETE FROM proses WHERE resi_id IN (?)", [resiIds]);
+
+    // Finally delete the barang records
+    await connection.query("DELETE FROM barang WHERE resi_id IN (?)", [resiIds]);
 
     await connection.commit();
 
     res.status(200).send({
       success: true,
-      message: "Resi successfully deleted",
+      message: `${resiIds.length} resi(s) successfully deleted`,
     });
   } catch (error) {
     await connection.rollback();

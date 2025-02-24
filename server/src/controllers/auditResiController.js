@@ -567,7 +567,7 @@ const getExpeditionCounts = async (req, res) => {
       FROM barang
       JOIN ekpedisi ON barang.id_ekspedisi = ekpedisi.id_ekspedisi
       JOIN proses ON barang.resi_id = proses.resi_id
-      WHERE proses.status_proses != 'cancelled'
+      WHERE proses.status_proses != 'cancelled' AND proses.status_proses = "pickout"
     `;
 
     const queryParams = [];

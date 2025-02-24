@@ -15,8 +15,8 @@ import { FaBoxArchive, FaBoxesPacking, FaRotate, FaSort } from "react-icons/fa6"
 import urlApi from "../../../../utils/url";
 import { PiNoteBlankFill } from "react-icons/pi";
 import { jwtDecode } from "jwt-decode";
-import { FaTrash, FaTruck } from "react-icons/fa";
-import { RiEBikeFill } from "react-icons/ri";
+import { FaShoppingCart, FaTrash, FaTruck } from "react-icons/fa";
+import { RiEBikeFill, RiCheckboxMultipleFill } from "react-icons/ri";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -49,6 +49,10 @@ const AdminBarangSection = () => {
   const [calendarData, setCalendarData] = useState({});
   const [isCalendarModalVisible, setIsCalendarModalVisible] = useState(false);
   const [totalCountPending, setTotalCountPending] = useState(0);
+  const [totalPesanan, setTotalPesanan] = useState(0);
+  const [isMultipleActive, setIsMultipleActive] = useState(false);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [selectedItems, setSelectedItems] = useState(new Set());
 
   useEffect(() => {
     const fetchEkspedisi = async () => {
@@ -143,6 +147,7 @@ const AdminBarangSection = () => {
         setBarang(response.data.data);
         setTotalPages(response.data.pagination.totalPages);
         setTotalCountPending(response.data.countPending);
+        setTotalPesanan(response.data.totalPesanan);
       } else {
         throw new Error(response.data?.message || "Invalid response format");
       }
@@ -702,6 +707,116 @@ const AdminBarangSection = () => {
     );
   };
 
+  const handleItemSelection = (resi_id) => {
+    setSelectedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(resi_id)) {
+        newSet.delete(resi_id);
+      } else {
+        newSet.add(resi_id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleMultipleCancel = async () => {
+    if (selectedItems.size === 0) {
+      message.warning("Pilih minimal satu item untuk dibatalkan");
+      return;
+    }
+
+    Modal.confirm({
+      title: "Konfirmasi Pembatalan Multiple",
+      content: `Apakah anda yakin ingin membatalkan ${selectedItems.size} resi yang dipilih?`,
+      okText: "Ya, Batalkan",
+      cancelText: "Tidak",
+      onOk: async () => {
+        try {
+          message.loading({ content: "Membatalkan pesanan...", key: "multipleCancel" });
+
+          const cancelPromises = Array.from(selectedItems).map((resi_id) =>
+            axios.put(
+              `${urlApi}/api/v1/barang-cancel/${resi_id}`,
+              { resi_id },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            )
+          );
+
+          await Promise.all(cancelPromises);
+
+          message.success({
+            content: `${selectedItems.size} pesanan berhasil dibatalkan`,
+            key: "multipleCancel",
+            duration: 3,
+          });
+
+          setSelectedItems(new Set());
+          setIsMultipleActive(false);
+          fetchBarang(currentPage);
+        } catch (error) {
+          console.error("Error cancelling orders:", error);
+          message.error({
+            content: "Gagal membatalkan beberapa pesanan",
+            key: "multipleCancel",
+            duration: 3,
+          });
+        }
+      },
+    });
+  };
+
+  const handleMultipleDelete = async () => {
+    if (selectedItems.size === 0) {
+      message.warning("Pilih minimal satu item untuk dihapus");
+      return;
+    }
+
+    Modal.confirm({
+      title: "Konfirmasi Penghapusan Multiple",
+      content: `Apakah anda yakin ingin menghapus ${selectedItems.size} resi yang dipilih?`,
+      okText: "Ya, Hapus",
+      cancelText: "Tidak",
+      onOk: async () => {
+        try {
+          message.loading({ content: "Menghapus pesanan...", key: "multipleDelete" });
+
+          const deletePromises = Array.from(selectedItems).map((resi_id) =>
+            axios.delete(`${urlApi}/api/v1/barang/${resi_id}`, {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                "Content-Type": "application/json",
+              },
+            })
+          );
+
+          await Promise.all(deletePromises);
+
+          message.success({
+            content: `${selectedItems.size} pesanan berhasil dihapus`,
+            key: "multipleDelete",
+            duration: 3,
+          });
+
+          setSelectedItems(new Set());
+          setIsMultipleActive(false);
+          fetchBarang(currentPage);
+        } catch (error) {
+          console.error("Error deleting orders:", error);
+          message.error({
+            content: "Gagal menghapus beberapa pesanan",
+            key: "multipleDelete",
+            duration: 3,
+          });
+        }
+      },
+    });
+  };
+
   return (
     <DashboardLayout activePage={"barang"}>
       <div className="w-full h-full rounded-md flex flex-col gap-2">
@@ -839,9 +954,18 @@ const AdminBarangSection = () => {
                   <IoIosCreate className="text-lg" />
                   <span className="text-sm">Buat Resi</span>
                 </Button>
+
+                <Button
+                  buttonStyle={` ${
+                    isMultipleActive ? "bg-orange-300 text-white hover:bg-blue-500 hover:text-blue-100 " : "border-2 border-blue-500 hover:border-none hover:bg-orange-300 hover:text-white "
+                  } flex items-center gap-2 text-blue-500 px-4 py-2 rounded-lg transition-all duration-300  shadow-md hover:shadow-lg font-medium`}
+                  onClick={() => setIsMultipleActive(!isMultipleActive)}
+                >
+                  <RiCheckboxMultipleFill className="text-lg" />
+                  <span className="text-sm">Multiple Action</span>
+                </Button>
               </div>
             </div>
-
             {/* Status Filter Buttons */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2">
               {statusOptions.map(({ value, label }) => (
@@ -858,9 +982,8 @@ const AdminBarangSection = () => {
                 </Button>
               ))}
             </div>
-
             {/* Ekspedisi Filter Buttons */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 items-center">
               {ekspedisiButtons.map(({ value, label }) => (
                 <Button
                   key={value}
@@ -874,10 +997,41 @@ const AdminBarangSection = () => {
                   {label}
                 </Button>
               ))}
+              <h4 className={`${totalPesanan === 0 ? " bg-yellow-100 text-yellow-700" : " bg-green-100 text-green-700"} flex items-center gap-2 p-2 rounded-lg`}>
+                <FaShoppingCart />
+                <span>Ada {totalPesanan} pesanan</span>
+              </h4>
             </div>
           </div>
         </div>
-        <div className="content-card w-full mx-auto h-[calc(100vh-380px)] sm:h-[66vh] p-3 sm:p-5 rounded-lg shadow-lg overflow-y-auto bg-slate-50 relative">
+
+        <div className="content-card w-full mx-auto h-auto p-3 sm:p-5 rounded-lg shadow-lg overflow-y-auto bg-slate-50 relative">
+          {barang.length <= 0 && (
+            <div className="flex flex-col items-center justify-center w-full h-[100vh] rounded-lg text-center my-5 ">
+              <div className="mb-4">
+                <svg className="w-24 h-24 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-medium text-gray-900 mb-2">Belum ada data barang</h3>
+              <p className="text-gray-500 mb-6">Data barang yang Anda cari tidak ditemukan. Silakan tambah data baru atau ubah filter pencarian Anda.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearchTerm("");
+                    setDateRange([null, null]);
+                    setActiveButton("Semua");
+                    setEkspedisiActiveButton("Semua");
+                  }}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition duration-200"
+                >
+                  <FaRotate className="mr-2" />
+                  Reset Filter
+                </button>
+              </div>
+            </div>
+          )}
           {loading ? (
             <div className="flex justify-center items-center h-full">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -960,133 +1114,122 @@ const AdminBarangSection = () => {
                 </div>
               )}
 
-              {barang.length <= 0 ? (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-full max-w-md text-center my-5">
-                  <div className="mb-4">
-                    <svg className="w-24 h-24 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-medium text-gray-900 mb-2">Belum ada data barang</h3>
-                  <p className="text-gray-500 mb-6">Data barang yang Anda cari tidak ditemukan. Silakan tambah data baru atau ubah filter pencarian Anda.</p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        setSearchInput("");
-                        setSearchTerm("");
-                        setDateRange([null, null]);
-                        setActiveButton("Semua");
-                        setEkspedisiActiveButton("Semua");
-                      }}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition duration-200"
-                    >
-                      <FaRotate className="mr-2" />
-                      Reset Filter
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                barang.map((item) => (
-                  <div
-                    key={item.resi_id}
-                    className="card bg-white p-5 rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                    onClick={async (e) => {
-                      e.preventDefault();
-
-                      if (item.status_proses !== "pending") {
-                        try {
-                          const response = await axios.get(`${urlApi}/api/v1/barang/${item.resi_id}`, {
-                            headers: {
-                              Authorization: `Bearer ${localStorage.getItem("token")}`,
-                            },
-                          });
-                          if (response.data?.success) {
-                            setResiDetail(response.data.data);
-                            setModalDetailOpen(true);
-                          }
-                        } catch (error) {
-                          message.error("Gagal memuat detail resi");
+              {barang.map((item) => (
+                <div
+                  key={item.resi_id}
+                  className={`card bg-white p-5 rounded-xl border ${
+                    isMultipleActive ? (selectedItems.has(item.resi_id) ? "border-blue-500 shadow-lg" : "border-gray-200") : "border-gray-200 hover:shadow-lg"
+                  } transition-all duration-300 cursor-pointer transform ${isMultipleActive ? "" : "hover:-translate-y-1"}`}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (isMultipleActive) {
+                      handleItemSelection(item.resi_id);
+                    } else if (item.status_proses !== "pending") {
+                      try {
+                        const response = await axios.get(`${urlApi}/api/v1/barang/${item.resi_id}`, {
+                          headers: {
+                            Authorization: `Bearer ${localStorage.getItem("token")}`,
+                          },
+                        });
+                        if (response.data?.success) {
+                          setResiDetail(response.data.data);
+                          setModalDetailOpen(true);
                         }
+                      } catch (error) {
+                        message.error("Gagal memuat detail resi");
                       }
-                    }}
-                  >
-                    <div className="flex flex-col space-y-4 relative">
-                      {/* Header with Status Icon */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getStatusClass(item.status_proses)}`}>{getStatusIcon(item.status_proses)}</div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{item.resi_id}</h3>
-                            <h3
-                              className={`text-sm px-2.5 py-1 rounded-full  mt-1 flex gap-2 items-center justify-center
+                    }
+                  }}
+                >
+                  <div className="flex flex-col space-y-4 relative">
+                    {/* Header with Status Icon */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getStatusClass(item.status_proses)}`}>{getStatusIcon(item.status_proses)}</div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{item.resi_id}</h3>
+                          <h3
+                            className={`text-sm px-2.5 py-1 rounded-full  mt-1 flex gap-2 items-center justify-center
                            ${item.status_proses === "cancelled" ? "text-red-500 bg-red-100" : "text-[#321F74] bg-indigo-100"}
                            `}
-                            >
-                              <span>{item.id_ekspedisi === "GJK" ? <RiEBikeFill /> : item.status_proses !== "cancelled" ? <FaTruck /> : ""}</span>
-                              {!item.nama_ekspedisi ? "Ekspedisi Bermasalah" : item.nama_ekspedisi}
-                            </h3>
-                          </div>
+                          >
+                            <span>{item.id_ekspedisi === "GJK" ? <RiEBikeFill /> : item.status_proses !== "cancelled" ? <FaTruck /> : ""}</span>
+                            {!item.nama_ekspedisi ? "Ekspedisi Bermasalah" : item.nama_ekspedisi}
+                          </h3>
                         </div>
+                      </div>
 
-                        <button
-                          className={`absolute top-0 right-0 bg-white shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ease-in border-2 p-1 rounded-md
+                      <button
+                        className={`${isMultipleActive ? "hidden" : ""} absolute top-0 right-0 bg-white shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ease-in border-2 p-1 rounded-md
                            ${user.roles.includes("superadmin") ? "block" : "hidden"}
                          `}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteResi(item.resi_id);
+                        }}
+                      >
+                        <FaTrash className="text-red-500" />
+                      </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">
+                        {item.status_description} {item.status_proses !== "pending" && item.status_proses !== "cancelled" ? <span className="font-medium text-gray-900">• {item.nama_pekerja}</span> : ""}
+                      </p>
+
+                      <div className="flex items-center text-xs text-gray-500">
+                        <span className="flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Create at: {moment(item.created_at).format("LLLL")}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center text-xs text-gray-500">
+                        <span className="flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Last Scan: {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("LLLL")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Cancel Button */}
+                    {item.status_proses !== "pickout" && item.status_proses !== "cancelled" && (
+                      <div className="pt-3 mt-3 border-t border-gray-100">
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteResi(item.resi_id);
+                            handleCancelOrder(item.resi_id);
                           }}
+                          className={`w-full flex items-center justify-center gap-2 ${isMultipleActive ? "hidden" : ""} text-red-500 hover:bg-red-50 py-2 rounded-lg transition-all duration-300`}
                         >
-                          <FaTrash className="text-red-500" />
+                          <MdCancelScheduleSend className="text-lg" />
+                          <span className="text-sm font-medium">
+                            {item.status_proses === "pending" && user.roles === "admin" ? "konfirmasi Cancel" : item.status_proses === "Menyetujui Cancel" ? "Cancel Resi" : `Cancel ${item.status_description}`}
+                          </span>
                         </button>
                       </div>
-
-                      {/* Content */}
-                      <div className="space-y-2">
-                        <p className="text-sm text-gray-600">
-                          {item.status_description} {item.status_proses !== "pending" && item.status_proses !== "cancelled" ? <span className="font-medium text-gray-900">• {item.nama_pekerja}</span> : ""}
-                        </p>
-
-                        <div className="flex items-center text-xs text-gray-500">
-                          <span className="flex items-center">
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Create at: {moment(item.created_at).format("LLLL")}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center text-xs text-gray-500">
-                          <span className="flex items-center">
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Last Scan: {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("LLLL")}
-                          </span>
-                        </div>
+                    )}
+                    {isMultipleActive && (
+                      <div className={`absolute top-2 right-2 ${item.status_proses === "cancelled" ? "hidden" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(item.resi_id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleItemSelection(item.resi_id);
+                          }}
+                          className="w-5 h-5 text-blue-600"
+                        />
                       </div>
-
-                      {/* Cancel Button */}
-                      {item.status_proses !== "pickout" && item.status_proses !== "cancelled" && (
-                        <div className="pt-3 mt-3 border-t border-gray-100">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCancelOrder(item.resi_id);
-                            }}
-                            className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 py-2 rounded-lg transition-all duration-300"
-                          >
-                            <MdCancelScheduleSend className="text-lg" />
-                            <span className="text-sm font-medium">
-                              {item.status_proses === "pending" && user.roles === "admin" ? "konfirmasi Cancel" : item.status_proses === "Menyetujui Cancel" ? "Cancel Resi" : `Cancel ${item.status_description}`}
-                            </span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           )}
 
@@ -1163,6 +1306,18 @@ const AdminBarangSection = () => {
           />
         </div>
       </Modal>
+      {isMultipleActive && selectedItems.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 flex justify-center gap-4 z-50">
+          <Button buttonStyle="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600" onClick={handleMultipleCancel}>
+            Cancel Selected ({selectedItems.size})
+          </Button>
+          {user.roles.includes("superadmin") && (
+            <Button buttonStyle="bg-red-700 text-white px-6 py-2 rounded-lg hover:bg-red-800" onClick={handleMultipleDelete}>
+              Delete Selected ({selectedItems.size})
+            </Button>
+          )}
+        </div>
+      )}
     </DashboardLayout>
   );
 };
