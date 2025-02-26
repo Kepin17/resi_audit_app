@@ -5,24 +5,33 @@ const moment = require("moment");
 const addNewBarang = async (req, res) => {
   try {
     const { resi_id } = req.body;
-    let ekspedisi = "";
 
     // Validate required fields
     if (!resi_id) {
       return res.status(400).send({
         success: false,
-        message: "all field are required",
+        message: "All fields are required",
       });
     }
 
-    const [rows] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
+    // Check if resi_id already exists in 'barang'
+    const [existingBarang] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
+    if (existingBarang.length > 0) {
+      return res.status(400).send({
+        success: false,
+        message: "Resi already exists",
+      });
+    }
 
-    const allowResiCode = ["JX", "JP", "TG", "CM", "JT", "GK"];
+    const [allowedResiCodes] = await mysqlPool.query("SELECT id_resi FROM kode_resi");
+
+    const validResiList = allowedResiCodes.map((row) => row.id_resi);
+
     const resiCode = resi_id.substring(0, 2);
-    const numberOnly = /^\d+$/;
+    const numberOnlyRegex = /^\d+$/;
 
-    const isValidExpedition = allowResiCode.includes(resiCode);
-    const isValidNumber = numberOnly.test(resi_id);
+    const isValidExpedition = validResiList.includes(resiCode);
+    const isValidNumber = numberOnlyRegex.test(resi_id);
 
     if (!isValidExpedition && !isValidNumber) {
       return res.status(400).send({
@@ -38,33 +47,25 @@ const addNewBarang = async (req, res) => {
       });
     }
 
-    if (resiCode === "JX" || resiCode === "JP") {
-      ekspedisi = "JNT";
-    } else if (resiCode === "TG" || resiCode === "CM") {
-      ekspedisi = "JNE";
-    } else if (resiCode === "JT") {
-      ekspedisi = "JTR";
-    } else if (resiCode === "GK") {
-      ekspedisi = "GJK";
+    // Get expedition ID from kode_resi
+    let ekspedisiId = null;
+    const [resiData] = await mysqlPool.query("SELECT id_ekspedisi FROM kode_resi WHERE id_resi = ? OR id_resi = ?", [resiCode, resi_id]);
+
+    if (resiData.length === 0) {
+      ekspedisiId = "JCG";
     } else {
-      ekspedisi = "JCG";
+      ekspedisiId = resiData[0].id_ekspedisi;
     }
 
-    if (rows.length === 0) {
-      await mysqlPool.query("INSERT INTO barang (resi_id, id_ekspedisi) VALUES (?, ?)", [resi_id, ekspedisi]);
-    } else {
-      return res.status(400).send({
-        success: false,
-        message: "resi already exist",
-      });
-    }
+    // Insert new barang entry
+    await mysqlPool.query("INSERT INTO barang (resi_id, id_ekspedisi) VALUES (?, ?)", [resi_id, ekspedisiId]);
 
     res.status(200).send({
       success: true,
       message: "New barang added",
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).send({
       success: false,
       message: "Error when trying to add new barang",
@@ -470,6 +471,9 @@ const createExcelTemplate = async (req, res) => {
 };
 
 const importResiFromExcel = async (req, res) => {
+  const connection = await mysqlPool.getConnection();
+  let processedFile = null;
+
   try {
     if (!req.file) {
       return res.status(400).send({
@@ -487,8 +491,9 @@ const importResiFromExcel = async (req, res) => {
       });
     }
 
+    processedFile = req.file.path;
     const workbook = new excelJS.Workbook();
-    await workbook.xlsx.readFile(req.file.path);
+    await workbook.xlsx.readFile(processedFile);
     const worksheet = workbook.getWorksheet(1);
 
     // Validate template format
@@ -500,174 +505,241 @@ const importResiFromExcel = async (req, res) => {
       });
     }
 
-    const connection = await mysqlPool.getConnection();
+    // Pre-process and validate all rows first
+    const validRecords = [];
+    const problemRecords = []; // New array to track problem records
     const results = {
       success: 0,
       failed: 0,
       duplicates: 0,
-      errors: [],
+      errors: new Set(),
       problemRows: [],
       invalidFormat: 0,
+      duplicatesInFile: 0,
     };
 
-    try {
-      await connection.beginTransaction();
-      const batchSize = 100;
-      let batch = [];
-      let totalRows = 0;
-      const processedResis = new Set(); // Track all processed resis
+    const processedResis = new Set();
+    const duplicatesInFile = new Set();
+    const [allowedResiCodes] = await mysqlPool.query("SELECT id_resi FROM kode_resi");
+    const validResiList = allowedResiCodes.map((row) => row.id_resi);
 
-      // Start reading from row 10 (after headers and example)
-      for (let rowNumber = 10; rowNumber <= worksheet.rowCount; rowNumber++) {
-        const row = worksheet.getRow(rowNumber);
-        const resi_id = row.getCell(1).value?.toString().trim();
-        let dateTime = row.getCell(2).value;
+    // First pass: Validate all rows and collect valid records
+    for (let rowNumber = 9; rowNumber <= worksheet.rowCount; rowNumber++) {
+      const row = worksheet.getRow(rowNumber);
+      const resi_id = row.getCell(1).value?.toString().trim();
+      if (!resi_id) continue;
 
-        // Skip empty rows
-        if (!resi_id) continue;
-        totalRows++;
+      // Check for duplicates within the import file
+      if (processedResis.has(resi_id)) {
+        results.duplicatesInFile++;
+        duplicatesInFile.add(resi_id);
+        problemRecords.push({
+          resi_id,
+          status: "duplikat",
+          reason: "Duplicate entry in import file",
+          source: "file",
+        });
+        continue;
+      }
 
-        // Check for minimum length
-        if (resi_id.length < 8) {
+      const resiCode = resi_id.substring(0, 2);
+      const isValidExpedition = validResiList.includes(resiCode);
+      const ekspedisi = validResiList.includes(resiCode) ? resiCode : "JCG";
+      const numberOnly = /^\d+$/;
+      const isValidNumber = numberOnly.test(resi_id);
+
+      const validationError = validateResiEntry(resi_id, processedResis, isValidExpedition, isValidNumber, rowNumber);
+
+      if (validationError) {
+        results[validationError.type]++;
+        results.problemRows.push(validationError.problem);
+        if (validationError.type === "duplicates") {
+          problemRecords.push({
+            resi_id,
+            status: "duplikat",
+            reason: validationError.problem.reason,
+            source: "file",
+          });
+        }
+        continue;
+      }
+
+      let created_at = moment().format("YYYY-MM-DD HH:mm:ss");
+      const dateTime = row.getCell(2).value;
+      if (dateTime) {
+        const parsedDate = moment(dateTime, ["YYYY-MM-DD HH:mm:ss", "YYYY-MM-DD HH:mm", "YYYY-MM-DD", "DD-MM-YYYY HH:mm:ss", "DD/MM/YYYY HH:mm:ss"], true);
+
+        if (!parsedDate.isValid()) {
           results.failed++;
           results.problemRows.push({
             row: rowNumber,
             resi: resi_id,
-            reason: "Resi ID must be at least 8 characters long",
+            reason: "Invalid date format",
           });
           continue;
         }
-
-        // Check for duplicate in current import
-        if (processedResis.has(resi_id)) {
-          results.duplicates++;
-          results.problemRows.push({
-            row: rowNumber,
-            resi: resi_id,
-            reason: "Duplicate entry in import file",
-          });
-          continue;
-        }
-
-        // Validate resi format and determine expedition
-        const resiCode = resi_id.substring(0, 2);
-        const numberOnly = /^\d+$/;
-        const allowResiCode = ["JX", "JP", "TG", "CM", "JT", "GK"];
-        const isValidExpedition = allowResiCode.includes(resiCode);
-        const isValidNumber = numberOnly.test(resi_id);
-
-        if (!isValidExpedition && !isValidNumber) {
-          results.invalidFormat++;
-          results.problemRows.push({
-            row: rowNumber,
-            resi: resi_id,
-            reason: "Invalid resi format",
-          });
-          continue;
-        }
-
-        let ekspedisi = "JCG";
-        if (isValidExpedition) {
-          ekspedisi =
-            {
-              JX: "JNT",
-              JP: "JNT",
-              TG: "JNE",
-              CM: "JNE",
-              JT: "JTR",
-              GK: "GJK",
-            }[resiCode] || "JCG";
-        }
-
-        // Validate and format datetime
-        let created_at = moment().format("YYYY-MM-DD HH:mm:ss");
-        if (dateTime) {
-          const parsedDate = moment(dateTime, ["YYYY-MM-DD HH:mm:ss", "YYYY-MM-DD HH:mm", "YYYY-MM-DD", "DD-MM-YYYY HH:mm:ss", "DD/MM/YYYY HH:mm:ss"], true);
-
-          if (!parsedDate.isValid()) {
-            results.failed++;
-            results.problemRows.push({
-              row: rowNumber,
-              resi: resi_id,
-              reason: "Invalid date format",
-            });
-            continue;
-          }
-          created_at = parsedDate.format("YYYY-MM-DD HH:mm:ss");
-        }
-
-        processedResis.add(resi_id);
-        batch.push({ resi_id, created_at, ekspedisi });
-
-        // Process batch
-        if (batch.length === batchSize || rowNumber === worksheet.rowCount) {
-          try {
-            const [existingResis] = await connection.query("SELECT resi_id FROM barang WHERE resi_id IN (?)", [batch.map((item) => item.resi_id)]);
-
-            const existingResiSet = new Set(existingResis.map((row) => row.resi_id));
-            const newRecords = batch.filter((item) => !existingResiSet.has(item.resi_id));
-
-            if (newRecords.length > 0) {
-              await connection.query("INSERT INTO barang (resi_id, created_at, id_ekspedisi) VALUES ?", [newRecords.map((item) => [item.resi_id, item.created_at, item.ekspedisi])]);
-              results.success += newRecords.length;
-            }
-
-            // Track existing resis as duplicates
-            batch.forEach((item) => {
-              if (existingResiSet.has(item.resi_id)) {
-                results.duplicates++;
-                results.problemRows.push({
-                  resi: item.resi_id,
-                  reason: "Resi already exists in database",
-                });
-              }
-            });
-          } catch (error) {
-            console.error(`Batch insert error:`, error);
-            results.failed += batch.length;
-            results.errors.push(error.message);
-          }
-          batch = [];
-        }
+        created_at = parsedDate.format("YYYY-MM-DD HH:mm:ss");
       }
 
-      await connection.commit();
-
-      // Clean up uploaded file
-      const fs = require("fs");
-      fs.unlinkSync(req.file.path);
-
-      const response = {
-        success: results.success > 0,
-        message: `Import completed with ${results.success} successful imports`,
-        results: {
-          totalProcessed: totalRows,
-          successful: results.success,
-          duplicates: results.duplicates,
-          failed: results.failed,
-          invalidFormat: results.invalidFormat,
-          errors: results.errors,
-          problemRows: results.problemRows,
-        },
-      };
-
-      const statusCode = results.success > 0 ? 200 : 400;
-      res.status(statusCode).send(response);
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
+      processedResis.add(resi_id);
+      validRecords.push({ resi_id, created_at, ekspedisi });
     }
+
+    if (validRecords.length === 0) {
+      return res.status(400).send({
+        success: false,
+        message: "No valid records found to import",
+      });
+    }
+
+    // Start transaction and process in optimized batches
+    await connection.beginTransaction();
+
+    const BATCH_SIZE = 1000; // Increased batch size for better performance
+    for (let i = 0; i < validRecords.length; i += BATCH_SIZE) {
+      const batch = validRecords.slice(i, i + BATCH_SIZE);
+      const resiIds = batch.map((record) => record.resi_id);
+
+      // Check existing records in current batch
+      const [existingResis] = await connection.query("SELECT resi_id FROM barang WHERE resi_id IN (?)", [resiIds]);
+
+      const existingResiSet = new Set(existingResis.map((row) => row.resi_id));
+      const newRecords = batch.filter((record) => !existingResiSet.has(record.resi_id));
+
+      // Track duplicates with details
+      const duplicateRecords = batch.filter((record) => existingResiSet.has(record.resi_id));
+      duplicateRecords.forEach((record) => {
+        if (!duplicatesInFile.has(record.resi_id)) {
+          // Only if not already marked as duplicate in file
+          problemRecords.push({
+            resi_id: record.resi_id,
+            status: "duplikat",
+            reason: "Resi already exists in database",
+            source: "database",
+          });
+        }
+      });
+
+      if (newRecords.length > 0) {
+        await connection.query("INSERT INTO barang (resi_id, created_at, id_ekspedisi) VALUES ?", [newRecords.map((record) => [record.resi_id, record.created_at, record.ekspedisi])]);
+
+        // Track successful imports
+        newRecords.forEach((record) => {
+          problemRecords.push({
+            resi_id: record.resi_id,
+            status: "success",
+            reason: "Successfully imported",
+          });
+        });
+
+        results.success += newRecords.length;
+      }
+
+      results.duplicates += existingResis.length;
+    }
+
+    // Insert import logs for all processed records
+    if (problemRecords.length > 0) {
+      const importLogValues = problemRecords.map((record) => [record.resi_id, record.reason, record.status, moment().format("YYYY-MM-DD HH:mm:ss")]);
+
+      await connection.query("INSERT INTO log_import (resi_id, reason, status, created_at) VALUES ?", [importLogValues]);
+    }
+
+    await connection.commit();
+
+    // Update problemRows in results
+    results.problemRows = problemRecords.map((record) => ({
+      resi: record.resi_id,
+      status: record.status,
+      reason: record.reason,
+    }));
+
+    const response = {
+      success: results.success > 0,
+      message: `Import completed with ${results.success} successful imports`,
+      results: {
+        totalProcessed: processedResis.size,
+        successful: results.success,
+        duplicates: results.duplicates,
+        duplicatesInFile: results.duplicatesInFile,
+        failed: results.failed,
+        invalidFormat: results.invalidFormat,
+        errors: Array.from(results.errors),
+        problemRows: results.problemRows,
+      },
+    };
+
+    return res.status(results.success > 0 ? 200 : 400).send(response);
   } catch (error) {
+    await connection.rollback();
     console.error("Import error:", error);
-    res.status(500).send({
+    return res.status(500).send({
       success: false,
       message: "Error importing data",
       error: error.message,
     });
+  } finally {
+    connection.release();
+    // Clean up uploaded file
+    if (processedFile) {
+      require("fs").unlink(processedFile, (err) => {
+        if (err) console.error("Error deleting temporary file:", err);
+      });
+    }
   }
 };
+
+function validateResiEntry(resi_id, processedResis, isValidExpedition, isValidNumber, rowNumber) {
+  if (!resi_id) {
+    return {
+      type: "failed",
+      problem: {
+        row: rowNumber,
+        resi: resi_id,
+        status: "failed",
+        reason: "Empty resi ID",
+      },
+    };
+  }
+
+  if (resi_id.length < 8) {
+    return {
+      type: "failed",
+      problem: {
+        row: rowNumber,
+        resi: resi_id,
+        status: "failed",
+        reason: "Resi ID must be at least 8 characters long",
+      },
+    };
+  }
+
+  if (processedResis.has(resi_id)) {
+    return {
+      type: "duplicates",
+      problem: {
+        row: rowNumber,
+        resi: resi_id,
+        status: "duplikat",
+        reason: "Duplicate entry in import file",
+      },
+    };
+  }
+
+  if (!isValidExpedition && !isValidNumber) {
+    return {
+      type: "invalidFormat",
+      problem: {
+        row: rowNumber,
+        resi: resi_id,
+        status: "failed",
+        reason: "Invalid resi format",
+      },
+    };
+  }
+
+  return null;
+}
 
 const exportBarang = async (req, res) => {
   try {
@@ -676,7 +748,6 @@ const exportBarang = async (req, res) => {
     // Build the WHERE clause dynamically
     let whereConditions = [];
     let queryParams = [];
-
     if (search) {
       whereConditions.push("(b.resi_id LIKE ?)");
       queryParams.push(`%${search}%`);
@@ -1000,6 +1071,171 @@ const getCalendarData = async (req, res) => {
   }
 };
 
+const getImportLog = async (req, res) => {
+  try {
+    const connection = await mysqlPool.getConnection();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const { startDate, endDate } = req.query;
+
+    let whereClause = "";
+    let queryParams = [];
+
+    if (startDate && endDate) {
+      whereClause = "WHERE created_at BETWEEN ? AND ?";
+      queryParams = [startDate, endDate];
+    }
+
+    // Get total count of distinct import times
+    const [countResult] = await connection.query(
+      `SELECT COUNT(DISTINCT created_at) as total 
+       FROM log_import ${whereClause}`,
+      queryParams
+    );
+
+    // Get data grouped by exact import time
+    const [rows] = await connection.query(
+      `SELECT 
+        created_at,
+        COUNT(*) as total_entries,
+        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_count,
+        SUM(CASE WHEN status = 'duplikat' THEN 1 ELSE 0 END) as duplicate_count,
+        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count
+      FROM log_import
+      ${whereClause}
+      GROUP BY created_at
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?`,
+      [...queryParams, limit, offset]
+    );
+
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    connection.release();
+
+    res.status(200).json({
+      success: true,
+      message: rows.length > 0 ? "Data found" : "No data available",
+      data: rows,
+      pagination: {
+        totalItems,
+        totalPages,
+        currentPage: page,
+        limit,
+      },
+    });
+  } catch (error) {
+    console.error("Import log error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching import log",
+      error: error.message,
+    });
+  }
+};
+
+const exportLogImportToExcel = async (req, res) => {
+  try {
+    const { imporDate } = req.query;
+    let whereClause = "";
+    let queryParams = [];
+
+    if (imporDate) {
+      whereClause = "WHERE created_at BETWEEN ? AND ?";
+      queryParams = [imporDate + " 00:00:00", imporDate + " 23:59:59"];
+    }
+
+    // Get all log data
+    const [rows] = await mysqlPool.query(
+      `SELECT resi_id, status, reason, created_at 
+       FROM log_import 
+       ${whereClause}
+       ORDER BY created_at DESC`,
+      queryParams
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "No data to export",
+      });
+    }
+
+    // Group data by status
+    const groupedData = {
+      success: rows.filter((row) => row.status === "success"),
+      duplicate: rows.filter((row) => row.status === "duplikat"),
+      failed: rows.filter((row) => row.status === "failed"),
+    };
+
+    const workbook = new excelJS.Workbook();
+
+    // Create worksheets for each status
+    Object.entries(groupedData).forEach(([status, data]) => {
+      if (data.length > 0) {
+        const worksheet = workbook.addWorksheet(status.charAt(0).toUpperCase() + status.slice(1));
+
+        worksheet.columns = [
+          { header: "Nomor Resi", key: "resi_id", width: 20 },
+          { header: "Status", key: "status", width: 15 },
+          { header: "Keterangan", key: "reason", width: 40 },
+          { header: "Tanggal Import", key: "created_at", width: 25 },
+        ];
+
+        // Style header row
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFE0E0E0" },
+        };
+
+        // Add data
+        data.forEach((row) => {
+          worksheet.addRow({
+            ...row,
+            created_at: moment(row.created_at).format("YYYY-MM-DD HH:mm:ss"),
+          });
+        });
+
+        // Auto-fit columns
+        worksheet.columns.forEach((column) => {
+          column.alignment = { vertical: "middle", horizontal: "left" };
+        });
+      }
+    });
+
+    // Add summary worksheet
+    const summarySheet = workbook.addWorksheet("Summary", { properties: { tabColor: { argb: "FFC0C0C0" } } });
+    summarySheet.columns = [
+      { header: "Status", key: "status", width: 20 },
+      { header: "Total", key: "total", width: 15 },
+    ];
+
+    summarySheet.addRows([
+      { status: "Success", total: groupedData.success.length },
+      { status: "Duplicate", total: groupedData.duplicate.length },
+      { status: "Failed", total: groupedData.failed.length },
+      { status: "Total", total: rows.length },
+    ]);
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=import_log_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Export error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error exporting data",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   addNewBarang,
   showAllBarang,
@@ -1011,4 +1247,6 @@ module.exports = {
   createExcelTemplate,
   deleteResi,
   getCalendarData,
+  getImportLog,
+  exportLogImportToExcel,
 };

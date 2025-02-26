@@ -17,6 +17,7 @@ import { PiNoteBlankFill } from "react-icons/pi";
 import { jwtDecode } from "jwt-decode";
 import { FaShoppingCart, FaTrash, FaTruck } from "react-icons/fa";
 import { RiEBikeFill, RiCheckboxMultipleFill } from "react-icons/ri";
+import LogImportSection from "./LogImportSection";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -51,8 +52,8 @@ const AdminBarangSection = () => {
   const [totalCountPending, setTotalCountPending] = useState(0);
   const [totalPesanan, setTotalPesanan] = useState(0);
   const [isMultipleActive, setIsMultipleActive] = useState(false);
-  const [selectedRows, setSelectedRows] = useState([]);
   const [selectedItems, setSelectedItems] = useState(new Set());
+  const [openImportMenu, setOpenImportMenu] = useState(false);
 
   useEffect(() => {
     const fetchEkspedisi = async () => {
@@ -117,7 +118,7 @@ const AdminBarangSection = () => {
       // Add query parameters
       const params = new URLSearchParams();
       params.append("page", page);
-      params.append("limit", 16);
+      params.append("limit", 24);
       params.append("sortBy", sortBy); // Add sort parameter
 
       if (searchTerm?.trim()) {
@@ -819,7 +820,8 @@ const AdminBarangSection = () => {
 
   return (
     <DashboardLayout activePage={"barang"}>
-      <div className="w-full h-full rounded-md flex flex-col gap-2">
+      <div className="w-full h-full rounded-md flex flex-col gap-2 relative overflow-hidden">
+        <LogImportSection openImportMenu={openImportMenu} openImportMenuHandler={() => setOpenImportMenu(!openImportMenu)} />
         <Modal
           title="Tambah Resi Baru"
           open={isModalOpen}
@@ -860,16 +862,18 @@ const AdminBarangSection = () => {
                   <div className="w-full sm:w-auto">
                     <RangePicker onChange={handleDateChange} className="w-full sm:w-[200px] p-2.5 shadow-sm border border-gray-200 rounded-md hover:border-blue-500 focus:border-blue-500" />
                   </div>
-                  <Button buttonStyle="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 w-full sm:w-auto relative" onClick={() => setIsCalendarModalVisible(true)}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                    </svg>
-                    {totalCountPending !== 0 && <div className="w-4 h-4 bg-red-400 rounded-full absolute -bottom-1 -right-2 flex items-center justify-center"></div>}
-                  </Button>
+                  <div className="flex items-center gap-5">
+                    <Button buttonStyle="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600  w-auto relative" onClick={() => setIsCalendarModalVisible(true)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                      </svg>
+                      {totalCountPending !== 0 && <div className="w-4 h-4 bg-red-400 rounded-full absolute -bottom-1 -right-2 flex items-center justify-center"></div>}
+                    </Button>
 
-                  <div className="bg-orange-100 text-orange-500 p-2 w-32 rounded-md font-bold text-xl flex items-center gap-1">
-                    <MdOutlinePendingActions />
-                    {totalCountPending > 999 ? "999+" : totalCountPending}
+                    <div className="bg-orange-100 text-orange-500 p-2 w-32 rounded-md font-bold text-xl flex items-center gap-1">
+                      <MdOutlinePendingActions />
+                      {totalCountPending > 99999 ? "99999+" : totalCountPending}
+                    </div>
                   </div>
                 </div>
 
@@ -905,6 +909,18 @@ const AdminBarangSection = () => {
                   >
                     <FaSort className="text-sm" />
                     <span>Update</span>
+                  </Button>
+
+                  <Button
+                    buttonStyle={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300
+                        bg-orange-400 text-white
+                        hover:bg-orange-600 hover:text-white text-xs`}
+                    onClick={() => {
+                      setOpenImportMenu(true);
+                    }}
+                  >
+                    <FaSort className="text-sm" />
+                    <span>Log Import</span>
                   </Button>
                 </div>
               </div>
@@ -1005,7 +1021,7 @@ const AdminBarangSection = () => {
           </div>
         </div>
 
-        <div className="content-card w-full mx-auto h-auto p-3 sm:p-5 rounded-lg shadow-lg overflow-y-auto bg-slate-50 relative">
+        <div className="content-card w-full mx-auto h-screen phone:h-auto p-3 sm:p-5 rounded-lg shadow-lg overflow-y-auto bg-slate-50 relative">
           {barang.length <= 0 && (
             <div className="flex flex-col items-center justify-center w-full h-[100vh] rounded-lg text-center my-5 ">
               <div className="mb-4">

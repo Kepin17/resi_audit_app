@@ -445,6 +445,10 @@ END
 DELIMITER ;
 
 use siar_db;
+
+
+
+
 CREATE TABLE barang_retur (
     resi_id VARCHAR(20) PRIMARY KEY NOT NULL UNIQUE,
     id_ekspedisi VARCHAR(3) NULL,
@@ -456,11 +460,12 @@ CREATE TABLE barang_retur (
 );
 
 
+
 CREATE TABLE proses_barang_retur (
     id_proses INT AUTO_INCREMENT PRIMARY KEY,
     resi_id VARCHAR(20),
     id_pekerja VARCHAR(9),
-    status_retur VARCHAR(10) NOT NULL DEFAULT 'diproses' CHECK (status_retur IN ('diproses', 'selesai')),
+    status_retur ENUM("diproses",'hilang', "diterima") NOT NULL DEFAULT 'diproses' CHECK (status_retur IN ('diproses', 'hilang', 'diterima')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     gambar_retur VARCHAR(255) NULL,
@@ -470,11 +475,14 @@ CREATE TABLE proses_barang_retur (
         REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL    
 );
 
+
+
+
 CREATE TABLE log_retur (
     id_log INT AUTO_INCREMENT PRIMARY KEY,
     resi_id VARCHAR(20),
     id_pekerja VARCHAR(9),
-    status_retur VARCHAR(10) NOT NULL CHECK (status_retur IN ('diproses', 'selesai')),
+    status_retur VARCHAR(10) NOT NULL CHECK (status_retur IN ('diproses','hilang', 'diterima')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     gambar_retur VARCHAR(255) NULL,
@@ -483,6 +491,7 @@ CREATE TABLE log_retur (
     CONSTRAINT FK_PekerjaLogRetur FOREIGN KEY (id_pekerja) 
         REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
 )
+
 
 DELIMITER $$
 CREATE TRIGGER trg_to_insert_status_retur
@@ -494,19 +503,19 @@ BEGIN
 END$$
 DELIMITER ;
 
+-- Fix the trigger to use log_retur instead of log_proses
 DELIMITER $$
 CREATE TRIGGER trg_proses_retur_log_changes
 AFTER UPDATE ON proses_barang_retur
 FOR EACH ROW
 BEGIN
-    -- Only log when status changes and is not the initial pending status
     IF NEW.status_retur != OLD.status_retur AND 
        (NEW.status_retur != 'diproses' OR OLD.status_retur != 'diproses') THEN
-        INSERT INTO log_proses (
+        INSERT INTO log_retur (
             resi_id, 
             id_pekerja, 
             status_retur, 
-            gambar_resi
+            gambar_retur
         )
         VALUES (
             NEW.resi_id,
@@ -526,7 +535,7 @@ FOR EACH ROW
 BEGIN
     -- Update barang_retur status when proses_barang_retur status changes
     UPDATE barang_retur
-    SET status_retur = "selesai"
+    SET status_retur = "diterima"
     WHERE resi_id = NEW.resi_id AND OLD.status_retur = "diproses";
 END$$
 
@@ -562,3 +571,34 @@ BEGIN
     VALUES (NEW.resi_id, NEW.id_pekerja, NEW.status_retur, NEW.gambar_retur);
 END$$
 DELIMITER ;
+
+use siar_db;
+SHOW CREATE TABLE log_retur;
+
+
+CREATE TABLE log_import (
+    id_log INT AUTO_INCREMENT PRIMARY KEY,
+    resi_id VARCHAR(20),
+    reason VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+
+ALTER TABLE log_import ADD COLUMN status ENUM('success', 'failed', 'duplikat') NOT NULL DEFAULT 'success' CHECK (status IN ('success', 'failed', 'duplikat'));
+
+CREATE TABLE kode_resi (
+    id_kode_resi INT AUTO_INCREMENT PRIMARY KEY,
+    id_ekspedisi VARCHAR(3),
+    id_resi VARCHAR(3),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT FK_KodeResiEkspedisi FOREIGN KEY (id_ekspedisi) REFERENCES ekpedisi(id_ekspedisi) ON UPDATE CASCADE ON DELETE SET NULL
+)
+
+INSERT INTO kode_resi (id_ekspedisi, id_resi) VALUES
+    ('JNE', 'TG'),
+    ('JNE', 'CM'),
+    ('JNT', 'JP'),
+    ('JNT', 'JX'),
+    ('JTR', 'JT'),
+    ('GJK', 'GK')
+

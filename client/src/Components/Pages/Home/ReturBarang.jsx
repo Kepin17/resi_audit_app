@@ -16,7 +16,7 @@ import SearchFragment from "../../Fragments/SearchFragment";
 import { FaTruck } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
-const ScanMainLayout = ({ dailyEarnings }) => {
+const ReturBarangPage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
   const [scanMode, setScanMode] = useState("barcode-only"); // Add this new state
   const [data, setData] = useState([]);
@@ -463,7 +463,7 @@ const ScanMainLayout = ({ dailyEarnings }) => {
                             {item.status}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-500">Resi: {item.resi}</p>
+                        <p className="text-sm text-gray-500">Resi: {item.resi_id}</p>
                       </div>
                       <p className="text-sm text-gray-500 mt-2 md:mt-0">{formatDateTime(item.proses_scan)}</p>
                     </div>
@@ -528,4 +528,4 @@ const ScanMainLayout = ({ dailyEarnings }) => {
   );
 };
 
-export default ScanMainLayout;
+export default ReturBarangPage;

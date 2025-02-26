@@ -3,7 +3,7 @@ const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, getActivityNotComplited, getExpeditionCounts } = require("../controllers/auditResiController");
-const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang, createExcelTemplate, deleteResi, getCalendarData } = require("../controllers/barangController");
+const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang, createExcelTemplate, deleteResi, getCalendarData, getImportLog, exportLogImportToExcel } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel, getGajiPackingStats, getDailyEarnings } = require("../controllers/SalaryController");
@@ -45,6 +45,9 @@ router.get("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.sup
 router.get("/barang-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportBarang);
 router.post("/barang/import", authToken, roleMiddleware([roles.admin, roles.supadmin]), upload.single("file"), importResiFromExcel);
 router.get("/barang-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupBarang);
+
+router.get("/barang-impor-log", getImportLog);
+router.get("/barang-impor-log/export", exportLogImportToExcel);
 
 // audit resi
 router.post("/auditResi/scan/:resi_id", authToken, roleMiddleware([roles.packing, roles.pickout, roles.picker]), upload.single("photo"), scaneHandler);

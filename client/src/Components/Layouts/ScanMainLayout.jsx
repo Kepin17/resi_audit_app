@@ -32,6 +32,8 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [switchMode, setSwitchMode] = useState(true);
   const [expeditionCount, setExpeditionCount] = useState([]);
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+
   const [pagination, setPagination] = useState({
     currentPage: 1,
     limit: 5,
@@ -71,6 +73,15 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       return false;
     }
   };
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     if (!checkTokenExpiration()) return;
@@ -458,10 +469,10 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
 
       {isPhotoMode || isBarcodeActive ? (
         <div className="fixed inset-0 bg-black z-50">
-          <div className="w-full h-full flex flex-col">
+          <div className={`w-full h-full ${isPortrait ? "flex flex-col" : "flex"} `}>
             {isPhotoMode ? (
               <>
-                <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
+                <div className={`bg-gray-800 text-white p-4 flex justify-between items-center ${!isPortrait ? "hidden" : ""}`}>
                   <h3 className="text-lg font-medium">Foto Paket - {currentResi}</h3>
                   <button onClick={handlePhotoCancel} className="text-white bg-red-500 px-4 py-2 rounded-lg">
                     Close
@@ -473,8 +484,8 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
               </>
             ) : (
               <>
-                <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Scanner Resi</h3>
+                <div className={`bg-gray-800 text-white p-4 flex justify-between items-center ${!isPortrait ? "hidden" : ""}`}>
+                  <h3 className={`text-lg font-medium ${!isPortrait ? "" : ""}`}>Scanner Resi</h3>
                   <button onClick={handleBarcodeClose} className="text-white bg-red-500 px-4 py-2 rounded-lg">
                     Close
                   </button>

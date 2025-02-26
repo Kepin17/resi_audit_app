@@ -649,7 +649,7 @@ const scanResiRetur = async (req, res) => {
         // If no record exists, create a new one
         await connection.query(
           `INSERT INTO proses_barang_retur 
-           (resi_id, id_pekerja, status, gambar)
+           (resi_id, id_pekerja, status_retur, gambar_retur)
            VALUES (?, ?, 'diproses', ?)`,
           [resi_id, id_pekerja, photoPath]
         );
@@ -658,8 +658,8 @@ const scanResiRetur = async (req, res) => {
         await connection.query(
           `UPDATE proses_barang_retur 
            SET id_pekerja = ?, 
+               status_retur = 'diterima',
                gambar_retur = ?,
-               status_retur = 'selesai',
                updated_at = NOW()
            WHERE resi_id = ?`,
           [id_pekerja, photoPath, resi_id]

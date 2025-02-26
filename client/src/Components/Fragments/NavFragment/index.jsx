@@ -6,6 +6,7 @@ import { FaUserCircle, FaSignOutAlt, FaTruck } from "react-icons/fa";
 import { MdDashboard } from "react-icons/md";
 import { Link } from "react-router-dom";
 import { FaBoxesPacking, FaCartFlatbed } from "react-icons/fa6";
+import { MdOutlineDocumentScanner } from "react-icons/md";
 
 const NavFragment = () => {
   const [tokenDatas, setTokenDatas] = useState({});
@@ -32,7 +33,7 @@ const NavFragment = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 flex items-center justify-between w-full h-16 px-5 z-50 bg-white/80 backdrop-blur-md border-b shadow-md border-gray-200/50">
       <Title titleStyle="text-[1.5em] font-bold flex items-center gap-2">
-        <img src="images/nav/logo.png" alt="logo" width={30} />
+        <MdOutlineDocumentScanner />
         SIAR System
       </Title>
       <ul className="flex items-center space-x-4">
