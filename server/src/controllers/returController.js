@@ -1,11 +1,10 @@
 const mysqlPool = require("../config/db");
-const Excel = require("exceljs");
+const excelJS = require("exceljs");
 const moment = require("moment");
 
 const addRetur = async (req, res) => {
   try {
     const { resi_id, note } = req.body;
-    let ekspedisi = "";
 
     // Validate required fields
     if (!resi_id) {
@@ -17,11 +16,13 @@ const addRetur = async (req, res) => {
 
     const [rows] = await mysqlPool.query("SELECT * FROM barang_retur WHERE resi_id = ?", [resi_id]);
 
-    const allowResiCode = ["JX", "JP", "TG", "CM", "JT", "GK"];
+    const [allowedResiCodes] = await mysqlPool.query("SELECT id_resi FROM kode_resi");
+    const validResiList = allowedResiCodes.map((row) => row.id_resi);
+
     const resiCode = resi_id.substring(0, 2);
     const numberOnly = /^\d+$/;
 
-    const isValidExpedition = allowResiCode.includes(resiCode);
+    const isValidExpedition = validResiList.includes(resiCode);
     const isValidNumber = numberOnly.test(resi_id);
 
     if (!isValidExpedition && !isValidNumber) {
@@ -38,20 +39,17 @@ const addRetur = async (req, res) => {
       });
     }
 
-    if (resiCode === "JX" || resiCode === "JP") {
-      ekspedisi = "JNT";
-    } else if (resiCode === "TG" || resiCode === "CM") {
-      ekspedisi = "JNE";
-    } else if (resiCode === "JT") {
-      ekspedisi = "JTR";
-    } else if (resiCode === "GK") {
-      ekspedisi = "GJK";
+    let ekspedisiId = null;
+    const [resiData] = await mysqlPool.query("SELECT id_ekspedisi FROM kode_resi WHERE id_resi = ? OR id_resi = ?", [resiCode, resi_id]);
+
+    if (resiData.length === 0) {
+      ekspedisiId = "JCG";
     } else {
-      ekspedisi = "JCG";
+      ekspedisiId = resiData[0].id_ekspedisi;
     }
 
     if (rows.length === 0) {
-      await mysqlPool.query("INSERT INTO barang_retur (resi_id, id_ekspedisi, note) VALUES (?, ?, ?)", [resi_id, ekspedisi, note]);
+      await mysqlPool.query("INSERT INTO barang_retur (resi_id, id_ekspedisi, note) VALUES (?, ?, ?)", [resi_id, ekspedisiId, note]);
     } else {
       return res.status(400).send({
         success: false,
@@ -213,163 +211,309 @@ const showAllBarangRetur = async (req, res) => {
   }
 };
 
+function validateResiEntry(resi_id, processedResis, isValidExpedition, isValidNumber, rowNumber) {
+  if (!resi_id) {
+    return {
+      type: "failed",
+      problem: {
+        row: rowNumber,
+        resi: resi_id,
+        status: "failed",
+        reason: "Empty resi ID",
+      },
+    };
+  }
+
+  if (resi_id.length < 8) {
+    return {
+      type: "failed",
+      problem: {
+        row: rowNumber,
+        resi: resi_id,
+        status: "failed",
+        reason: "Resi ID must be at least 8 characters long",
+      },
+    };
+  }
+
+  if (processedResis.has(resi_id)) {
+    return {
+      type: "duplicates",
+      problem: {
+        row: rowNumber,
+        resi: resi_id,
+        status: "duplikat",
+        reason: "Duplicate entry in import file",
+      },
+    };
+  }
+
+  if (!isValidExpedition && !isValidNumber) {
+    return {
+      type: "invalidFormat",
+      problem: {
+        row: rowNumber,
+        resi: resi_id,
+        status: "failed",
+        reason: "Invalid resi format",
+      },
+    };
+  }
+
+  return null;
+}
+
 const importRetur = async (req, res) => {
   const connection = await mysqlPool.getConnection();
+  let processedFile = null;
+
   try {
     if (!req.file) {
-      return res.status(400).json({
+      return res.status(400).send({
         success: false,
         message: "No file uploaded",
       });
     }
 
-    const workbook = new Excel.Workbook();
-    await workbook.xlsx.load(req.file.buffer);
-    const worksheet = workbook.worksheets[0];
+    // Validate file type
+    const allowedTypes = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid file type. Please upload an Excel file (.xlsx)",
+      });
+    }
 
-    let successful = 0;
-    let failed = 0;
-    let duplicates = 0;
-    const errors = [];
-    const problemRows = [];
+    processedFile = req.file.path;
+    const workbook = new excelJS.Workbook();
+    await workbook.xlsx.readFile(processedFile);
+    const worksheet = workbook.getWorksheet(1);
 
-    const allowResiCode = ["JX", "JP", "TG", "CM", "JT", "GK"];
-    const numberOnly = /^\d+$/;
+    // Validate template format
+    const titleCell = worksheet.getCell("A1").value;
+    if (titleCell !== "TEMPLATE IMPORT DATA RETUR RESI") {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid template format. Please use the provided template.",
+      });
+    }
+
+    const validRecords = [];
+    const problemRecords = [];
+    const results = {
+      success: 0,
+      failed: 0,
+      duplicates: 0,
+      errors: new Set(),
+      problemRows: [],
+      invalidFormat: 0,
+      duplicatesInFile: 0,
+    };
+
+    const processedResis = new Set();
+    const duplicatesInFile = new Set();
+    const [allowedResiCodes] = await mysqlPool.query("SELECT id_resi FROM kode_resi");
+    const validResiList = allowedResiCodes.map((row) => row.id_resi);
+
+    // First pass: Validate all rows and collect valid records
+    for (let rowNumber = 4; rowNumber <= worksheet.rowCount; rowNumber++) {
+      const row = worksheet.getRow(rowNumber);
+      const resi_id = row.getCell(1).value?.toString().trim();
+      if (!resi_id) continue;
+
+      // Check for duplicates within the import file
+      if (processedResis.has(resi_id)) {
+        results.duplicatesInFile++;
+        duplicatesInFile.add(resi_id);
+        problemRecords.push({
+          resi_id,
+          status: "duplikat",
+          reason: "Duplicate entry in import file",
+          source: "file",
+        });
+        continue;
+      }
+
+      const resiCode = resi_id.substring(0, 2);
+      const isValidExpedition = validResiList.includes(resiCode);
+
+      const [getEkspedisi] = await connection.query("SELECT id_ekspedisi FROM kode_resi WHERE id_resi = ? OR id_resi = ?", [resiCode, resi_id]);
+      const ekspedisi = isValidExpedition && getEkspedisi.length > 0 ? getEkspedisi[0].id_ekspedisi : "JCG";
+      const numberOnly = /^\d+$/;
+      const isValidNumber = numberOnly.test(resi_id);
+
+      const validationError = validateResiEntry(resi_id, processedResis, isValidExpedition, isValidNumber, rowNumber);
+
+      if (validationError) {
+        results[validationError.type]++;
+        results.problemRows.push(validationError.problem);
+
+        // Add all validation errors to problemRecords for logging
+        if (validationError.type === "duplicates") {
+          problemRecords.push({
+            resi_id,
+            status: "duplikat",
+            reason: validationError.problem.reason,
+            source: "file",
+          });
+        } else if (validationError.type === "invalidFormat") {
+          results.invalidFormat++; // Increment invalid format count
+          problemRecords.push({
+            resi_id,
+            status: "failed",
+            reason: "Invalid resi format. Use expedition code (e.g., CM1234567) or numbers only",
+            source: "file",
+          });
+        } else if (validationError.type === "failed") {
+          problemRecords.push({
+            resi_id,
+            status: "failed",
+            reason: validationError.problem.reason,
+            source: "file",
+          });
+        }
+        continue;
+      }
+
+      let created_at = moment().format("YYYY-MM-DD HH:mm:ss");
+      const dateTime = row.getCell(2).value;
+      if (dateTime) {
+        const parsedDate = moment(dateTime, ["YYYY-MM-DD HH:mm:ss", "YYYY-MM-DD HH:mm", "YYYY-MM-DD", "DD-MM-YYYY HH:mm:ss", "DD/MM/YYYY HH:mm:ss"], true);
+
+        if (!parsedDate.isValid()) {
+          results.failed++;
+          const invalidDateProblem = {
+            row: rowNumber,
+            resi: resi_id,
+            reason: "Invalid date format",
+          };
+          results.problemRows.push(invalidDateProblem);
+
+          // Add date format issues to problemRecords
+          problemRecords.push({
+            resi_id,
+            status: "failed",
+            reason: "Invalid date format",
+            source: "file",
+          });
+
+          continue;
+        }
+        created_at = parsedDate.format("YYYY-MM-DD HH:mm:ss");
+      }
+
+      processedResis.add(resi_id);
+      validRecords.push({ resi_id, created_at, ekspedisi });
+    }
+
+    if (validRecords.length === 0) {
+      return res.status(400).send({
+        success: false,
+        message: "No valid records found to import",
+      });
+    }
 
     await connection.beginTransaction();
 
-    const rows = worksheet.getRows(2, worksheet.rowCount - 1);
+    const allResiIds = validRecords.map((record) => record.resi_id);
+    const [allExistingResis] = await connection.query("SELECT resi_id FROM barang_retur WHERE resi_id IN (?)", [allResiIds]);
+    const existingResiSet = new Set(allExistingResis.map((row) => row.resi_id));
 
-    for (let row of rows) {
+    for (const record of validRecords) {
       try {
-        const resi_id = row.getCell(1).value?.toString();
-        const note = row.getCell(2).value;
-        const dateTime = row.getCell(3).value;
-        let ekspedisi = "";
-
-        // Basic validation
-        if (!resi_id) {
-          errors.push(`Row ${row.number}: Missing resi_id`);
-          failed++;
-          continue;
-        }
-
-        // Resi format validation
-        const resiCode = resi_id.substring(0, 2);
-        const isValidExpedition = allowResiCode.includes(resiCode);
-        const isValidNumber = numberOnly.test(resi_id);
-
-        if (!isValidExpedition && !isValidNumber) {
-          errors.push(`Row ${row.number}: Format resi tidak valid. Gunakan format ekspedisi (Cth: CM1234567) atau nomor saja`);
-          failed++;
-          continue;
-        }
-
-        if (resi_id.length < 8) {
-          errors.push(`Row ${row.number}: Resi ID must be at least 8 characters long`);
-          failed++;
-          continue;
-        }
-
-        // Determine ekspedisi based on resi code
-        if (resiCode === "JX" || resiCode === "JP") {
-          ekspedisi = "JNT";
-        } else if (resiCode === "TG" || resiCode === "CM") {
-          ekspedisi = "JNE";
-        } else if (resiCode === "JT") {
-          ekspedisi = "JTR";
-        } else if (resiCode === "GK") {
-          ekspedisi = "GJK";
-        } else {
-          ekspedisi = "JCG";
-        }
-
-        // Date validation and formatting
-        let created_at = moment().format("YYYY-MM-DD HH:mm:ss");
-        if (dateTime) {
-          // Handle Excel date number format
-          if (typeof dateTime === "number") {
-            const excelDate = moment(new Date((dateTime - 25569) * 86400 * 1000));
-            if (excelDate.isValid()) {
-              created_at = excelDate.format("YYYY-MM-DD HH:mm:ss");
-            } else {
-              errors.push(`Row ${row.number}: Invalid Excel date format`);
-              problemRows.push({
-                row: row.number,
-                resi: resi_id,
-                reason: "Invalid Excel date format",
-              });
-              failed++;
-              continue;
-            }
-          } else {
-            // Handle text date formats
-            const parsedDate = moment(dateTime, ["YYYY-MM-DD HH:mm:ss", "YYYY-MM-DD HH:mm", "YYYY-MM-DD", "DD-MM-YYYY HH:mm:ss", "DD/MM/YYYY HH:mm:ss"], true);
-
-            if (!parsedDate.isValid()) {
-              errors.push(`Row ${row.number}: Invalid date format. Use YYYY-MM-DD HH:mm:ss or DD/MM/YYYY HH:mm:ss`);
-              problemRows.push({
-                row: row.number,
-                resi: resi_id,
-                reason: "Invalid date format",
-              });
-              failed++;
-              continue;
-            }
-            created_at = parsedDate.format("YYYY-MM-DD HH:mm:ss");
-          }
-        }
-
-        // Check for existing resi
-        const [existing] = await connection.query("SELECT resi_id FROM barang_retur WHERE resi_id = ?", [resi_id]);
-
-        if (existing.length > 0) {
-          duplicates++;
-          problemRows.push({
-            row: row.number,
-            resi: resi_id,
-            reason: "Duplicate resi",
+        if (existingResiSet.has(record.resi_id)) {
+          problemRecords.push({
+            resi_id: record.resi_id,
+            status: "duplikat",
+            reason: "Resi already exists in database",
+            source: "database",
           });
-          continue;
-        }
+          results.duplicates++;
+        } else {
+          await connection.query("INSERT INTO barang_retur (resi_id, created_at, id_ekspedisi) VALUES (?, ?, ?)", [record.resi_id, record.created_at, record.ekspedisi]);
 
-        // Insert with validated data
-        await connection.query("INSERT INTO barang_retur (resi_id, id_ekspedisi, note, created_at) VALUES (?, ?, ?, ?)", [resi_id, ekspedisi, note || null, created_at]);
-        successful++;
-      } catch (error) {
-        errors.push(`Row ${row.number}: ${error.message}`);
-        problemRows.push({
-          row: row.number,
-          resi: row.getCell(1).value?.toString() || "unknown",
-          reason: error.message,
-        });
-        failed++;
+          // Track successful imports
+          problemRecords.push({
+            resi_id: record.resi_id,
+            status: "success",
+            reason: "Successfully imported",
+          });
+          results.success++;
+        }
+      } catch (insertError) {
+        if (insertError.code === "ER_DUP_ENTRY") {
+          problemRecords.push({
+            resi_id: record.resi_id,
+            status: "duplikat",
+            reason: "Duplicate key error: " + insertError.message,
+            source: "database",
+          });
+          results.duplicates++;
+        } else {
+          problemRecords.push({
+            resi_id: record.resi_id,
+            status: "failed",
+            reason: insertError.message,
+          });
+          results.failed++;
+          results.errors.add(insertError.message);
+        }
+      }
+    }
+
+    // Make sure all records are logged to log_import_retur, including successful ones
+    if (problemRecords.length > 0) {
+      const importLogValues = problemRecords.map((record) => [record.resi_id, record.reason, record.status, moment().format("YYYY-MM-DD HH:mm:ss")]);
+
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < importLogValues.length; i += BATCH_SIZE) {
+        const batch = importLogValues.slice(i, i + BATCH_SIZE);
+        await connection.query("INSERT INTO log_import_retur (resi_id, reason, status, created_at) VALUES ?", [batch]);
       }
     }
 
     await connection.commit();
 
-    res.status(200).json({
-      success: true,
-      message: "Import completed",
+    results.problemRows = problemRecords.map((record) => ({
+      resi: record.resi_id,
+      status: record.status,
+      reason: record.reason,
+    }));
+
+    const response = {
+      success: results.success > 0,
+      message: `Import completed with ${results.success} successful imports${results.duplicates > 0 ? `, ${results.duplicates} duplicates skipped` : ""}${
+        results.invalidFormat > 0 ? `, ${results.invalidFormat} invalid format entries` : ""
+      }${results.failed > 0 ? `, ${results.failed} failed entries` : ""}`,
       results: {
-        successful,
-        failed,
-        duplicates,
-        errors,
-        problemRows,
+        totalProcessed: processedResis.size,
+        successful: results.success,
+        duplicates: results.duplicates,
+        duplicatesInFile: results.duplicatesInFile,
+        failed: results.failed,
+        invalidFormat: results.invalidFormat,
+        errors: Array.from(results.errors),
+        problemRows: results.problemRows,
       },
-    });
+    };
+
+    return res.status(results.success > 0 ? 200 : 400).send(response);
   } catch (error) {
     await connection.rollback();
     console.error("Import error:", error);
-    res.status(500).json({
+    return res.status(500).send({
       success: false,
-      message: "Error processing import",
+      message: "Error importing data",
       error: error.message,
     });
   } finally {
     connection.release();
+    // Clean up uploaded file
+    if (processedFile) {
+      require("fs").unlink(processedFile, (err) => {
+        if (err) console.error("Error deleting temporary file:", err);
+      });
+    }
   }
 };
 
@@ -397,7 +541,7 @@ const exportRetur = async (req, res) => {
       ORDER BY r.created_at DESC
     `);
 
-    const workbook = new Excel.Workbook();
+    const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet("Retur Data");
 
     // Add headers
@@ -439,18 +583,19 @@ const exportRetur = async (req, res) => {
 
 const downloadReturTemplate = async (req, res) => {
   try {
-    const workbook = new Excel.Workbook();
+    const workbook = new excelJS.Workbook();
 
     // Create main template worksheet
     const worksheet = workbook.addWorksheet("Template Retur");
-    worksheet.columns = [
-      { header: "Resi ID *", key: "resi_id", width: 20 },
-      { header: "Note", key: "note", width: 40 },
-      { header: "Created At", key: "created_at", width: 20 },
-    ];
 
+    worksheet.getCell("A1").value = "TEMPLATE IMPORT DATA RETUR RESI";
+    worksheet.getCell("A1").font = { bold: true, size: 16 };
+
+    worksheet.getRow(3).values = ["Resi ID *", "Created At"];
+    worksheet.getColumn("A").width = 25;
+    worksheet.getColumn("B").width = 30;
     // Style header row
-    const headerRow = worksheet.getRow(1);
+    const headerRow = worksheet.getRow(3);
     headerRow.font = { bold: true, size: 12 };
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
     headerRow.fill = {
@@ -491,11 +636,7 @@ const downloadReturTemplate = async (req, res) => {
           "• GK = Gosend",
         example: "CM1234567\natau\n12345678",
       },
-      {
-        column: "Note",
-        description: "Catatan tambahan untuk resi (opsional)",
-        example: "Barang rusak",
-      },
+
       {
         column: "Created At",
         description: "Tanggal pembuatan retur (opsional)\nFormat: YYYY-MM-DD HH:mm:ss\nJika dikosongkan akan menggunakan waktu saat ini",
@@ -508,26 +649,22 @@ const downloadReturTemplate = async (req, res) => {
       row.alignment = { wrapText: true, vertical: "top" };
     });
 
-    // Style instruction rows
     instructionSheet.getRows(2, instructions.length + 1).forEach((row) => {
-      row.height = 100; // Adjust height for wrapped text
+      row.height = 100;
     });
 
     // Add example rows in template
     const examples = [
       {
         resi_id: "CM1234567",
-        note: "Barang rusak saat diterima",
         created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       },
       {
         resi_id: "JX1234567",
-        note: "Pembeli tidak suka warna barang",
         created_at: moment().subtract(1, "days").format("YYYY-MM-DD HH:mm:ss"),
       },
       {
         resi_id: "12345678",
-        note: "Barang tidak sesuai pesanan",
         created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       },
     ];
@@ -768,6 +905,75 @@ const showAllReturActiviy = async (req, res) => {
   }
 };
 
+const toggleStatusRetur = async (req, res) => {
+  const { status, resi_id } = req.body;
+
+  try {
+    const [rows] = await mysqlPool.query("SELECT * FROM barang_retur WHERE resi_id = ?", [resi_id]);
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Resi not found",
+      });
+    }
+
+    let setStatus = null;
+    if (status === "diproses") {
+      setStatus = "hilang";
+    } else if (status === "hilang") {
+      setStatus = "diproses";
+    } else if (status === "selesai") {
+      return res.status(400).send({
+        success: false,
+        message: "Resi status cannot be set to 'selesai'",
+      });
+    }
+
+    // Fixed the parameter order here
+    await mysqlPool.query("UPDATE proses_barang_retur SET status_retur = ? WHERE resi_id = ?", [setStatus, resi_id]);
+
+    return res.status(200).send({
+      success: true,
+      message: `Status updated to ${setStatus}`,
+    });
+  } catch (error) {
+    console.error("Error in toggleStatusRetur:", error);
+    return res.status(500).send({
+      success: false,
+      message: "Internal server error while updating status",
+      error: error.message,
+    });
+  }
+};
+
+const editNote = async (req, res) => {
+  const { resi_id, note } = req.body;
+  try {
+    const [rows] = await mysqlPool.query("SELECT * FROM barang_retur WHERE resi_id = ?", [resi_id]);
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Resi not found",
+      });
+    }
+
+    await mysqlPool.query("UPDATE barang_retur SET note = ? WHERE resi_id = ?", [note, resi_id]);
+
+    return res.status(200).send({
+      success: true,
+      message: "Note updated",
+    });
+  } catch (error) {
+    console.error("Error in editNote:", error);
+    return res.status(500).send({
+      success: false,
+      message: "Internal server error while updating note",
+      error: error.message,
+    });
+  }
+};
 module.exports = {
   addRetur,
   showAllBarangRetur,
@@ -776,4 +982,6 @@ module.exports = {
   downloadReturTemplate,
   scanResiRetur,
   showAllReturActiviy,
+  toggleStatusRetur,
+  editNote,
 };

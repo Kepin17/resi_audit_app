@@ -427,10 +427,19 @@ const createExcelTemplate = async (req, res) => {
     worksheet.mergeCells("A6:D6");
     worksheet.getCell("A6").value = "3. Jika waktu dikosongkan, akan menggunakan waktu saat ini";
 
+    worksheet.mergeCells("A7:D7");
+    worksheet.getCell("A7").value = "4. Perhatikan contoh baris data yang sudah disediakan";
+    worksheet.getCell("A7").font = { italic: true, color: { argb: "fc1303" } };
+
     // Add headers at row 8
-    worksheet.getRow(8).values = ["Nomor Resi", "Tanggal & Waktu"];
-    worksheet.getRow(8).font = { bold: true };
-    worksheet.getRow(8).fill = {
+    worksheet.getRow(9).values = ["ID Resi", "Tanggal & Waktu"];
+    worksheet.getRow(9).font = { bold: true };
+    worksheet.getCell("A9").fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+    worksheet.getCell("B9").fill = {
       type: "pattern",
       pattern: "solid",
       fgColor: { argb: "FFE0E0E0" },
@@ -441,7 +450,7 @@ const createExcelTemplate = async (req, res) => {
     worksheet.getColumn(2).width = 30;
 
     // Add borders to header
-    worksheet.getRow(8).eachCell({ includeEmpty: true }, (cell) => {
+    worksheet.getRow(9).eachCell({ includeEmpty: true }, (cell) => {
       cell.border = {
         top: { style: "thin" },
         left: { style: "thin" },
@@ -451,7 +460,7 @@ const createExcelTemplate = async (req, res) => {
     });
 
     // Add example row
-    const exampleRow = worksheet.getRow(9);
+    const exampleRow = worksheet.getRow(10);
     exampleRow.values = ["123456789", moment().format("YYYY-MM-DD HH:mm:ss")];
     exampleRow.font = { italic: true, color: { argb: "FF808080" } };
 
@@ -524,7 +533,7 @@ const importResiFromExcel = async (req, res) => {
     const validResiList = allowedResiCodes.map((row) => row.id_resi);
 
     // First pass: Validate all rows and collect valid records
-    for (let rowNumber = 9; rowNumber <= worksheet.rowCount; rowNumber++) {
+    for (let rowNumber = 10; rowNumber <= worksheet.rowCount; rowNumber++) {
       const row = worksheet.getRow(rowNumber);
       const resi_id = row.getCell(1).value?.toString().trim();
       if (!resi_id) continue;
@@ -544,7 +553,9 @@ const importResiFromExcel = async (req, res) => {
 
       const resiCode = resi_id.substring(0, 2);
       const isValidExpedition = validResiList.includes(resiCode);
-      const ekspedisi = validResiList.includes(resiCode) ? resiCode : "JCG";
+
+      const [getEkspedisi] = await connection.query("SELECT id_ekspedisi FROM kode_resi WHERE id_resi = ? OR id_resi = ?", [resiCode, resi_id]);
+      const ekspedisi = validResiList.includes(resiCode) ? getEkspedisi[0].id_ekspedisi : "JCG";
       const numberOnly = /^\d+$/;
       const isValidNumber = numberOnly.test(resi_id);
 
@@ -553,10 +564,26 @@ const importResiFromExcel = async (req, res) => {
       if (validationError) {
         results[validationError.type]++;
         results.problemRows.push(validationError.problem);
+
+        // Add all validation errors to problemRecords for logging
         if (validationError.type === "duplicates") {
           problemRecords.push({
             resi_id,
             status: "duplikat",
+            reason: validationError.problem.reason,
+            source: "file",
+          });
+        } else if (validationError.type === "invalidFormat") {
+          problemRecords.push({
+            resi_id,
+            status: "failed",
+            reason: "Invalid resi format. Use expedition code (e.g., CM1234567) or numbers only",
+            source: "file",
+          });
+        } else if (validationError.type === "failed") {
+          problemRecords.push({
+            resi_id,
+            status: "failed",
             reason: validationError.problem.reason,
             source: "file",
           });
@@ -571,11 +598,21 @@ const importResiFromExcel = async (req, res) => {
 
         if (!parsedDate.isValid()) {
           results.failed++;
-          results.problemRows.push({
+          const invalidDateProblem = {
             row: rowNumber,
             resi: resi_id,
             reason: "Invalid date format",
+          };
+          results.problemRows.push(invalidDateProblem);
+
+          // Add date format issues to problemRecords
+          problemRecords.push({
+            resi_id,
+            status: "failed",
+            reason: "Invalid date format",
+            source: "file",
           });
+
           continue;
         }
         created_at = parsedDate.format("YYYY-MM-DD HH:mm:ss");
@@ -622,15 +659,6 @@ const importResiFromExcel = async (req, res) => {
 
       if (newRecords.length > 0) {
         await connection.query("INSERT INTO barang (resi_id, created_at, id_ekspedisi) VALUES ?", [newRecords.map((record) => [record.resi_id, record.created_at, record.ekspedisi])]);
-
-        // Track successful imports
-        newRecords.forEach((record) => {
-          problemRecords.push({
-            resi_id: record.resi_id,
-            status: "success",
-            reason: "Successfully imported",
-          });
-        });
 
         results.success += newRecords.length;
       }

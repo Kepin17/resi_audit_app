@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import { Link, useNavigate } from "react-router-dom";
 import { HiMenuAlt3 } from "react-icons/hi";
-import { FaUsers, FaBoxes, FaHistory, FaMoneyBillWave, FaQrcode, FaDatabase, FaSignOutAlt } from "react-icons/fa";
+import { FaUsers, FaBoxes, FaHistory, FaMoneyBillWave, FaQrcode, FaDatabase, FaSignOutAlt, FaTruck, FaCode } from "react-icons/fa";
 import Title from "../Elements/Title";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -169,6 +169,21 @@ const DashboardLayout = ({ children, activePage }) => {
               </li>
 
               {/* Data Management Section */}
+              {user?.roles?.includes("logistic_manager") && (
+                <li className="menu-section">
+                  <div className="text-gray-300 text-sm font-medium mb-2 px-3">LOGISTIC MANAGEMENT</div>
+                  <ul className="space-y-1">
+                    <li>
+                      <Link to="/admin/logictic_management" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "Logistic" && "bg-blue-700"}`}>
+                        <FaTruck className="w-5 h-5" />
+                        <span className="ml-3">Logistic</span>
+                      </Link>
+                    </li>
+                  </ul>
+                </li>
+              )}
+
+              {/* Data Management Section */}
               <li className="menu-section">
                 <div className="text-gray-300 text-sm font-medium mb-2 px-3">DATA MANAGEMENT</div>
                 <ul className="space-y-1">
@@ -178,7 +193,7 @@ const DashboardLayout = ({ children, activePage }) => {
                       <span className="ml-3">Data Resi</span>
                     </Link>
                   </li>
-                  {(user?.roles?.includes("retur_barang") || user?.roles?.includes("packing") || user?.roles?.includes("pickout")) && (
+                  {user?.roles?.includes("retur_manager") && (
                     <li>
                       <Link to="/admin/retur-barang" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "retur" && "bg-blue-700"}`}>
                         <TbTruckReturn className="w-5 h-5" />

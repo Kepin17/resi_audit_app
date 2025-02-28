@@ -28,7 +28,11 @@ const LogImportSection = ({ openImportMenu, openImportMenuHandler }) => {
         url += `&startDate=${dates[0]}&endDate=${dates[1]}`;
       }
 
-      const res = await axios.get(url);
+      const res = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
       setLogData({
         data: res.data.data,
         pagination: res.data.pagination,
@@ -55,17 +59,25 @@ const LogImportSection = ({ openImportMenu, openImportMenuHandler }) => {
 
   const handleExport = async (imporDate) => {
     try {
-      // Create URL with date range if selected
       let url = `${urlApi}/api/v1/barang-impor-log/export?imporDate=${imporDate}`;
 
-      // Trigger file download
-      const response = await axios({
-        url,
-        method: "GET",
-        responseType: "blob", // Important for handling file downloads
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        responseType: "blob",
       });
 
-      // Create download link
+      if (!response.data) {
+        throw new Error("No data received");
+      }
+
+      const contentType = response.headers["content-type"];
+      if (!contentType.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
+        throw new Error("Invalid file format received");
+      }
+
+      // Buat file download
       const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = downloadUrl;
@@ -75,7 +87,8 @@ const LogImportSection = ({ openImportMenu, openImportMenuHandler }) => {
       link.remove();
       window.URL.revokeObjectURL(downloadUrl);
     } catch (err) {
-      message.error("Failed to export data");
+      console.error(err);
+      message.error("Failed to export data: " + err.message);
     }
   };
 
@@ -85,7 +98,7 @@ const LogImportSection = ({ openImportMenu, openImportMenuHandler }) => {
 
   return (
     <div
-      className={`absolute top-0 w-[30rem] h-[80vh] bg-slate-100 shadow-md z-50 rounded-md
+      className={`absolute top-0 w-[30rem] h-[100vh] bg-slate-100 shadow-md z-50 rounded-md
         transition-all ease-in-out duration-200 p-5 ${openImportMenu ? "right-0" : "-right-[100rem]"}`}
     >
       <div className="flex flex-col gap-4"></div>
@@ -97,7 +110,7 @@ const LogImportSection = ({ openImportMenu, openImportMenuHandler }) => {
         </Button>
       </div>
 
-      <div className="excel-card my-5 flex flex-col gap-5 overflow-y-auto max-h-[calc(80vh-180px)]">
+      <div className="excel-card my-5 flex flex-col gap-5 overflow-y-auto max-h-[calc(100vh-180px)]">
         {loading ? (
           <div className="text-center py-4">Loading...</div>
         ) : logData.data.length > 0 ? (

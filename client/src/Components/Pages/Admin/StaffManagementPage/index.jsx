@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import { Button, Modal, Form, Input, Space, message, Pagination, Checkbox, Card, Avatar, Tag, Row, Col } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined, DownloadOutlined, UserOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, PlusOutlined, UserOutlined } from "@ant-design/icons";
 import axios from "axios";
 import "./staff.css";
 import SearchFragment from "../../../Fragments/SearchFragment";
-import ExcelActionModal from "../../../Fragments/ExcelActionModal";
 import urlApi from "../../../../utils/url";
 
 const StaffManagementPage = () => {
@@ -85,9 +84,11 @@ const StaffManagementPage = () => {
 
   const roleGroups = {
     office: [
-      { label: "Superadmin", value: "BGN005" },
+      { label: "Super Admin", value: "BGN005" },
       { label: "Admin", value: "BGN004" },
       { label: "Finance", value: "BGN006" },
+      { label: "Logistic Manager", value: "BGN010" },
+      { label: "Retur Manager", value: "BGN011" },
     ],
     warehouse: [
       { label: "Picker", value: "BGN001" },
@@ -207,90 +208,6 @@ const StaffManagementPage = () => {
     debouncedSearch(value);
   };
 
-  const ImportFromExcelHandler = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".xlsx, .xls";
-
-    input.onchange = async (e) => {
-      try {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        // Check file extension
-        const fileExt = file.name.split(".").pop().toLowerCase();
-        if (!["xlsx", "xls"].includes(fileExt)) {
-          message.error("Format file tidak didukung. Gunakan file Excel (.xlsx atau .xls)");
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await axios.post(`${urlApi}/api/v1/auth-import`, formData, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "Content-Type": "multipart/form-data",
-          },
-        });
-
-        if (response.data?.success) {
-          message.success("Data berhasil diimport");
-          fetchStaff(currentPage);
-        }
-      } catch (error) {
-        console.error("Error importing file:", error);
-        message.error(error.response?.data?.message || "Gagal mengimport data");
-      }
-    };
-
-    input.click();
-  };
-
-  const handleExport = async () => {
-    try {
-      const response = await axios.get(`${urlApi}/api/v1/auth-export`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `barang_data_${new Date().toISOString().split("T")[0]}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      message.error("Failed to export staff data");
-    }
-  };
-
-  const handleBackup = async () => {
-    try {
-      const response = await axios.get(`${urlApi}/api/v1/auth-backup`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `staff_data_${new Date().toISOString().split("T")[0]}_backup.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      message.error("Failed to backup staff data");
-    }
-  };
-
-  const [ExcelModalOpen, setExcelModalOpen] = useState(false);
-
   const getRoleLabel = (id) => {
     const allRoles = [...roleGroups.office, ...roleGroups.warehouse, ...roleGroups.staffType];
     const role = allRoles.find((r) => r.value === id);
@@ -331,6 +248,10 @@ const StaffManagementPage = () => {
                             ? "lime" // freelance
                             : id === "BGN009"
                             ? "#CC7568"
+                            : id === "BGN010"
+                            ? "pink"
+                            : id === "BGN011"
+                            ? "orange"
                             : "default"
                         }
                       >

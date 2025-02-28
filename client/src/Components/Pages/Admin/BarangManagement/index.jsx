@@ -538,11 +538,6 @@ const AdminBarangSection = () => {
                   dataSource={results.problemRows}
                   columns={[
                     {
-                      title: "Baris",
-                      dataIndex: "row",
-                      key: "row",
-                    },
-                    {
                       title: "No Resi",
                       dataIndex: "resi",
                       key: "resi",

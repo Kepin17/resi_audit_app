@@ -37,12 +37,6 @@ const ReturBarangPage = () => {
     totalItems: 0,
     totalPages: 0,
   });
-  const [paginationBeloman, setPaginationBeloman] = useState({
-    currentPage: 1,
-    limit: 5,
-    totalItems: 0,
-    totalPages: 0,
-  });
 
   const navigate = useNavigate();
 

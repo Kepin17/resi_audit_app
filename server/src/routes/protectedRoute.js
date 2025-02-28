@@ -3,16 +3,30 @@ const router = express.Router();
 const authToken = require("../middleware/auth");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { scaneHandler, showAllActiviy, getActivityByName, showDataByResi, uploadPhoto, getActivityNotComplited, getExpeditionCounts } = require("../controllers/auditResiController");
-const { addNewBarang, showAllBarang, cancelBarang, showDetailByResi, importResiFromExcel, exportBarang, backupBarang, createExcelTemplate, deleteResi, getCalendarData, getImportLog, exportLogImportToExcel } = require("../controllers/barangController");
-const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, importStaffFromExcel, exportStaff, backupStaff } = require("../controllers/auth");
+const {
+  addNewBarang,
+  showAllBarang,
+  cancelBarang,
+  showDetailByResi,
+  importResiFromExcel,
+  exportBarang,
+  backupBarang,
+  createExcelTemplate,
+  deleteResi,
+  getCalendarData,
+  getImportLog,
+  exportLogImportToExcel,
+} = require("../controllers/barangController");
+const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel, getGajiPackingStats, getDailyEarnings } = require("../controllers/SalaryController");
 const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExcel } = require("../controllers/resiTerpackController");
 const upload = require("../config/multerConfig");
 const { getStatistics, getWorkerStatistics } = require("../controllers/statisticsController");
 const { createBackup } = require("../controllers/backupController");
-const { getAllEkspedisi } = require("../controllers/ekspedisiController");
-const { addRetur, showAllBarangRetur, downloadReturTemplate, exportRetur, importRetur, scanResiRetur, showAllReturActiviy } = require("../controllers/returController");
+const { getAllEkspedisi, getEkspedisiByGroup, addEkspedisi, assignCodeEkspedisi, updateEkspedisi } = require("../controllers/ekspedisiController");
+const { addRetur, showAllBarangRetur, downloadReturTemplate, exportRetur, importRetur, scanResiRetur, showAllReturActiviy, toggleStatusRetur, editNote } = require("../controllers/returController");
+const { showAllRoleByGroup } = require("../controllers/RoleController");
 
 const roles = {
   picker: "picker",
@@ -21,6 +35,9 @@ const roles = {
   admin: "admin",
   supadmin: "superadmin",
   retur: "retur_barang",
+  logistic: "logistic_manager",
+  retur_manager: "retur_manager",
+  finance: "finance",
 };
 
 // add staff area
@@ -31,9 +48,6 @@ router.get("/auth/show/:id_pekerja", authToken, roleMiddleware([roles.supadmin])
 router.delete("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), deleteStaff);
 router.put("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), editStaff);
 router.get("/auth/log", authToken, roleMiddleware([roles.admin, roles.supadmin]), deviceLog);
-router.post("/auth-import", authToken, roleMiddleware([roles.admin, roles.supadmin]), upload.single("file"), importStaffFromExcel);
-router.get("/auth-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupStaff);
-router.get("/auth-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportStaff);
 
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllBarang);
@@ -46,8 +60,8 @@ router.get("/barang-export", authToken, roleMiddleware([roles.admin, roles.supad
 router.post("/barang/import", authToken, roleMiddleware([roles.admin, roles.supadmin]), upload.single("file"), importResiFromExcel);
 router.get("/barang-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupBarang);
 
-router.get("/barang-impor-log", getImportLog);
-router.get("/barang-impor-log/export", exportLogImportToExcel);
+router.get("/barang-impor-log", authToken, roleMiddleware([roles.admin, roles.supadmin]), getImportLog);
+router.get("/barang-impor-log/export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportLogImportToExcel);
 
 // audit resi
 router.post("/auditResi/scan/:resi_id", authToken, roleMiddleware([roles.packing, roles.pickout, roles.picker]), upload.single("photo"), scaneHandler);
@@ -92,15 +106,24 @@ router.get("/template-resi", authToken, roleMiddleware([roles.supadmin, roles.ad
 router.get("/calendar-data", authToken, roleMiddleware([roles.supadmin, roles.admin]), getCalendarData);
 
 // ekspedisi
-router.get("/ekspedisi", authToken, roleMiddleware([roles.supadmin, roles.admin]), getAllEkspedisi);
+router.get("/ekspedisi", authToken, roleMiddleware([roles.logistic]), getAllEkspedisi);
+router.get("/ekspedisi-group", authToken, roleMiddleware([roles.logistic]), getEkspedisiByGroup);
+router.post("/ekspedisi", authToken, roleMiddleware([roles.logistic]), addEkspedisi);
+router.post("/ekspedisi-assign", authToken, roleMiddleware([roles.logistic]), assignCodeEkspedisi);
+router.put("/ekspedisi", authToken, roleMiddleware([roles.logistic]), updateEkspedisi);
 
 // retur
 router.post("/barang-retur", authToken, roleMiddleware([roles.retur]), addRetur);
-router.get("/barang-retur", authToken, roleMiddleware([roles.retur]), showAllBarangRetur);
-router.post("/retur/import", authToken, roleMiddleware([roles.retur]), upload.single("file"), importRetur);
-router.get("/retur-export", authToken, roleMiddleware([roles.retur]), exportRetur);
-router.get("/retur-template", authToken, roleMiddleware([roles.retur]), downloadReturTemplate);
-router.put("/retur-scan/:resi_id", authToken, roleMiddleware([roles.retur]), upload.single("photo"), scanResiRetur);
+router.get("/barang-retur", authToken, roleMiddleware([roles.retur_manager]), showAllBarangRetur);
+router.post("/retur/import", authToken, roleMiddleware([roles.retur_manager]), upload.single("file"), importRetur);
+router.get("/retur-export", authToken, roleMiddleware([roles.retur_manager]), exportRetur);
+router.get("/retur-template", authToken, roleMiddleware([roles.retur_manager]), downloadReturTemplate);
+router.put("/retur-scan/:resi_id", authToken, roleMiddleware([roles.retur_manager]), upload.single("photo"), scanResiRetur);
 router.get("/auditResi/activity-retur/:id_pekerja", authToken, roleMiddleware([roles.admin, roles.supadmin, roles.retur]), showAllReturActiviy);
+router.put("/auditResi-toggle-status", authToken, roleMiddleware([roles.retur_manager]), toggleStatusRetur);
+router.put("/barang-retur/note", authToken, roleMiddleware([roles.retur_manager]), editNote);
+
+// role
+router.get("/role-group", authToken, roleMiddleware([roles.supadmin]), showAllRoleByGroup);
 
 module.exports = router;

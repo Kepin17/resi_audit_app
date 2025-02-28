@@ -475,6 +475,8 @@ CREATE TABLE proses_barang_retur (
         REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL    
 );
 
+ALTER TABLE proses_barang_retur ADD note VARCHAR(255) NULL;
+
 
 
 
@@ -583,7 +585,14 @@ CREATE TABLE log_import (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 
-ALTER TABLE log_import ADD COLUMN status ENUM('success', 'failed', 'duplikat') NOT NULL DEFAULT 'success' CHECK (status IN ('success', 'failed', 'duplikat'));
+CREATE TABLE log_import_retur (
+    id_log INT AUTO_INCREMENT PRIMARY KEY,
+    resi_id VARCHAR(20),
+    reason VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+
+ALTER TABLE log_import_retur ADD COLUMN status ENUM('success', 'failed', 'duplikat') NOT NULL DEFAULT 'success' CHECK (status IN ('success', 'failed', 'duplikat'));
 
 CREATE TABLE kode_resi (
     id_kode_resi INT AUTO_INCREMENT PRIMARY KEY,
@@ -602,3 +611,34 @@ INSERT INTO kode_resi (id_ekspedisi, id_resi) VALUES
     ('JTR', 'JT'),
     ('GJK', 'GK')
 
+
+
+CREATE TABLE roleGroup (
+    id_role_group INT AUTO_INCREMENT PRIMARY KEY,
+    role_group_name VARCHAR(50) NOT NULL,
+    id_bagian VARCHAR(7) ,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT FK_RoleGroupBagian FOREIGN KEY (id_bagian) REFERENCES bagian(id_bagian) ON UPDATE CASCADE ON DELETE SET NULL
+)
+
+
+-- Office role groups
+INSERT INTO roleGroup (role_group_name, id_bagian) VALUES 
+('office', 'BGN005'),
+('office', 'BGN004'),
+('office', 'BGN006'),
+('office', 'BGN010'),
+('office', 'BGN011');
+
+-- Warehouse role groups
+INSERT INTO roleGroup (role_group_name, id_bagian) VALUES 
+('warehouse', 'BGN001'),
+('warehouse', 'BGN002'),
+('warehouse', 'BGN003'),
+('warehouse', 'BGN009');
+
+-- Staff Type role groups
+INSERT INTO roleGroup (role_group_name, id_bagian) VALUES 
+('staff_type', 'BGN007'),
+('staff_type', 'BGN008');

@@ -16,6 +16,7 @@ import PackingPage from "./Components/Pages/Home/PackingPage";
 import { useEffect, useState } from "react";
 import ReturBarang from "./Components/Pages/Admin/ReturBarangPage";
 import ReturBarangPage from "./Components/Pages/Home/ReturBarang";
+import LogisticPage from "./Components/Pages/Admin/Logistic";
 function App() {
   const [getRole, setRole] = useState("");
   useEffect(() => {
@@ -140,6 +141,15 @@ function App() {
           element={
             <AdminProtectedRoute>
               <ReturBarang />
+            </AdminProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/logictic_management"
+          element={
+            <AdminProtectedRoute>
+              <LogisticPage />
             </AdminProtectedRoute>
           }
         />

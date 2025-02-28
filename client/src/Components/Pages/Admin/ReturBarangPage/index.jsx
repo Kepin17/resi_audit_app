@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import { Card, Table, Button, Input, DatePicker, Space, message, Modal, Form, Tag } from "antd";
-import { FileExcelOutlined, DownloadOutlined, PlusOutlined, SearchOutlined, ImportOutlined, ReloadOutlined } from "@ant-design/icons";
+import { FileExcelOutlined, DownloadOutlined, PlusOutlined, SearchOutlined, ImportOutlined, ReloadOutlined, EditOutlined, CheckOutlined, CloseOutlined } from "@ant-design/icons";
 import axios from "axios";
 import moment from "moment";
 import urlApi from "../../../../utils/url";
+import { FaArrowUp } from "react-icons/fa";
 
 const { RangePicker } = DatePicker;
 
 const ReturBarangPage = () => {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [dateRange, setDateRange] = useState(null);
   const [searchText, setSearchText] = useState("");
@@ -29,6 +29,9 @@ const ReturBarangPage = () => {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [rotationDegree, setRotationDegree] = useState(0);
+  const [getEkspedisi, setGetEkspedisi] = useState([]);
+  const [editingKey, setEditingKey] = useState("");
+  const [editingNote, setEditingNote] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -55,7 +58,6 @@ const ReturBarangPage = () => {
       });
 
       if (response.data.success) {
-        setData(response.data.data);
         setFilteredData(response.data.data);
         setTotalItems(response.data.pagination.totalItems);
       }
@@ -76,6 +78,47 @@ const ReturBarangPage = () => {
     setRotationDegree((prev) => (prev + 90) % 360);
   };
 
+  const isEditing = (record) => record.resi_id === editingKey;
+
+  const handleEditNote = (record) => {
+    setEditingKey(record.resi_id);
+    setEditingNote(record.note || "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingKey("");
+    setEditingNote("");
+  };
+
+  const handleSaveNote = async (resiId) => {
+    try {
+      setLoading(true);
+      const response = await axios.put(
+        `${urlApi}/api/v1/barang-retur/note`,
+        {
+          resi_id: resiId,
+          note: editingNote,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        message.success("Note berhasil diperbarui");
+        setEditingKey("");
+        setEditingNote("");
+        fetchData();
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || "Gagal memperbarui note");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const columns = [
     {
       title: "Resi ID",
@@ -94,7 +137,38 @@ const ReturBarangPage = () => {
       dataIndex: "status_retur",
       key: "status_retur",
       width: 120,
-      render: (status) => <Tag color={status === "diproses" ? "processing" : "success"}>{status === "diproses" ? "Diproses" : "Selesai"}</Tag>,
+      render: (status, record) => (
+        <div className="flex items-center gap-2 group">
+          <Tag
+            color={status === "diproses" ? "processing" : status === "success" ? "success" : "red"}
+            className="cursor-pointer"
+            onClick={() => {
+              axios
+                .put(
+                  `${urlApi}/api/v1/auditResi-toggle-status`,
+                  { status: status, resi_id: record.resi_id },
+                  {
+                    headers: {
+                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                  }
+                )
+                .then((response) => {
+                  if (response.data.success) {
+                    message.success("Status berhasil diubah");
+                    setRefreshKey((old) => old + 1);
+                  }
+                })
+                .catch((error) => {
+                  message.error(error.response?.data?.message || "Gagal mengubah status");
+                });
+            }}
+          >
+            {status === "diproses" ? "Diproses" : status === "diterima" ? "Diterima" : "Hilang"}
+          </Tag>
+          <Button type="text" icon={<EditOutlined />} size="small" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEditNote(record)} />
+        </div>
+      ),
     },
     {
       title: "Retur Scan",
@@ -108,6 +182,30 @@ const ReturBarangPage = () => {
       dataIndex: "note",
       key: "note",
       width: 200,
+      render: (note, record) => {
+        if (isEditing(record)) {
+          return (
+            <div className="flex flex-col space-y-2">
+              <Input.TextArea value={editingNote} onChange={(e) => setEditingNote(e.target.value)} autoSize={{ minRows: 2, maxRows: 6 }} />
+              <Space>
+                <Button type="primary" icon={<CheckOutlined />} size="small" onClick={() => handleSaveNote(record.resi_id)}>
+                  Save
+                </Button>
+                <Button danger icon={<CloseOutlined />} size="small" onClick={handleCancelEdit}>
+                  Cancel
+                </Button>
+              </Space>
+            </div>
+          );
+        } else {
+          return (
+            <div className="flex justify-between items-start group">
+              <span className="flex-1">{note || "-"}</span>
+              <Button type="text" icon={<EditOutlined />} size="small" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEditNote(record)} />
+            </div>
+          );
+        }
+      },
     },
     {
       title: "Created At",
@@ -159,14 +257,105 @@ const ReturBarangPage = () => {
     setCurrentPage(1);
   };
 
+  useEffect(() => {
+    axios
+      .get(`${urlApi}/api/v1/ekspedisi`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
+      .then((response) => {
+        setGetEkspedisi(response.data.data);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }, []);
+
   const ekspedisiOptions = [
     { label: "Semua", value: "all" },
-    { label: "J&T ", value: "JNT" },
-    { label: "JNE", value: "JNE" },
-    { label: "J&T Truck", value: "JTR" },
-    { label: "JNT Cargo", value: "JCG" },
-    { label: "Gosend", value: "GJK" },
+
+    ...getEkspedisi.map((eks) => ({
+      value: eks.id_ekspedisi,
+      label: eks.nama_ekspedisi,
+    })),
   ];
+
+  const ImportResultsModal = ({ visible, onClose, results }) => {
+    if (!results) return null;
+
+    return (
+      <Modal
+        title="Hasil Import Data"
+        open={visible}
+        onCancel={onClose}
+        footer={[
+          <Button key="close" onClick={onClose}>
+            Tutup
+          </Button>,
+        ]}
+        width={800}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-blue-700">Total Diproses</h3>
+              <p className="text-2xl font-bold text-blue-800">{results.totalProcessed}</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-green-700">Berhasil Import</h3>
+              <p className="text-2xl font-bold text-green-800">{results.successful}</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-yellow-700">Data Duplikat</h3>
+              <p className="text-2xl font-bold text-yellow-800">{results.duplicates}</p>
+            </div>
+            <div className="bg-red-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-red-700">Gagal Import</h3>
+              <p className="text-2xl font-bold text-red-800">{results.failed}</p>
+            </div>
+          </div>
+
+          {results.problemRows && results.problemRows.length > 0 && (
+            <div className="mt-6">
+              <h3 className="font-semibold text-gray-700 mb-2">Detail Error:</h3>
+              <div className="max-h-60 overflow-y-auto">
+                <Table
+                  dataSource={results.problemRows}
+                  columns={[
+                    {
+                      title: "No Resi",
+                      dataIndex: "resi",
+                      key: "resi",
+                    },
+                    {
+                      title: "Keterangan",
+                      dataIndex: "reason",
+                      key: "reason",
+                      render: (text) => <span className="text-red-600">{text}</span>,
+                    },
+                  ]}
+                  pagination={false}
+                  size="small"
+                />
+              </div>
+            </div>
+          )}
+
+          {results.errors && results.errors.length > 0 && (
+            <div className="mt-4 p-4 bg-red-50 rounded-lg">
+              <h3 className="font-semibold text-red-700 mb-2">System Errors:</h3>
+              <ul className="list-disc list-inside text-red-600">
+                {results.errors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </Modal>
+    );
+  };
 
   const downloadTemplate = async () => {
     try {
@@ -346,6 +535,7 @@ const ReturBarangPage = () => {
 
   return (
     <DashboardLayout activePage={"retur"}>
+      <ImportResultsModal visible={showImportModal} onClose={() => setShowImportModal(false)} results={importResults} />
       <Card
         title="Retur Barang Management"
         extra={
@@ -431,7 +621,7 @@ const ReturBarangPage = () => {
       {/* Add Retur Modal */}
       <Modal
         title="Add Retur"
-        visible={isModalVisible}
+        open={isModalVisible}
         onCancel={() => {
           setIsModalVisible(false);
           form.resetFields();
@@ -476,39 +666,8 @@ const ReturBarangPage = () => {
         </Form>
       </Modal>
 
-      {/* Import Results Modal */}
       <Modal
-        title="Hasil Import"
-        visible={showImportModal}
-        onCancel={() => setShowImportModal(false)}
-        footer={[
-          <Button key="close" onClick={() => setShowImportModal(false)}>
-            Tutup
-          </Button>,
-        ]}
-      >
-        {importResults && (
-          <div>
-            <p>Berhasil: {importResults.successful} data</p>
-            <p>Gagal: {importResults.failed} data</p>
-            <p>Duplikat: {importResults.duplicates} data</p>
-            {importResults.errors && (
-              <div>
-                <h4>Detail Error:</h4>
-                <ul>
-                  {importResults.errors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* Add Image Preview Modal */}
-      <Modal
-        visible={previewVisible}
+        open={previewVisible}
         footer={[
           <Button key="rotate" onClick={handleRotate}>
             Rotate
