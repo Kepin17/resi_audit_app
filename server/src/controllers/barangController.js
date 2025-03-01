@@ -517,6 +517,7 @@ const importResiFromExcel = async (req, res) => {
     // Pre-process and validate all rows first
     const validRecords = [];
     const problemRecords = []; // New array to track problem records
+    const successRecords = []; // New array to track successful imports
     const results = {
       success: 0,
       failed: 0,
@@ -660,17 +661,30 @@ const importResiFromExcel = async (req, res) => {
       if (newRecords.length > 0) {
         await connection.query("INSERT INTO barang (resi_id, created_at, id_ekspedisi) VALUES ?", [newRecords.map((record) => [record.resi_id, record.created_at, record.ekspedisi])]);
 
+        // Track successful imports for log_import
+        newRecords.forEach((record) => {
+          successRecords.push({
+            resi_id: record.resi_id,
+            status: "success",
+            reason: "Successfully imported",
+            source: "file",
+          });
+        });
+
         results.success += newRecords.length;
       }
 
       results.duplicates += existingResis.length;
     }
 
-    // Insert import logs for all processed records
-    if (problemRecords.length > 0) {
-      const importLogValues = problemRecords.map((record) => [record.resi_id, record.reason, record.status, moment().format("YYYY-MM-DD HH:mm:ss")]);
+    // Insert import logs for ALL processed records (including successful ones)
+    const allLogEntries = [
+      ...problemRecords.map((record) => [record.resi_id, record.reason, record.status, moment().format("YYYY-MM-DD HH:mm:ss")]),
+      ...successRecords.map((record) => [record.resi_id, record.reason, record.status, moment().format("YYYY-MM-DD HH:mm:ss")]),
+    ];
 
-      await connection.query("INSERT INTO log_import (resi_id, reason, status, created_at) VALUES ?", [importLogValues]);
+    if (allLogEntries.length > 0) {
+      await connection.query("INSERT INTO log_import (resi_id, reason, status, created_at) VALUES ?", [allLogEntries]);
     }
 
     await connection.commit();
