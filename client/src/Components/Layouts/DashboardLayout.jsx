@@ -244,7 +244,7 @@ const DashboardLayout = ({ children, activePage }) => {
         {isSidebarOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden" onClick={toggleSidebar} />}
 
         {/* Main Content */}
-        <div className="h-auto w-full flex flex-col gap-5">
+        <div className="h-auto w-full flex flex-col gap-5 ">
           <nav className="h-auto md:h-[8rem] p-4 md:px-5 bg-blue-700 shadow-lg rounded-lg flex flex-col md:flex-row md:items-center justify-between">
             <h1 className="text-white font-semibold text-xl mb-2 md:mb-0">Admin Dashboard</h1>
             <div className="profile cursor-pointer relative text-white">

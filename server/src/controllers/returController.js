@@ -974,6 +974,172 @@ const editNote = async (req, res) => {
     });
   }
 };
+
+const getImportReturLog = async (req, res) => {
+  try {
+    const connection = await mysqlPool.getConnection();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const { startDate, endDate } = req.query;
+
+    let whereClause = "";
+    let queryParams = [];
+
+    if (startDate && endDate) {
+      whereClause = "WHERE created_at BETWEEN ? AND ?";
+      queryParams = [startDate, endDate];
+    }
+
+    // Get total count of distinct import times
+    const [countResult] = await connection.query(
+      `SELECT COUNT(DISTINCT created_at) as total 
+       FROM log_import ${whereClause}`,
+      queryParams
+    );
+
+    // Get data grouped by exact import time
+    const [rows] = await connection.query(
+      `SELECT 
+        created_at,
+        COUNT(*) as total_entries,
+        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_count,
+        SUM(CASE WHEN status = 'duplikat' THEN 1 ELSE 0 END) as duplicate_count,
+        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count
+      FROM log_import_retur
+      ${whereClause}
+      GROUP BY created_at
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?`,
+      [...queryParams, limit, offset]
+    );
+
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    connection.release();
+
+    res.status(200).json({
+      success: true,
+      message: rows.length > 0 ? "Data found" : "No data available",
+      data: rows,
+      pagination: {
+        totalItems,
+        totalPages,
+        currentPage: page,
+        limit,
+      },
+    });
+  } catch (error) {
+    console.error("Import log error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching import log",
+      error: error.message,
+    });
+  }
+};
+
+const exportLogImportReturToExcel = async (req, res) => {
+  try {
+    const { imporDate } = req.query;
+    let whereClause = "";
+    let queryParams = [];
+
+    if (imporDate) {
+      whereClause = "WHERE created_at BETWEEN ? AND ?";
+      queryParams = [imporDate + " 00:00:00", imporDate + " 23:59:59"];
+    }
+
+    // Get all log data
+    const [rows] = await mysqlPool.query(
+      `SELECT resi_id, status, reason, created_at 
+       FROM log_import_retur 
+       ${whereClause}
+       ORDER BY created_at DESC`,
+      queryParams
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "No data to export",
+      });
+    }
+
+    // Group data by status
+    const groupedData = {
+      success: rows.filter((row) => row.status === "success"),
+      duplicate: rows.filter((row) => row.status === "duplikat"),
+      failed: rows.filter((row) => row.status === "failed"),
+    };
+
+    const workbook = new excelJS.Workbook();
+
+    // Create worksheets for each status
+    Object.entries(groupedData).forEach(([status, data]) => {
+      if (data.length > 0) {
+        const worksheet = workbook.addWorksheet(status.charAt(0).toUpperCase() + status.slice(1));
+
+        worksheet.columns = [
+          { header: "Nomor Resi", key: "resi_id", width: 20 },
+          { header: "Status", key: "status", width: 15 },
+          { header: "Keterangan", key: "reason", width: 40 },
+          { header: "Tanggal Import", key: "created_at", width: 25 },
+        ];
+
+        // Style header row
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFE0E0E0" },
+        };
+
+        // Add data
+        data.forEach((row) => {
+          worksheet.addRow({
+            ...row,
+            created_at: moment(row.created_at).format("YYYY-MM-DD HH:mm:ss"),
+          });
+        });
+
+        // Auto-fit columns
+        worksheet.columns.forEach((column) => {
+          column.alignment = { vertical: "middle", horizontal: "left" };
+        });
+      }
+    });
+
+    // Add summary worksheet
+    const summarySheet = workbook.addWorksheet("Summary", { properties: { tabColor: { argb: "FFC0C0C0" } } });
+    summarySheet.columns = [
+      { header: "Status", key: "status", width: 20 },
+      { header: "Total", key: "total", width: 15 },
+    ];
+
+    summarySheet.addRows([
+      { status: "Success", total: groupedData.success.length },
+      { status: "Duplicate", total: groupedData.duplicate.length },
+      { status: "Failed", total: groupedData.failed.length },
+      { status: "Total", total: rows.length },
+    ]);
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=import_log_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Export error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error exporting data",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   addRetur,
   showAllBarangRetur,
@@ -984,4 +1150,6 @@ module.exports = {
   showAllReturActiviy,
   toggleStatusRetur,
   editNote,
+  getImportReturLog,
+  exportLogImportReturToExcel,
 };

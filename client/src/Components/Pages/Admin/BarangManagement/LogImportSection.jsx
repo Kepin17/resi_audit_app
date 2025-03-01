@@ -6,7 +6,7 @@ import urlApi from "../../../../utils/url";
 import { FaDownload, FaFileExcel } from "react-icons/fa";
 import moment from "moment";
 
-const LogImportSection = ({ openImportMenu, openImportMenuHandler }) => {
+const LogImportSection = ({ openImportMenu, openImportMenuHandler, title }) => {
   const { RangePicker } = DatePicker;
   const [logData, setLogData] = useState({
     data: [],
@@ -22,7 +22,12 @@ const LogImportSection = ({ openImportMenu, openImportMenuHandler }) => {
   const getLogData = async (page = 1, dates = null) => {
     try {
       setLoading(true);
-      let url = `${urlApi}/api/v1/barang-impor-log?page=${page}&limit=${logData.pagination.limit}`;
+      let url;
+      if (title === "barang") {
+        url = `${urlApi}/api/v1/barang-impor-log?page=${page}&limit=${logData.pagination.limit}`;
+      } else {
+        url = `${urlApi}/api/v1/barang-retur-log?page=${page}&limit=${logData.pagination.limit}`;
+      }
 
       if (dates) {
         url += `&startDate=${dates[0]}&endDate=${dates[1]}`;
@@ -59,7 +64,12 @@ const LogImportSection = ({ openImportMenu, openImportMenuHandler }) => {
 
   const handleExport = async (imporDate) => {
     try {
-      let url = `${urlApi}/api/v1/barang-impor-log/export?imporDate=${imporDate}`;
+      let url;
+      if (title === "barang") {
+        url = `${urlApi}/api/v1/barang-impor-log/export?imporDate=${imporDate}`;
+      } else {
+        url = `${urlApi}/api/v1/barang-retur-log/download?imporDate=${imporDate}`;
+      }
 
       const response = await axios.get(url, {
         headers: {

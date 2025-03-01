@@ -25,7 +25,19 @@ const upload = require("../config/multerConfig");
 const { getStatistics, getWorkerStatistics } = require("../controllers/statisticsController");
 const { createBackup } = require("../controllers/backupController");
 const { getAllEkspedisi, getEkspedisiByGroup, addEkspedisi, assignCodeEkspedisi, updateEkspedisi } = require("../controllers/ekspedisiController");
-const { addRetur, showAllBarangRetur, downloadReturTemplate, exportRetur, importRetur, scanResiRetur, showAllReturActiviy, toggleStatusRetur, editNote } = require("../controllers/returController");
+const {
+  addRetur,
+  showAllBarangRetur,
+  downloadReturTemplate,
+  exportRetur,
+  importRetur,
+  scanResiRetur,
+  showAllReturActiviy,
+  toggleStatusRetur,
+  editNote,
+  getImportReturLog,
+  exportLogImportReturToExcel,
+} = require("../controllers/returController");
 const { showAllRoleByGroup } = require("../controllers/RoleController");
 
 const roles = {
@@ -122,6 +134,8 @@ router.put("/retur-scan/:resi_id", authToken, roleMiddleware([roles.retur_manage
 router.get("/auditResi/activity-retur/:id_pekerja", authToken, roleMiddleware([roles.admin, roles.supadmin, roles.retur]), showAllReturActiviy);
 router.put("/auditResi-toggle-status", authToken, roleMiddleware([roles.retur_manager]), toggleStatusRetur);
 router.put("/barang-retur/note", authToken, roleMiddleware([roles.retur_manager]), editNote);
+router.get("/barang-retur-log", authToken, roleMiddleware([roles.retur_manager]), getImportReturLog);
+router.get("/barang-retur-log/download", authToken, roleMiddleware([roles.retur_manager]), exportLogImportReturToExcel);
 
 // role
 router.get("/role-group", authToken, roleMiddleware([roles.supadmin]), showAllRoleByGroup);

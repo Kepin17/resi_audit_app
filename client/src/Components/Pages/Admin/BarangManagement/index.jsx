@@ -316,11 +316,8 @@ const AdminBarangSection = () => {
             duration: 3,
           });
 
-          // Set import results and show modal if there are any issues
-          if (response.data.results.failed > 0 || response.data.results.duplicates > 0) {
-            setImportResults(response.data.results);
-            setShowImportModal(true);
-          }
+          setImportResults(response.data.results);
+          setShowImportModal(true);
 
           fetchBarang(currentPage);
         }
@@ -816,7 +813,7 @@ const AdminBarangSection = () => {
   return (
     <DashboardLayout activePage={"barang"}>
       <div className="w-full h-full rounded-md flex flex-col gap-2 relative overflow-hidden">
-        <LogImportSection openImportMenu={openImportMenu} openImportMenuHandler={() => setOpenImportMenu(!openImportMenu)} />
+        <LogImportSection title={"barang"} openImportMenu={openImportMenu} openImportMenuHandler={() => setOpenImportMenu(!openImportMenu)} />
         <Modal
           title="Tambah Resi Baru"
           open={isModalOpen}

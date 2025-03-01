@@ -6,6 +6,8 @@ import axios from "axios";
 import moment from "moment";
 import urlApi from "../../../../utils/url";
 import { FaArrowUp } from "react-icons/fa";
+import LogImportSection from "../BarangManagement/LogImportSection";
+import { IoIosOpen } from "react-icons/io";
 
 const { RangePicker } = DatePicker;
 
@@ -32,6 +34,7 @@ const ReturBarangPage = () => {
   const [getEkspedisi, setGetEkspedisi] = useState([]);
   const [editingKey, setEditingKey] = useState("");
   const [editingNote, setEditingNote] = useState("");
+  const [openImportMenu, setOpenImportMenu] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -438,10 +441,8 @@ const ReturBarangPage = () => {
             duration: 3,
           });
 
-          if (response.data.results.failed > 0 || response.data.results.duplicates > 0) {
-            setImportResults(response.data.results);
-            setShowImportModal(true);
-          }
+          setImportResults(response.data.results);
+          setShowImportModal(true);
 
           // Refresh data
           fetchData();
@@ -535,163 +536,177 @@ const ReturBarangPage = () => {
 
   return (
     <DashboardLayout activePage={"retur"}>
-      <ImportResultsModal visible={showImportModal} onClose={() => setShowImportModal(false)} results={importResults} />
-      <Card
-        title="Retur Barang Management"
-        extra={
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => {
-              setSearchText("");
-              setDateRange(null);
-              setStatus("all");
-              setEkspedisi("all");
-              setRefreshKey((old) => old + 1);
-            }}
-          >
-            Reset Filter
-          </Button>
-        }
-      >
-        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-          {/* Search and Date Filter */}
-          <Space wrap>
-            <RangePicker onChange={handleDateRangeChange} value={dateRange} />
-            <Input placeholder="Search by Resi ID" prefix={<SearchOutlined />} onChange={(e) => handleSearch(e.target.value)} value={searchText} style={{ width: 200 }} allowClear />
-          </Space>
-
-          {/* Status and Ekspedisi Filters */}
-          <Space wrap align="start">
-            <Space>
-              <Button type={status === "diproses" ? "primary" : "default"} onClick={() => handleStatusFilter("diproses")}>
-                Diproses
-              </Button>
-              <Button type={status === "selesai" ? "primary" : "default"} onClick={() => handleStatusFilter("selesai")}>
-                Selesai
-              </Button>
-            </Space>
-
-            <Space wrap>
-              {ekspedisiOptions.map((option) => (
-                <Button key={option.value} type={ekspedisi === option.value ? "primary" : "default"} onClick={() => handleEkspedisiFilter(option.value)}>
-                  {option.label}
-                </Button>
-              ))}
-            </Space>
-          </Space>
-
-          {/* Action Buttons */}
-          <Space wrap>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
-              Add Retur
-            </Button>
-            <Button icon={<ImportOutlined />} onClick={ImportFromExcelHandler} loading={importLoading}>
-              Import Excel
-            </Button>
-            <Button icon={<FileExcelOutlined />} onClick={handleExport} loading={exportLoading}>
-              Export to Excel
-            </Button>
-            <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>
-              Download Template
-            </Button>
-          </Space>
-
-          {/* Data Table */}
-          <Table
-            columns={columns}
-            dataSource={filteredData}
-            loading={loading}
-            rowKey="resi_id"
-            pagination={{
-              current: currentPage,
-              pageSize,
-              total: totalItems,
-              onChange: (page, pageSize) => {
-                setCurrentPage(page);
-                setPageSize(pageSize);
-              },
-              showSizeChanger: true,
-              showTotal: (total) => `Total ${total} items`,
-            }}
-            scroll={{ x: 1200 }}
-          />
-        </Space>
-      </Card>
-
-      {/* Add Retur Modal */}
-      <Modal
-        title="Add Retur"
-        open={isModalVisible}
-        onCancel={() => {
-          setIsModalVisible(false);
-          form.resetFields();
-        }}
-        footer={null}
-      >
-        <Form form={form} layout="vertical" onFinish={handleAddRetur}>
-          <Form.Item
-            label="Resi ID"
-            name="resi_id"
-            rules={[
-              { required: true, message: "Please input Resi ID!" },
-              { min: 8, message: "Resi ID must be at least 8 characters!" },
-              {
-                pattern: /^([A-Z]{2}\d+|\d+)$/,
-                message: "Format resi tidak valid. Gunakan format ekspedisi (Cth: CM1234567) atau nomor saja",
-              },
-            ]}
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item label="Note" name="note">
-            <Input.TextArea rows={4} />
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                Submit
-              </Button>
+      <div className="w-full h-full rounded-md flex flex-col gap-2 relative overflow-hidden">
+        <LogImportSection title={"retur"} openImportMenu={openImportMenu} openImportMenuHandler={() => setOpenImportMenu(!openImportMenu)} />
+        <ImportResultsModal visible={showImportModal} onClose={() => setShowImportModal(false)} results={importResults} />
+        <Card
+          title="Retur Barang Management"
+          extra={
+            <div className="flex items-center gap-2">
               <Button
+                icon={<ReloadOutlined />}
                 onClick={() => {
-                  setIsModalVisible(false);
-                  form.resetFields();
+                  setSearchText("");
+                  setDateRange(null);
+                  setStatus("all");
+                  setEkspedisi("all");
+                  setRefreshKey((old) => old + 1);
                 }}
               >
-                Cancel
+                Reset Filter
+              </Button>
+
+              <Button
+                icon={<IoIosOpen />}
+                onClick={() => {
+                  setOpenImportMenu(!openImportMenu);
+                }}
+              >
+                Open Filter
+              </Button>
+            </div>
+          }
+        >
+          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            {/* Search and Date Filter */}
+            <Space wrap>
+              <RangePicker onChange={handleDateRangeChange} value={dateRange} />
+              <Input placeholder="Search by Resi ID" prefix={<SearchOutlined />} onChange={(e) => handleSearch(e.target.value)} value={searchText} style={{ width: 200 }} allowClear />
+            </Space>
+
+            {/* Status and Ekspedisi Filters */}
+            <Space wrap align="start">
+              <Space>
+                <Button type={status === "diproses" ? "primary" : "default"} onClick={() => handleStatusFilter("diproses")}>
+                  Diproses
+                </Button>
+                <Button type={status === "selesai" ? "primary" : "default"} onClick={() => handleStatusFilter("selesai")}>
+                  Selesai
+                </Button>
+              </Space>
+
+              <Space wrap>
+                {ekspedisiOptions.map((option) => (
+                  <Button key={option.value} type={ekspedisi === option.value ? "primary" : "default"} onClick={() => handleEkspedisiFilter(option.value)}>
+                    {option.label}
+                  </Button>
+                ))}
+              </Space>
+            </Space>
+
+            {/* Action Buttons */}
+            <Space wrap>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
+                Add Retur
+              </Button>
+              <Button icon={<ImportOutlined />} onClick={ImportFromExcelHandler} loading={importLoading}>
+                Import Excel
+              </Button>
+              <Button icon={<FileExcelOutlined />} onClick={handleExport} loading={exportLoading}>
+                Export to Excel
+              </Button>
+              <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>
+                Download Template
               </Button>
             </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
 
-      <Modal
-        open={previewVisible}
-        footer={[
-          <Button key="rotate" onClick={handleRotate}>
-            Rotate
-          </Button>,
-          <Button key="close" onClick={() => setPreviewVisible(false)}>
-            Close
-          </Button>,
-        ]}
-        onCancel={() => setPreviewVisible(false)}
-        width={800}
-      >
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
-          <img
-            alt="preview"
-            style={{
-              maxWidth: "100%",
-              maxHeight: "600px",
-              transform: `rotate(${rotationDegree}deg)`,
-              transition: "transform 0.3s ease",
-            }}
-            src={`${urlApi}/${previewImage}`}
-          />
-        </div>
-      </Modal>
+            {/* Data Table */}
+            <Table
+              columns={columns}
+              dataSource={filteredData}
+              loading={loading}
+              rowKey="resi_id"
+              pagination={{
+                current: currentPage,
+                pageSize,
+                total: totalItems,
+                onChange: (page, pageSize) => {
+                  setCurrentPage(page);
+                  setPageSize(pageSize);
+                },
+                showSizeChanger: true,
+                showTotal: (total) => `Total ${total} items`,
+              }}
+              scroll={{ x: 1200 }}
+            />
+          </Space>
+        </Card>
+
+        {/* Add Retur Modal */}
+        <Modal
+          title="Add Retur"
+          open={isModalVisible}
+          onCancel={() => {
+            setIsModalVisible(false);
+            form.resetFields();
+          }}
+          footer={null}
+        >
+          <Form form={form} layout="vertical" onFinish={handleAddRetur}>
+            <Form.Item
+              label="Resi ID"
+              name="resi_id"
+              rules={[
+                { required: true, message: "Please input Resi ID!" },
+                { min: 8, message: "Resi ID must be at least 8 characters!" },
+                {
+                  pattern: /^([A-Z]{2}\d+|\d+)$/,
+                  message: "Format resi tidak valid. Gunakan format ekspedisi (Cth: CM1234567) atau nomor saja",
+                },
+              ]}
+            >
+              <Input />
+            </Form.Item>
+
+            <Form.Item label="Note" name="note">
+              <Input.TextArea rows={4} />
+            </Form.Item>
+
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit">
+                  Submit
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsModalVisible(false);
+                    form.resetFields();
+                  }}
+                >
+                  Cancel
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          open={previewVisible}
+          footer={[
+            <Button key="rotate" onClick={handleRotate}>
+              Rotate
+            </Button>,
+            <Button key="close" onClick={() => setPreviewVisible(false)}>
+              Close
+            </Button>,
+          ]}
+          onCancel={() => setPreviewVisible(false)}
+          width={800}
+        >
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+            <img
+              alt="preview"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "600px",
+                transform: `rotate(${rotationDegree}deg)`,
+                transition: "transform 0.3s ease",
+              }}
+              src={`${urlApi}/${previewImage}`}
+            />
+          </div>
+        </Modal>
+      </div>
     </DashboardLayout>
   );
 };
