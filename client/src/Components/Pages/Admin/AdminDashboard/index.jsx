@@ -284,60 +284,59 @@ const AdminDashboard = () => {
 
   return (
     <DashboardLayout activePage={"Dashboard"}>
-      {/* Stats Cards Section */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 p-4">
+      {/* Improved Stats Cards Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 p-3 md:p-4">
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white text-sm font-medium mb-1">Total Picked</p>
-                <h3 className="text-white text-3xl font-bold">{statusCounts.picker || 0}</h3>
+                <p className="text-white text-xs sm:text-sm font-medium mb-1">Total Picked</p>
+                <h3 className="text-white text-2xl sm:text-3xl font-bold">{statusCounts.picker || 0}</h3>
               </div>
-              <div className="bg-blue-400 rounded-full p-3">
-                <FaCartFlatbed className="text-white text-2xl" />
+              <div className="bg-blue-400 rounded-full p-2 sm:p-3">
+                <FaCartFlatbed className="text-white text-xl sm:text-2xl" />
               </div>
             </div>
           </div>
         </div>
 
         <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg">
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white text-sm font-medium mb-1">Total Packed</p>
-                <h3 className="text-white text-3xl font-bold">{statusCounts.packing || 0}</h3>
+                <p className="text-white text-xs sm:text-sm font-medium mb-1">Total Packed</p>
+                <h3 className="text-white text-2xl sm:text-3xl font-bold">{statusCounts.packing || 0}</h3>
               </div>
-              <div className="bg-green-400 rounded-full p-3">
-                <LuPackageCheck className="text-white text-2xl" />
+              <div className="bg-green-400 rounded-full p-2 sm:p-3">
+                <LuPackageCheck className="text-white text-xl sm:text-2xl" />
               </div>
             </div>
           </div>
         </div>
 
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg relative sm:col-span-2 lg:col-span-1">
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white text-sm font-medium mb-1">Total Pickout</p>
-                <h3 className="text-white text-3xl font-bold">{statusCounts.pickout || 0}</h3>
+                <p className="text-white text-xs sm:text-sm font-medium mb-1">Total Pickout</p>
+                <h3 className="text-white text-2xl sm:text-3xl font-bold">{statusCounts.pickout || 0}</h3>
               </div>
-              <div className="bg-purple-400 rounded-full p-3 flex items-center gap-2 cursor-pointer" onClick={toggleCountActive}>
-                <FaTruck className="text-white text-2xl " />
+              <div className="bg-purple-400 rounded-full p-2 sm:p-3 flex items-center gap-2 cursor-pointer" onClick={toggleCountActive}>
+                <FaTruck className="text-white text-xl sm:text-2xl" />
                 <FaArrowCircleLeft className={`${isCountActive ? "-rotate-90" : "-rotate-180"} text-white transition-all ease-in duration-300`} />
               </div>
             </div>
           </div>
 
           <div
-            className={`w-full h-auto absolute top-20 left-0 
-            overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex flex-col gap-2 bg-white rounded-md p-4 shadow-md z-20 
-            ${isCountActive ? "block" : "hidden"}
-          `}
+            className={`w-full h-auto absolute top-full left-0 right-0 
+            overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex flex-col gap-2 bg-white rounded-md p-3 md:p-4 shadow-md z-20 
+            ${isCountActive ? "block" : "hidden"} max-h-60 md:max-h-80`}
           >
-            <div className={`h-full flex flex-col gap-5 items-center justify-start `}>
+            <div className={`h-full flex flex-col gap-3 md:gap-5 items-center justify-start`}>
               {expeditionCounts.length === 0 && (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500 text-2xl font-bold flex flex-col items-center gap-3">
+                  <p className="text-gray-500 text-lg md:text-2xl font-bold flex flex-col items-center gap-2 md:gap-3">
                     <span>
                       <FaSearch />
                     </span>
@@ -346,15 +345,19 @@ const AdminDashboard = () => {
                 </div>
               )}
               {expeditionCounts.map((ekspedisi, index) => (
-                <div className="w-full h-32 border-2 rounded-lg hover:shadow-md transition-shadow overflow-hidden flex items-center justify-center cursor-pointer" key={index} onClick={() => setActiveEkspedisi(ekspedisi.nama_ekspedisi)}>
-                  <div className="flex items-center justify-center w-40 h-full border-r-2">
-                    <FaTruck className="text-4xl text-blue-600" />
+                <div
+                  className="w-full h-24 md:h-32 border-2 rounded-lg hover:shadow-md transition-shadow overflow-hidden flex items-center justify-center cursor-pointer"
+                  key={index}
+                  onClick={() => setActiveEkspedisi(ekspedisi.nama_ekspedisi)}
+                >
+                  <div className="flex items-center justify-center w-20 md:w-40 h-full border-r-2">
+                    <FaTruck className="text-2xl md:text-4xl text-blue-600" />
                   </div>
-                  <div className={`w-full h-full flex items-center justify-between px-4 ${activeEkspedisi === ekspedisi.nama_ekspedisi ? "bg-blue-100" : ""}`}>
-                    <h1 className="font-bold text-xl">{ekspedisi.nama_ekspedisi}</h1>
+                  <div className={`w-full h-full flex items-center justify-between px-2 md:px-4 ${activeEkspedisi === ekspedisi.nama_ekspedisi ? "bg-blue-100" : ""}`}>
+                    <h1 className="font-bold text-base md:text-xl">{ekspedisi.nama_ekspedisi}</h1>
                     <div className="text-right">
-                      <p className="text-gray-600 text-sm">Total Resi</p>
-                      <p className="font-bold text-2xl text-blue-600">{ekspedisi.total_resi}</p>
+                      <p className="text-gray-600 text-xs md:text-sm">Total Resi</p>
+                      <p className="font-bold text-lg md:text-2xl text-blue-600">{ekspedisi.total_resi}</p>
                     </div>
                   </div>
                 </div>
@@ -364,18 +367,20 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Statistics Chart Section */}
-      <div className="grid gap-4 md:gap-6 p-4">
-        <div className="bg-white rounded-xl shadow-lg p-6">
+      {/* Statistics Chart Section - Improved Responsiveness */}
+      <div className="grid gap-3 md:gap-6 p-3 md:p-4">
+        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
           <div className="flex flex-col space-y-4">
-            <div className="flex justify-between items-center mobile:flex-col gap-5">
-              <h2 className="text-xl font-semibold">Activity Statistics</h2>
-              <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 md:gap-5">
+              <h2 className="text-lg md:text-xl font-semibold">Activity Statistics</h2>
+              <div className="flex flex-wrap gap-2">
                 {["daily", "weekly", "monthly", "yearly"].map((period) => (
                   <button
                     key={period}
                     onClick={() => setStatisticsPeriod(period)}
-                    className={`px-4 py-2 rounded-lg transition-all duration-200 ${statisticsPeriod === period ? "bg-blue-500 text-white shadow-md transform scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                    className={`px-2 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 ${
+                      statisticsPeriod === period ? "bg-blue-500 text-white shadow-md transform scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
                   >
                     {period.charAt(0).toUpperCase() + period.slice(1)}
                   </button>
@@ -383,44 +388,56 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="h-[400px] w-full">
+            <div className="h-[300px] sm:h-[400px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={statisticsData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} interval="preserveStartEnd" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="picker" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="packing" stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="pickout" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 4 }} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10, width: 50 }}
+                    interval="preserveStartEnd"
+                    height={40}
+                    tickFormatter={(value) => {
+                      // Shorten date format on small screens
+                      if (window.innerWidth < 640) {
+                        return value.split(" ").slice(-1)[0]; // Just show the day or last part
+                      }
+                      return value;
+                    }}
+                  />
+                  <YAxis width={40} tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={{ fontSize: "12px" }} />
+                  <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} />
+                  <Line type="monotone" dataKey="picker" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="packing" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="pickout" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
         </div>
 
-        {/* Worker Performance Section */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
+        {/* Improved Worker Performance Section */}
+        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
           <div className="flex flex-col space-y-4">
-            <h2 className="text-xl font-semibold">Worker Performance</h2>
+            <h2 className="text-lg md:text-xl font-semibold">Worker Performance</h2>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm md:text-base">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Picked</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Packed</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pickout</th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Name</th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Picked</th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Packed</th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Pickout</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {workerStats.map((worker, index) => (
                     <tr key={worker.id_pekerja} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{worker.nama_pekerja}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">{worker.picker_count} scan</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">{worker.packing_count} scan</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-purple-600 font-semibold">{worker.pickout_count} scan</td>
+                      <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">{worker.nama_pekerja}</td>
+                      <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-blue-600 font-semibold">{worker.picker_count} scan</td>
+                      <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-green-600 font-semibold">{worker.packing_count} scan</td>
+                      <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-purple-600 font-semibold">{worker.pickout_count} scan</td>
                     </tr>
                   ))}
                 </tbody>
@@ -429,52 +446,63 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Main Content Section */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="space-y-6">
-            {/* Controls Section */}
-            <div className="flex flex-col lg:flex-row gap-4 justify-between">
-              <div className="flex flex-col md:flex-row gap-4 flex-1">
+        {/* Improved Main Content Section */}
+        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
+          <div className="space-y-4 md:space-y-6">
+            {/* Improved Controls Section */}
+            <div className="flex flex-col gap-3 md:gap-4">
+              <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                 <input
                   type="text"
                   placeholder="Search by Resi ID or Staff Name"
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex-1 transition-all"
+                  className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex-1 transition-all text-sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 <div className="flex gap-2">
-                  <input type="date" className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                  <input type="date" className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  <input
+                    type="date"
+                    className="px-2 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full md:w-auto"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                  <input
+                    type="date"
+                    className="px-2 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full md:w-auto"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
                 </div>
               </div>
 
-              <div className="flex justify-end mobile:justify-start">
-                <button onClick={handleExport} className="flex items-center gap-2 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 shadow-md">
+              <div className="flex justify-end">
+                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 md:px-6 md:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 shadow-md text-sm">
                   <FaFileExport /> Export Data
                 </button>
               </div>
             </div>
 
-            {/* Status Filters */}
+            {/* Improved Status Filters */}
             <div className="flex flex-wrap gap-2">
               {["all", "picker", "packing", "pickout", "cancelled"].map((status) => (
                 <button
                   key={status}
                   onClick={() => setSelectedStatus(status)}
-                  className={`px-6 py-2 rounded-lg transition-all duration-200 ${selectedStatus === status ? "bg-blue-500 text-white shadow-md transform scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                  className={`px-3 py-1 md:px-6 md:py-2 rounded-lg transition-all duration-200 text-xs md:text-sm 
+                  ${selectedStatus === status ? "bg-blue-500 text-white shadow-md transform scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </button>
               ))}
             </div>
 
-            {/* Table Section */}
+            {/* Improved Table Section */}
             <div className="overflow-x-auto bg-white rounded-lg shadow">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50">
                   <tr>
                     {["Resi ID", "Staff Name", "Activity", "Date & Time"].map((header) => (
-                      <th key={header} className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th key={header} className="px-3 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         {header}
                       </th>
                     ))}
@@ -483,11 +511,11 @@ const AdminDashboard = () => {
                 <tbody className="divide-y divide-gray-200">
                   {data.map((order, index) => (
                     <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{!order.resi_id ? "Telah dihapus / bermasalah" : order.resi_id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.nama_pekerja}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">{!order.resi_id ? "Telah dihapus / bermasalah" : order.resi_id}</td>
+                      <td className="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">{order.nama_pekerja}</td>
+                      <td className="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap">
                         <span
-                          className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          className={`px-2 py-1 md:px-3 md:py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             order.status_proses === "picker"
                               ? "bg-blue-100 text-blue-800"
                               : order.status_proses === "packing"
@@ -500,27 +528,28 @@ const AdminDashboard = () => {
                           {`Telah ${order.status_proses} resi`}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{moment(order.created_at).format("LLLL")}</td>
+                      <td className="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">{moment(order.created_at).format(window.innerWidth < 640 ? "DD/MM/YY HH:mm" : "LLLL")}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Pagination */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6">
-              <div className="flex gap-2">
+            {/* Improved Pagination */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 md:gap-4 mt-4 md:mt-6">
+              <div className="flex flex-wrap gap-1 md:gap-2 justify-center sm:justify-start">
                 {generatePageNumbers().map((pageNum) => (
                   <button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`px-4 py-2 rounded-lg transition-colors ${pagination.currentPage === pageNum ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                    className={`px-2 py-1 md:px-4 md:py-2 rounded-lg transition-colors text-xs md:text-sm
+                    ${pagination.currentPage === pageNum ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                   >
                     {pageNum}
                   </button>
                 ))}
               </div>
-              <span className="text-sm text-gray-600">
+              <span className="text-xs md:text-sm text-gray-600">
                 Page {pagination.currentPage} of {pagination.totalPages}
               </span>
             </div>

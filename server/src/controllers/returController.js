@@ -147,8 +147,10 @@ const showAllBarangRetur = async (req, res) => {
     if (status && status !== "all") {
       if (status === "diproses") {
         whereConditions.push("(latest_process.status_retur IS NULL OR latest_process.status_retur = 'diproses')");
-      } else if (status === "selesai") {
-        whereConditions.push("latest_process.status_retur = 'selesai'");
+      } else if (status === "diterima") {
+        whereConditions.push("latest_process.status_retur = 'diterima'");
+      } else if (status === "hilang") {
+        whereConditions.push("latest_process.status_retur = 'hilang'");
       }
     }
 

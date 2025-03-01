@@ -344,108 +344,115 @@ const PackSalary = () => {
 
   return (
     <DashboardLayout activePage="Packing Salary">
-      <div className="w-full h-full bg-white rounded-lg shadow-md p-6">
-        {/* Modified Card Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+      <div className="w-full h-full bg-white rounded-lg shadow-md p-3 sm:p-6">
+        {/* Modified Card Section with improved responsiveness */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 sm:p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-80">Current Salary Rate</p>
-                <h2 className="text-2xl font-bold mt-2">{formatRupiah(form.total_gaji_per_scan)}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mt-2">{formatRupiah(form.total_gaji_per_scan)}</h2>
                 <p className="text-xs opacity-70 mt-2">Per Item Today</p>
               </div>
-              <div className="text-4xl opacity-80">
+              <div className="text-3xl sm:text-4xl opacity-80">
                 <MdPayments />
               </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-80">Packing Workers Today</p>
-                <h2 className="text-2xl font-bold mt-2">{statsLoading ? "Loading..." : todayStats.totalWorkers}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mt-2">{statsLoading ? "Loading..." : todayStats.totalWorkers}</h2>
                 <p className="text-xs opacity-70 mt-2">{statsLoading ? "Loading..." : `Items Packed`}</p>
               </div>
-              <div className="text-4xl opacity-80">
+              <div className="text-3xl sm:text-4xl opacity-80">
                 <MdEdit />
               </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 sm:p-6 text-white shadow-lg sm:col-span-2 lg:col-span-1">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-80">Today's Total Payments</p>
-                <h2 className="text-2xl font-bold mt-2">{formatRupiah(todayStats.totalPayments)}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mt-2">{formatRupiah(todayStats.totalPayments)}</h2>
                 <p className="text-xs opacity-70 mt-2">{moment().format("DD MMMM YYYY")}</p>
               </div>
-              <div className="text-4xl opacity-80">
+              <div className="text-3xl sm:text-4xl opacity-80">
                 <GiConfirmed />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Modified Salary Control Section */}
-        <div className="w-full h-auto bg-gray-50 rounded-xl p-6 mb-6 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
+        {/* Improved Salary Control Section */}
+        <div className="w-full h-auto bg-gray-50 rounded-xl p-4 sm:p-6 mb-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
             <Title className="text-gray-700">Packing Salary Management</Title>
-            <Button type="primary" onClick={handleExport} loading={exportLoading} className="flex items-center gap-2 h-12 px-6 text-lg" icon={<MdPayments className="text-xl" />}>
+            <Button type="primary" onClick={handleExport} loading={exportLoading} className="flex items-center gap-2 h-10 sm:h-12 px-4 sm:px-6 text-base sm:text-lg w-full sm:w-auto" icon={<MdPayments className="text-xl" />}>
               Export Data
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div className="flex gap-4 items-start w-full">
-              {user?.roles?.includes("superadmin") && (
-                <>
-                  <Form onSubmit={handleSubmit} className="flex-1">
-                    <InputFragment
-                      htmlFor={"total_gaji_per_scan"}
-                      InputType="number"
-                      isJustNumber={true}
-                      inputName={"total_gaji_per_scan"}
-                      inputValue={form.total_gaji_per_scan}
-                      isDisabled={!isEdit}
-                      inputOnChange={handleInputChange}
-                      className="w-full h-12" // Added fixed height
-                    >
-                      Salary Rate Per Item
-                    </InputFragment>
-                  </Form>
+          <div className="grid grid-cols-1 gap-4 mb-4">
+            {user?.roles?.includes("superadmin") && (
+              <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
+                <Form onSubmit={handleSubmit} className="flex-1 w-full">
+                  <InputFragment
+                    htmlFor={"total_gaji_per_scan"}
+                    InputType="number"
+                    isJustNumber={true}
+                    inputName={"total_gaji_per_scan"}
+                    inputValue={form.total_gaji_per_scan}
+                    isDisabled={!isEdit}
+                    inputOnChange={handleInputChange}
+                    className="w-full h-10 sm:h-12"
+                  >
+                    Salary Rate Per Item
+                  </InputFragment>
+                </Form>
+                <div className="flex gap-2 w-full sm:w-auto">
                   <button
-                    className={`h-12 px-6 rounded-lg text-white flex items-center gap-2 transition-all duration-300 ${isEdit ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"}`}
+                    className={`h-10 sm:h-12 px-4 sm:px-6 rounded-lg text-white flex items-center gap-2 transition-all duration-300 flex-1 sm:flex-none justify-center ${
+                      isEdit ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
+                    }`}
                     onClick={() => setisEdit(!isEdit)}
                     disabled={updateLoading}
                   >
                     {!isEdit ? (
                       <>
-                        <MdEdit className="text-xl" /> Edit Rate
+                        <MdEdit className="text-xl" /> <span className="hidden xs:inline">Edit Rate</span>
                       </>
                     ) : (
                       <>
-                        <MdCancel className="text-xl" /> Cancel
+                        <MdCancel className="text-xl" /> <span className="hidden xs:inline">Cancel</span>
                       </>
                     )}
                   </button>
                   {isEdit && (
-                    <button className="h-12 px-6 bg-green-500 hover:bg-green-600 rounded-lg text-white flex items-center gap-2 transition-all duration-300" onClick={handleSubmit} disabled={updateLoading}>
-                      <GiConfirmed className="text-xl" /> Save
+                    <button
+                      className="h-10 sm:h-12 px-4 sm:px-6 bg-green-500 hover:bg-green-600 rounded-lg text-white flex items-center gap-2 transition-all duration-300 flex-1 sm:flex-none justify-center"
+                      onClick={handleSubmit}
+                      disabled={updateLoading}
+                    >
+                      <GiConfirmed className="text-xl" /> <span className="hidden xs:inline">Save</span>
                     </button>
                   )}
-                </>
-              )}
-            </div>
-            <div className="flex gap-4">
-              <RangePicker onChange={handleDateChange} showTime={false} allowSame={true} format="YYYY-MM-DD" className="flex-1 h-12" />
-              <Search placeholder="Search by Name" onSearch={handleSearch} enterButton className="flex-1 h-12" size="large" />
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <RangePicker onChange={handleDateChange} showTime={false} allowSame={true} format="YYYY-MM-DD" className="flex-1 h-10 sm:h-12 w-full" />
+              <Search placeholder="Search by Name" onSearch={handleSearch} enterButton className="flex-1 h-10 sm:h-12" size="large" />
             </div>
           </div>
         </div>
 
-        {/* Enhanced Table Section */}
-        <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
+        {/* Enhanced Table Section with responsive classes */}
+        <div className="bg-white rounded-xl overflow-x-auto shadow-sm border border-gray-100">
           <Table
             columns={coloms}
             rowKey="id_gaji_pegawai"
@@ -457,14 +464,18 @@ const PackSalary = () => {
               showSizeChanger: true,
               showQuickJumper: true,
               showTotal: (total) => `Total ${total} items`,
-              className: "px-6",
+              className: "px-2 sm:px-6",
+              responsive: true,
+              size: "small",
             }}
             onChange={handleTableChange}
             className="custom-table"
+            scroll={{ x: "max-content" }}
+            size="middle"
           />
         </div>
 
-        {/* Fix Modal Structure */}
+        {/* Modal remains unchanged */}
         <Modal
           title="Confirm Payment"
           open={isModalVisible}

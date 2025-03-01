@@ -1013,7 +1013,7 @@ const AdminBarangSection = () => {
           </div>
         </div>
 
-        <div className="content-card w-full mx-auto h-screen phone:h-auto p-3 sm:p-5 rounded-lg shadow-lg overflow-y-auto bg-slate-50 relative">
+        <div className="content-card w-full mx-auto h-auto phone:h-auto p-3 sm:p-5 rounded-lg shadow-lg overflow-y-auto bg-slate-50 relative">
           {barang.length <= 0 && (
             <div className="flex flex-col items-center justify-center w-full h-[100vh] rounded-lg text-center my-5 ">
               <div className="mb-4">

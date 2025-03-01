@@ -77,11 +77,13 @@
 
 .staff-card {
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .staff-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
 }
 
 .staff-card-content {
@@ -98,27 +100,37 @@
 
 .staff-info {
   width: 100%;
+  flex: 1;
 }
 
 .staff-name {
-  margin: 8px 0;
+  margin: 0;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
   font-size: 16px;
   font-weight: 600;
   color: #1f1f1f;
 }
 
 .staff-username {
-  margin: 4px 0 12px;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #666;
   font-size: 14px;
 }
 
 .staff-roles {
+  margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   justify-content: center;
-  margin-top: 8px;
 }
 
 .ant-tag {
@@ -128,6 +140,42 @@
 
 .ant-card-actions {
   background: #fafafa;
+}
+
+/* Responsive improvements */
+@media (max-width: 640px) {
+  .ant-checkbox-group-item {
+    margin-right: 8px;
+    margin-bottom: 8px;
+  }
+
+  .ant-pagination-item, .ant-pagination-prev, .ant-pagination-next {
+    min-width: 28px !important;
+    height: 28px !important;
+    line-height: 26px !important;
+  }
+
+  .ant-pagination-options {
+    margin-left: 4px !important;
+  }
+}
+
+/* Make the form elements more touch-friendly */
+@media (max-width: 768px) {
+  .ant-form-item {
+    margin-bottom: 16px;
+  }
+
+  .ant-checkbox-wrapper {
+    font-size: 14px;
+    padding: 2px 0;
+  }
+
+  .ant-tag {
+    font-size: 11px;
+    padding: 0 4px;
+    margin-bottom: 4px;
+  }
 }
 
 @media (max-width: 576px) {

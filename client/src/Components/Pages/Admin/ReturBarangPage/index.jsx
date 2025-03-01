@@ -143,7 +143,7 @@ const ReturBarangPage = () => {
       render: (status, record) => (
         <div className="flex items-center gap-2 group">
           <Tag
-            color={status === "diproses" ? "processing" : status === "success" ? "success" : "red"}
+            color={status === "diproses" ? "processing" : status === "diterima" ? "success" : "red"}
             className="cursor-pointer"
             onClick={() => {
               axios
@@ -169,7 +169,7 @@ const ReturBarangPage = () => {
           >
             {status === "diproses" ? "Diproses" : status === "diterima" ? "Diterima" : "Hilang"}
           </Tag>
-          <Button type="text" icon={<EditOutlined />} size="small" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEditNote(record)} />
+          <Button type="text" icon={<EditOutlined />} size="small" className="opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       ),
     },
@@ -580,8 +580,14 @@ const ReturBarangPage = () => {
                 <Button type={status === "diproses" ? "primary" : "default"} onClick={() => handleStatusFilter("diproses")}>
                   Diproses
                 </Button>
-                <Button type={status === "selesai" ? "primary" : "default"} onClick={() => handleStatusFilter("selesai")}>
-                  Selesai
+                <Button type={status === "hilang" ? "primary" : "default"} onClick={() => handleStatusFilter("hilang")}>
+                  Hilang
+                </Button>
+                <Button type={status === "diterima" ? "primary" : "default"} onClick={() => handleStatusFilter("diterima")}>
+                  Diterima
+                </Button>
+                <Button type={status === "all" ? "primary" : "default"} onClick={() => handleStatusFilter("all")}>
+                  Semua
                 </Button>
               </Space>
 
