@@ -149,7 +149,9 @@
     margin-bottom: 8px;
   }
 
-  .ant-pagination-item, .ant-pagination-prev, .ant-pagination-next {
+  .ant-pagination-item,
+  .ant-pagination-prev,
+  .ant-pagination-next {
     min-width: 28px !important;
     height: 28px !important;
     line-height: 26px !important;
