@@ -38,7 +38,6 @@ const {
   getImportReturLog,
   exportLogImportReturToExcel,
 } = require("../controllers/returController");
-const { showAllRoleByGroup } = require("../controllers/RoleController");
 
 const roles = {
   picker: "picker",
@@ -137,7 +136,6 @@ router.put("/barang-retur/note", authToken, roleMiddleware([roles.retur_manager]
 router.get("/barang-retur-log", authToken, roleMiddleware([roles.retur_manager]), getImportReturLog);
 router.get("/barang-retur-log/download", authToken, roleMiddleware([roles.retur_manager]), exportLogImportReturToExcel);
 
-// role
-router.get("/role-group", authToken, roleMiddleware([roles.supadmin]), showAllRoleByGroup);
+
 
 module.exports = router;
