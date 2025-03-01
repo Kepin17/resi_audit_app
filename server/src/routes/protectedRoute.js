@@ -124,12 +124,12 @@ router.post("/ekspedisi-assign", authToken, roleMiddleware([roles.logistic]), as
 router.put("/ekspedisi", authToken, roleMiddleware([roles.logistic]), updateEkspedisi);
 
 // retur
-router.post("/barang-retur", authToken, roleMiddleware([roles.retur]), addRetur);
+router.post("/barang-retur", authToken, roleMiddleware([roles.retur_manager]), addRetur);
 router.get("/barang-retur", authToken, roleMiddleware([roles.retur_manager]), showAllBarangRetur);
 router.post("/retur/import", authToken, roleMiddleware([roles.retur_manager]), upload.single("file"), importRetur);
 router.get("/retur-export", authToken, roleMiddleware([roles.retur_manager]), exportRetur);
 router.get("/retur-template", authToken, roleMiddleware([roles.retur_manager]), downloadReturTemplate);
-router.put("/retur-scan/:resi_id", authToken, roleMiddleware([roles.retur_manager]), upload.single("photo"), scanResiRetur);
+router.put("/retur-scan/:resi_id", authToken, roleMiddleware([roles.retur]), upload.single("photo"), scanResiRetur);
 router.get("/auditResi/activity-retur/:id_pekerja", authToken, roleMiddleware([roles.admin, roles.supadmin, roles.retur]), showAllReturActiviy);
 router.put("/auditResi-toggle-status", authToken, roleMiddleware([roles.retur_manager]), toggleStatusRetur);
 router.put("/barang-retur/note", authToken, roleMiddleware([roles.retur_manager]), editNote);

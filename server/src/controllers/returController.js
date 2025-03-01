@@ -197,6 +197,7 @@ const showAllBarangRetur = async (req, res) => {
       success: true,
       message: "Data found",
       data: rows,
+      totalData: rows.length,
       pagination: {
         totalPages,
         currentPage: page,
@@ -793,7 +794,12 @@ const scanResiRetur = async (req, res) => {
           [resi_id, id_pekerja, photoPath]
         );
       } else {
-        // If record exists, update it
+        if (existingRecord[0].status_retur === "diterima") {
+          return res.status(400).send({
+            success: false,
+            message: "Resi already marked as 'diterima'",
+          });
+        }
         await connection.query(
           `UPDATE proses_barang_retur 
            SET id_pekerja = ?, 
