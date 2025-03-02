@@ -1,0 +1,278 @@
+/* Modern Barcode Scanner Component Styling */
+
+/* Wrapper for centering */
+.barcode-scanner-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 1rem;
+}
+
+/* Main container */
+.barcode-scanner-container {
+  width: 100%;
+  max-width: 600px;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background-color: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  margin-bottom: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding-left: 2.5rem;
+  padding-right: 2.5rem;
+  outline: none;
+}
+
+.barcode-scanner-container.focused {
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 15px rgba(24, 144, 255, 0.3);
+}
+
+/* Hover and active states */
+.barcode-scanner-container:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.barcode-scanner-container:active {
+  transform: translateY(-1px);
+}
+
+/* Label styling */
+.barcode-label {
+  color: #f8f8f8;
+  font-weight: 700;
+  font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Input wrapper */
+.barcode-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(145deg, rgba(40, 40, 40, 0.8), rgba(50, 50, 50, 0.6));
+  border-radius: 12px;
+  border: 1px solid rgba(80, 80, 80, 0.5);
+  padding: 0.5rem 1rem;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Input wrapper focus state */
+.barcode-input-wrapper.active {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.2), inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Active scan animation */
+.barcode-input-wrapper.active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(24, 144, 255, 0.2), transparent);
+  animation: scanAnimation 2s infinite;
+}
+
+/* Barcode icon */
+.barcode-icon {
+  color: #1890ff;
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
+  margin-right: 12px;
+  filter: drop-shadow(0 0 5px rgba(24, 144, 255, 0.5));
+}
+
+/* Input field */
+.barcode-input {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  height: 50px;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  width: 100%;
+  letter-spacing: 0.5px;
+}
+
+.barcode-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+}
+
+.barcode-input[disabled] {
+  background-color: transparent !important;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+/* Custom input display that looks like an input but is actually a div */
+.barcode-input-display {
+  height: 50px;
+  color: #fff;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  width: 100%;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  position: relative;
+}
+
+/* Blinking cursor to indicate input is active */
+.barcode-cursor {
+  width: 2px;
+  height: 24px;
+  background-color: #1890ff;
+  margin-left: 4px;
+  animation: blink 1s infinite;
+}
+
+.barcode-placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+}
+
+/* Instructions area */
+.barcode-instructions {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: clamp(0.75rem, 2vw, 0.85rem);
+  font-weight: 300;
+  padding: 0.5rem;
+}
+
+/* Pulsing dot */
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #1890ff;
+  border-radius: 50%;
+  margin-right: 10px;
+  position: relative;
+  box-shadow: 0 0 10px rgba(24, 144, 255, 0.7);
+  animation: pulse 1.5s infinite;
+}
+
+/* Barcode result display */
+.barcode-result {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: rgba(24, 144, 255, 0.15);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  border-left: 3px solid #1890ff;
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Animations */
+@keyframes pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+}
+
+@keyframes scanAnimation {
+  0% {
+    left: -50%;
+  }
+  100% {
+    left: 150%;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Ant Design overrides */
+.barcode-scanner-container .ant-form-item {
+  margin-bottom: 0;
+}
+
+.barcode-scanner-container .ant-form-item-label > label {
+  color: #f8f8f8;
+}
+
+.barcode-scanner-container .ant-input-disabled {
+  cursor: pointer;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .barcode-scanner-container {
+    padding: 1.2rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .barcode-input-wrapper {
+    padding: 0.4rem 0.8rem;
+  }
+
+  .barcode-input {
+    height: 45px;
+  }
+}
+
+@media (max-width: 480px) {
+  .barcode-scanner-wrapper {
+    padding: 0.5rem;
+  }
+
+  .barcode-scanner-container {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .barcode-instructions {
+    margin-top: 8px;
+  }
+}
+
+/* Dark mode enhancement */
+@media (prefers-color-scheme: dark) {
+  .barcode-scanner-container {
+    background-color: rgba(20, 20, 20, 0.7);
+  }
+}

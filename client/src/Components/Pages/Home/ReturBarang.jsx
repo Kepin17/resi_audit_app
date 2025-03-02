@@ -9,12 +9,13 @@ import { ToastContainer, toast } from "react-toastify";
 import PhotoCaptureFragment from "../../Fragments/PhotoCaptureFragment";
 import urlApi from "../../../utils/url";
 import { playSuccessSound, playErrorSound } from "../../../utils/audio";
-import { FaBoxesPacking, FaCartFlatbed } from "react-icons/fa6";
 import Unauthorized from "../../Pages/Unauthorized";
 import { DatePicker, Pagination } from "antd";
 import SearchFragment from "../../Fragments/SearchFragment";
-import { FaTruck } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaCalendarAlt, FaExchangeAlt, FaQrcode, FaSpinner } from "react-icons/fa";
+import { BiSearchAlt } from "react-icons/bi";
 
 const ReturBarangPage = () => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -74,25 +75,46 @@ const ReturBarangPage = () => {
     setIsLoading(false);
   }, []);
 
+  // Add animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        delayChildren: 0.3,
+        staggerChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 },
+  };
+
   // Improved scan mode buttons component
   const ScanModeButtons = () => (
     <div className="grid grid-cols-2 gap-4 w-full max-w-md">
-      <button
-        className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2
-          ${scanMode === "barcode-only" ? `${thisPage === "picker" ? "bg-blue-500" : thisPage === "packing" ? "bg-green-500" : "bg-indigo-500"} text-white shadow-lg shadow-blue-200` : "bg-slate-400 hover:bg-slate-500 text-gray-50"}`}
+      <motion.button
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
+        className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2 border border-transparent
+          ${scanMode === "barcode-only" ? "bg-gradient-to-br from-purple-400 to-purple-600 text-white shadow-lg backdrop-blur-sm" : "bg-white hover:bg-slate-50 hover:border-slate-200 text-gray-700 shadow"}`}
         onClick={() => setScanMode("barcode-only")}
       >
         <CiBarcode className="text-2xl" />
         <span className="font-medium">Barcode Only</span>
-      </button>
-      <button
-        className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2
-          ${scanMode === "barcode-photo" ? ` ${thisPage === "picker" ? "bg-blue-500" : thisPage === "packing" ? "bg-green-500" : "bg-indigo-500"} text-white shadow-lg shadow-blue-200 ` : "bg-slate-400 hover:bg-slate-500 text-gray-50"}`}
+      </motion.button>
+      <motion.button
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
+        className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2 border border-transparent
+          ${scanMode === "barcode-photo" ? "bg-gradient-to-br from-purple-400 to-purple-600 text-white shadow-lg backdrop-blur-sm" : "bg-white hover:bg-slate-50 hover:border-slate-200 text-gray-700 shadow"}`}
         onClick={() => setScanMode("barcode-photo")}
       >
         <CiBarcode className="text-2xl" />
         <span className="font-medium">Barcode + Photo</span>
-      </button>
+      </motion.button>
     </div>
   );
 
@@ -310,7 +332,7 @@ const ReturBarangPage = () => {
     return (
       <MainLayout>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
         </div>
       </MainLayout>
     );
@@ -333,20 +355,33 @@ const ReturBarangPage = () => {
     }, 0);
   };
 
+  // New component for statistics cards
+  const StatCard = ({ title, value, icon, color }) => (
+    <motion.div whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:border-gray-200 transition-all duration-300">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-gray-500">{title}</h3>
+          <p className={`text-2xl font-bold ${color} mt-2`}>{value}</p>
+        </div>
+        <div className={`p-3 rounded-xl ${color.replace("text", "bg").replace("500", "100")} flex items-center justify-center`}>{icon}</div>
+      </div>
+    </motion.div>
+  );
+
   return (
     <MainLayout getPage={thisPage}>
-      <ToastContainer />
+      <ToastContainer position="top-right" autoClose={1000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
       {isPhotoMode || isBarcodeActive ? (
         <div className="fixed inset-0 bg-black z-50">
           <div className="w-full h-full flex flex-col">
             {isPhotoMode ? (
               <>
-                <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
+                <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 flex justify-between items-center">
                   <h3 className="text-lg font-medium">Foto Paket - {currentResi}</h3>
-                  <button onClick={handlePhotoCancel} className="text-white bg-red-500 px-4 py-2 rounded-lg">
+                  <motion.button whileTap={{ scale: 0.95 }} onClick={handlePhotoCancel} className="text-white bg-black/30 backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-black/40 transition-all">
                     Close
-                  </button>
+                  </motion.button>
                 </div>
                 <div className="flex-1">
                   <PhotoCaptureFragment onPhotoCapture={handlePhotoCapture} onCancel={handlePhotoCancel} />
@@ -354,11 +389,11 @@ const ReturBarangPage = () => {
               </>
             ) : (
               <>
-                <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
+                <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 flex justify-between items-center">
                   <h3 className="text-lg font-medium">Scanner Resi</h3>
-                  <button onClick={handleBarcodeClose} className="text-white bg-red-500 px-4 py-2 rounded-lg">
+                  <motion.button whileTap={{ scale: 0.95 }} onClick={handleBarcodeClose} className="text-white bg-black/30 backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-black/40 transition-all">
                     Close
-                  </button>
+                  </motion.button>
                 </div>
                 <div className="flex-1">
                   <BarcodeScannerFragment dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
@@ -370,152 +405,135 @@ const ReturBarangPage = () => {
       ) : (
         <div className="min-h-screen bg-gray-50">
           {/* Main Content */}
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Stats Cards */}
-            <div className={`${thisPage === "picker" ? "bg-blue-500" : thisPage === "packing" ? "bg-green-500" : "bg-indigo-500"} w-[22rem] h-full p-1 my-10 rounded-md flex items-center justify-center border-2 mb-6`}>
-              <h1 className="text-4xl flex items-center gap-4 font-bold text-white">
-                {thisPage === "picker" ? <FaCartFlatbed /> : thisPage === "packing" ? <FaBoxesPacking /> : <FaTruck />}
-                {thisPage === "picker" ? "Pickup" : thisPage === "packing" ? "Packing" : thisPage === "pickout" ? "Delivery" : "Retur"} Station
-              </h1>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-sm font-medium text-gray-500">Today's Scans</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-2">{data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length}</p>
+          <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Header with animated gradient background */}
+            <motion.div variants={itemVariants} className="relative overflow-hidden bg-gradient-to-r from-purple-500 to-purple-700 rounded-2xl shadow-lg mb-10">
+              <div className="absolute inset-0 opacity-10">
+                <svg className="w-full h-full" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="white" d="M0,50 Q25,25 50,50 T100,50 T50,90 T0,50" />
+                </svg>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-sm font-medium text-gray-500">Scan Mode</h3>
-                <p className={`text-2xl font-bold ${thisPage === "picker" ? "text-blue-500" : thisPage === "packing" ? "text-green-500" : "text-indigo-500"} mt-2`}>{scanMode === "barcode-only" ? "Basic" : "Advanced"}</p>
+              <div className="relative p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-4 mb-4 md:mb-0">
+                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                    <FaExchangeAlt className="text-2xl text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl md:text-4xl font-bold text-white">Retur Station</h1>
+                    <p className="text-white/80 text-sm md:text-base mt-1">Process returned packages efficiently</p>
+                  </div>
+                </div>
               </div>
-            </div>
+            </motion.div>
+
+            {/* Stats Cards */}
+            <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <StatCard title="Today's Returns" value={data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length} icon={<FaQrcode className="text-2xl" />} color="text-gray-900" />
+
+              <StatCard title="Scan Mode" value={scanMode === "barcode-only" ? "Basic" : "Advanced"} icon={<CiBarcode className="text-2xl" />} color="text-purple-500" />
+            </motion.div>
 
             {/* Scanner Controls */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100">
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="w-full md:w-auto">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Scan Settings</h2>
                   <ScanModeButtons />
                 </div>
-                <Button
-                  buttonStyle={`${
-                    thisPage === "picker"
-                      ? "bg-blue-500 hover:bg-blue-600 hover:shadow-blue-300 shadow-blue-200"
-                      : thisPage === "packing"
-                      ? "bg-green-500 hover:bg-green-600 hover:shadow-green-300 shadow-green-200"
-                      : "bg-indigo-500 hover:bg-indigo-600 hover:shadow-indigo-300 shadow-indigo-200"
-                  }  px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg hover:shadow-xl `}
-                  onClick={() => setIsBarcodeActive(true)}
-                >
-                  <CiBarcode className="text-xl" />
-                  Start Scanning
-                </Button>
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                  <Button buttonStyle="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg hover:shadow-xl" onClick={() => setIsBarcodeActive(true)}>
+                    <CiBarcode className="text-xl" />
+                    Start Scanning
+                  </Button>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Activity List */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="flex items-center gap-5  mb-4">
-                <DatePicker onChange={handleDateChange} value={selectedDate} format="YYYY-MM-DD" />
-                <SearchFragment onSearch={handleSearch} value={searchQuery} placeholder={"Cari Resi"} />
+            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex flex-wrap items-center gap-5 mb-6">
+                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                  <FaCalendarAlt className="text-gray-500 text-xl" />
+                  <DatePicker onChange={handleDateChange} value={selectedDate} format="YYYY-MM-DD" className="border-none bg-transparent focus:ring-0 w-32" />
+                </div>
+                <div className="flex-grow">
+                  <SearchFragment onSearch={handleSearch} value={searchQuery} placeholder={"Cari Resi"} icon={<BiSearchAlt className="text-gray-500" />} />
+                </div>
               </div>
-              <div className="flex items-center gap-5 mb-4">
-                <Button
-                  onClick={() => setSwitchMode(true)}
-                  buttonStyle={`px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg  hover:shadow-xl ${
-                    switchMode
-                      ? `${
-                          thisPage === "picker"
-                            ? "bg-blue-500 hover:bg-blue-600 hover:shadow-blue-300 shadow-blue-200"
-                            : thisPage === "packing"
-                            ? "bg-green-500 hover:bg-green-600 hover:shadow-green-300 shadow-green-200"
-                            : "bg-indigo-500 hover:bg-indigo-600 hover:shadow-indigo-300 shadow-indigo-200"
-                        }`
-                      : "bg-slate-400 hover:bg-slate-500"
-                  }`}
-                >
-                  Scanku
-                </Button>
+
+              <div className="flex items-center gap-5 mb-6">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    onClick={() => setSwitchMode(true)}
+                    buttonStyle={`px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-md
+                      ${switchMode ? "bg-gradient-to-r from-purple-500 to-purple-600" : "bg-gray-300 text-gray-700"}`}
+                  >
+                    Scanku
+                  </Button>
+                </motion.div>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Retur Activity</h2>
-              {switchMode ? (
-                <div className="space-y-4">
-                  {data.map((item, index) => (
-                    <div
+
+              <h2 className="text-lg font-semibold text-purple-600 mb-4">Retur Activity</h2>
+
+              <AnimatePresence mode="wait">
+                <motion.div key={switchMode ? "scanned" : "pending"} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
+                  {(switchMode ? data : dataBeloman).map((item, index) => (
+                    <motion.div
                       key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
                       className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg transition-all duration-300
-                    hover:bg-gray-50 border border-gray-100"
+                        hover:bg-gray-50 border border-gray-100 hover:shadow-sm"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-gray-900">{item.nama_pekerja}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs ${
-                              thisPage === "picker" ? "bg-blue-100 text-blue-700" : thisPage === "packing" ? "bg-green-100 text-green-700" : thisPage === "pickout" ? "bg-indigo-100 text-indigo-700" : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">{item.status}</span>
                         </div>
-                        <p className="text-sm text-gray-500">Resi: {item.resi_id}</p>
+                        <p className="text-sm text-gray-500">
+                          Resi: <span className="font-medium">{item.resi_id}</span>
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-500 mt-2 md:mt-0">{formatDateTime(item.proses_scan)}</p>
-                    </div>
+                      <p className="text-sm text-gray-500 mt-2 md:mt-0 flex items-center gap-2">
+                        <span className="hidden md:inline">Scanned:</span>
+                        {formatDateTime(item.proses_scan)}
+                      </p>
+                    </motion.div>
                   ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {dataBeloman.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg transition-all duration-300
-                    hover:bg-gray-50 border border-gray-100"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{item.nama_pekerja}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs ${
-                              thisPage === "picker" ? "bg-blue-100 text-blue-700" : thisPage === "packing" ? "bg-green-100 text-green-700" : thisPage === "pickout" ? "bg-indigo-100 text-indigo-700" : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500">Resi: {item.resi_id}</p>
-                      </div>
-                      <p className="text-sm text-gray-500 mt-2 md:mt-0">{formatDateTime(item.proses_scan)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {!switchMode ? (
-                <Pagination
-                  current={paginationBeloman.currentPage}
-                  pageSize={paginationBeloman.limit}
-                  total={paginationBeloman.totalItems}
-                  onChange={handlePageChangeBeloman}
-                  showSizeChanger
-                  showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} items`}
-                  className="mt-4 flex justify-end"
-                  responsive
-                  showQuickJumper
-                />
-              ) : (
-                <Pagination
-                  current={pagination.currentPage}
-                  pageSize={pagination.limit}
-                  total={pagination.totalItems}
-                  onChange={handlePageChange}
-                  showSizeChanger
-                  showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} items`}
-                  className="mt-4 flex justify-end"
-                  responsive
-                  showQuickJumper
-                />
-              )}
-            </div>
-          </div>
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="mt-6">
+                {!switchMode ? (
+                  <Pagination
+                    current={paginationBeloman ? paginationBeloman.currentPage : 1}
+                    pageSize={paginationBeloman ? paginationBeloman.limit : 5}
+                    total={paginationBeloman ? paginationBeloman.totalItems : 0}
+                    onChange={handlePageChangeBeloman}
+                    showSizeChanger
+                    showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} items`}
+                    className="flex justify-end"
+                    responsive
+                    showQuickJumper
+                  />
+                ) : (
+                  <Pagination
+                    current={pagination.currentPage}
+                    pageSize={pagination.limit}
+                    total={pagination.totalItems}
+                    onChange={handlePageChange}
+                    showSizeChanger
+                    showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} items`}
+                    className="flex justify-end"
+                    responsive
+                    showQuickJumper
+                  />
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
         </div>
       )}
     </MainLayout>

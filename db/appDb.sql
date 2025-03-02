@@ -642,3 +642,11 @@ INSERT INTO roleGroup (role_group_name, id_bagian) VALUES
 INSERT INTO roleGroup (role_group_name, id_bagian) VALUES 
 ('staff_type', 'BGN007'),
 ('staff_type', 'BGN008');
+
+CREATE TABLE configTable (
+    id_config INT AUTO_INCREMENT PRIMARY KEY,
+    config_name VARCHAR(50) NOT NULL,
+    config_value VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)

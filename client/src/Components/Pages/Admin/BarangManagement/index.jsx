@@ -1315,7 +1315,7 @@ const AdminBarangSection = () => {
         </div>
       </Modal>
       {isMultipleActive && selectedItems.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 flex justify-center gap-4 z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-slate-900/30 backdrop-blur-md shadow-lg p-4 flex justify-center gap-4 z-50">
           <Button buttonStyle="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600" onClick={handleMultipleCancel}>
             Cancel Selected ({selectedItems.size})
           </Button>

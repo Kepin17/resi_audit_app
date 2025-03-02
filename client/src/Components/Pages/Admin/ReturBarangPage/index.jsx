@@ -35,6 +35,7 @@ const ReturBarangPage = () => {
   const [editingKey, setEditingKey] = useState("");
   const [editingNote, setEditingNote] = useState("");
   const [openImportMenu, setOpenImportMenu] = useState(false);
+  const [totalData, setTotalData] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -63,6 +64,7 @@ const ReturBarangPage = () => {
       if (response.data.success) {
         setFilteredData(response.data.data);
         setTotalItems(response.data.pagination.totalItems);
+        setTotalData(response.data.totalData);
       }
     } catch (error) {
       message.error("Gagal mengambil data retur");
@@ -144,32 +146,36 @@ const ReturBarangPage = () => {
         <div className="flex items-center gap-2 group">
           <Tag
             color={status === "diproses" ? "processing" : status === "diterima" ? "success" : "red"}
-            className="cursor-pointer"
+            className={`${status === "diterima" ? "cursor-default" : "cursor-pointer"} transition-colors`}
             onClick={() => {
-              axios
-                .put(
-                  `${urlApi}/api/v1/auditResi-toggle-status`,
-                  { status: status, resi_id: record.resi_id },
-                  {
-                    headers: {
-                      Authorization: `Bearer ${localStorage.getItem("token")}`,
-                    },
-                  }
-                )
-                .then((response) => {
-                  if (response.data.success) {
-                    message.success("Status berhasil diubah");
-                    setRefreshKey((old) => old + 1);
-                  }
-                })
-                .catch((error) => {
-                  message.error(error.response?.data?.message || "Gagal mengubah status");
-                });
+              if (status === "diterima") {
+                return;
+              } else {
+                axios
+                  .put(
+                    `${urlApi}/api/v1/auditResi-toggle-status`,
+                    { status: status, resi_id: record.resi_id },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                      },
+                    }
+                  )
+                  .then((response) => {
+                    if (response.data.success) {
+                      message.success("Status berhasil diubah");
+                      setRefreshKey((old) => old + 1);
+                    }
+                  })
+                  .catch((error) => {
+                    message.error(error.response?.data?.message || "Gagal mengubah status");
+                  });
+              }
             }}
           >
             {status === "diproses" ? "Diproses" : status === "diterima" ? "Diterima" : "Hilang"}
           </Tag>
-          <Button type="text" icon={<EditOutlined />} size="small" className="opacity-0 group-hover:opacity-100 transition-opacity" />
+          <Button type="text" icon={<EditOutlined />} size="small" className={`opacity-0 ${status === "diterima" ? "" : "group-hover:opacity-100 transition-opacity"}`} />
         </div>
       ),
     },
@@ -614,6 +620,8 @@ const ReturBarangPage = () => {
               <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>
                 Download Template
               </Button>
+
+              <p>{totalData} resi ditemukan</p>
             </Space>
 
             {/* Data Table */}

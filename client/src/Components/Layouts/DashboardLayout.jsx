@@ -6,14 +6,17 @@ import { FaUsers, FaBoxes, FaHistory, FaMoneyBillWave, FaQrcode, FaDatabase, FaS
 import Title from "../Elements/Title";
 import { toast } from "react-toastify";
 import axios from "axios";
-import { backupEndpoint } from "../../utils/url";
+import urlApi, { backupEndpoint } from "../../utils/url";
 import { TbTruckReturn } from "react-icons/tb";
+import { message } from "antd";
 
 const DashboardLayout = ({ children, activePage }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [toggleAutoScan, setToggleAutoScan] = useState(false);
+  const [isToggleLoading, setIsToggleLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -41,14 +44,36 @@ const DashboardLayout = ({ children, activePage }) => {
     }
   };
 
+  // Load user details and fetch initial auto scan configuration
   useEffect(() => {
     if (!checkTokenExpiration()) return;
 
     const token = localStorage.getItem("token");
     const user = jwtDecode(token);
     setUser(user);
+
+    // Fetch auto scan config
+    axios
+      .get(`${urlApi}/api/v1/config`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((res) => {
+        const isAutoScanOn = res.data.auto_scan[0].config_value === "nyala";
+        setToggleAutoScan(isAutoScanOn);
+        localStorage.setItem("autoScan", isAutoScanOn ? "true" : "false");
+      })
+      .catch((err) => {
+        console.error("Failed to fetch auto scan config:", err);
+        const storedValue = localStorage.getItem("autoScan");
+        if (storedValue) {
+          setToggleAutoScan(storedValue === "true");
+        }
+      });
   }, []);
 
+  // Clock timer
   useEffect(() => {
     if (!checkTokenExpiration()) return;
 
@@ -61,6 +86,38 @@ const DashboardLayout = ({ children, activePage }) => {
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleToggleAutoScan = () => {
+    if (isToggleLoading) return;
+
+    const newValue = !toggleAutoScan;
+    const newConfigValue = newValue ? "nyala" : "mati";
+    setIsToggleLoading(true);
+
+    axios
+      .put(
+        `${urlApi}/api/v1/config`,
+        {
+          auto_scan: newConfigValue,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      )
+      .then((res) => {
+        setToggleAutoScan(newValue);
+        localStorage.setItem("autoScan", newValue ? "true" : "false");
+        message.success(`Auto Scan is ${newValue ? "on" : "off"}`);
+      })
+      .catch((err) => {
+        message.error("Failed to change Auto Scan");
+      })
+      .finally(() => {
+        setIsToggleLoading(false);
+      });
   };
 
   const handleBackup = async () => {
@@ -246,7 +303,15 @@ const DashboardLayout = ({ children, activePage }) => {
         {/* Main Content */}
         <div className="h-auto w-full flex flex-col gap-5 ">
           <nav className="h-auto md:h-[8rem] p-4 md:px-5 bg-blue-700 shadow-lg rounded-lg flex flex-col md:flex-row md:items-center justify-between">
-            <h1 className="text-white font-semibold text-xl mb-2 md:mb-0">Admin Dashboard</h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-white font-semibold text-xl mb-2 md:mb-0">Admin Dashboard</h1>
+              <div className="font-bold text-white flex items-center gap-2">
+                <h3>Auto Scan</h3>
+                <div className={`controlToggle w-12 h-5 border-2 rounded-full bg-white relative flex items-center ${isToggleLoading ? "opacity-70 cursor-wait" : "cursor-pointer"}`} onClick={handleToggleAutoScan}>
+                  <div className={`toggle w-5 h-5 rounded-full bg-orange-500 transition-all ease-in duration-300 absolute ${toggleAutoScan ? "left-7" : "-left-1"}`}></div>
+                </div>
+              </div>
+            </div>
             <div className="profile cursor-pointer relative text-white">
               <div className="flex gap-2 flex-col">
                 <p>{user.pekerja}</p>
