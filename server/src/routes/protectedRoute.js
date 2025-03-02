@@ -38,6 +38,7 @@ const {
   getImportReturLog,
   exportLogImportReturToExcel,
 } = require("../controllers/returController");
+const { getConfig, updateConfig } = require("../controllers/configController");
 
 const roles = {
   picker: "picker",
@@ -117,7 +118,7 @@ router.get("/template-resi", authToken, roleMiddleware([roles.supadmin, roles.ad
 router.get("/calendar-data", authToken, roleMiddleware([roles.supadmin, roles.admin]), getCalendarData);
 
 // ekspedisi
-router.get("/ekspedisi", authToken, roleMiddleware([roles.logistic]), getAllEkspedisi);
+router.get("/ekspedisi", authToken, roleMiddleware([roles.logistic, roles.admin,roles.supadmin]), getAllEkspedisi);
 router.get("/ekspedisi-group", authToken, roleMiddleware([roles.logistic]), getEkspedisiByGroup);
 router.post("/ekspedisi", authToken, roleMiddleware([roles.logistic]), addEkspedisi);
 router.post("/ekspedisi-assign", authToken, roleMiddleware([roles.logistic]), assignCodeEkspedisi);
@@ -135,6 +136,13 @@ router.put("/auditResi-toggle-status", authToken, roleMiddleware([roles.retur_ma
 router.put("/barang-retur/note", authToken, roleMiddleware([roles.retur_manager]), editNote);
 router.get("/barang-retur-log", authToken, roleMiddleware([roles.retur_manager]), getImportReturLog);
 router.get("/barang-retur-log/download", authToken, roleMiddleware([roles.retur_manager]), exportLogImportReturToExcel);
+
+
+// config
+
+router.get("/config", authToken, roleMiddleware([roles.supadmin]), getConfig);
+router.put("/config", authToken, roleMiddleware([roles.supadmin]), updateConfig);
+
 
 
 
