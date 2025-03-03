@@ -66,12 +66,12 @@ const LoginPage = () => {
           <div className="space-y-6 relative z-10">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">Login Dashboard</h1>
-              <p className="text-gray-500 mt-2">Enter your credentials to continue</p>
+              <p className="text-gray-400 mt-2">Enter your credentials to continue</p>
             </div>
 
             <div className="relative group mb-6">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg blur opacity-30 group-hover:opacity-70 transition duration-300"></div>
-              <div className="relative bg-white dark:bg-gray-900 rounded-lg p-5">
+              <div className="relative bg-white rounded-lg p-5">
                 <div className="space-y-6">
                   <div className="relative">
                     <InputFragment
@@ -80,7 +80,7 @@ const LoginPage = () => {
                       inputName={"username"}
                       inputValue={loginData.username}
                       inputOnChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                      className={`pl-10 backdrop-blur-sm bg-white/90 dark:bg-gray-800/90 border-transparent focus:border-blue-500 focus:ring-blue-500 transform transition-all duration-300 ${error ? "border-red-300" : ""}`}
+                      className={`pl-10 backdrop-blur-sm bg-white/90  border-transparent focus:border-blue-500 focus:ring-blue-500 transform transition-all duration-300 ${error ? "border-red-300" : ""}`}
                     >
                       Username
                     </InputFragment>
@@ -93,7 +93,7 @@ const LoginPage = () => {
                       inputName={"password"}
                       inputValue={loginData.password}
                       inputOnChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className={`pl-10 backdrop-blur-sm bg-white/90 dark:bg-gray-800/90 border-transparent focus:border-blue-500 focus:ring-blue-500 transform transition-all duration-300 ${error ? "border-red-300" : ""}`}
+                      className={`pl-10 backdrop-blur-sm bg-white/90 border-transparent focus:border-blue-500 focus:ring-blue-500 transform transition-all duration-300 ${error ? "border-red-300" : ""}`}
                     >
                       Password
                     </InputFragment>

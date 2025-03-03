@@ -99,7 +99,11 @@ const ReturBarangPage = () => {
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
         className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2 border border-transparent
-          ${scanMode === "barcode-only" ? "bg-gradient-to-br from-purple-400 to-purple-600 text-white shadow-lg backdrop-blur-sm" : "bg-white hover:bg-slate-50 hover:border-slate-200 text-gray-700 shadow"}`}
+          ${
+            scanMode === "barcode-only"
+              ? "bg-gradient-to-br from-purple-400 to-purple-600 text-white shadow-lg backdrop-blur-sm"
+              : "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:text-yellow-400 dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-800 text-gray-700 shadow"
+          }`}
         onClick={() => setScanMode("barcode-only")}
       >
         <CiBarcode className="text-2xl" />
@@ -109,7 +113,11 @@ const ReturBarangPage = () => {
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
         className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2 border border-transparent
-          ${scanMode === "barcode-photo" ? "bg-gradient-to-br from-purple-400 to-purple-600 text-white shadow-lg backdrop-blur-sm" : "bg-white hover:bg-slate-50 hover:border-slate-200 text-gray-700 shadow"}`}
+          ${
+            scanMode === "barcode-photo"
+              ? "bg-gradient-to-br  from-purple-400 to-purple-600 text-white shadow-lg backdrop-blur-sm"
+              : "bg-white hover:bg-slate-50  hover:border-slate-200 text-gray-700 dark:bg-slate-800 dark:hover:border-slate-800  dark:text-yellow-400 dark:hover:bg-slate-800 shadow"
+          }`}
         onClick={() => setScanMode("barcode-photo")}
       >
         <CiBarcode className="text-2xl" />
@@ -357,13 +365,16 @@ const ReturBarangPage = () => {
 
   // New component for statistics cards
   const StatCard = ({ title, value, icon, color }) => (
-    <motion.div whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:border-gray-200 transition-all duration-300">
-      <div className="flex items-center justify-between">
+    <motion.div
+      whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+      className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:border-gray-200 dark:bg-slate-900 dark:border-slate-700 dark:shadow-xl transition-all duration-300"
+    >
+      <div className="flex items-center justify-between ">
         <div>
-          <h3 className="text-sm font-medium text-gray-500">{title}</h3>
+          <h3 className="text-sm font-medium text-gray-500 ">{title}</h3>
           <p className={`text-2xl font-bold ${color} mt-2`}>{value}</p>
         </div>
-        <div className={`p-3 rounded-xl ${color.replace("text", "bg").replace("500", "100")} flex items-center justify-center`}>{icon}</div>
+        <div className={`p-3 rounded-xl ${color.replace("text", "bg").replace("500", "100")} flex items-center justify-center `}>{icon}</div>
       </div>
     </motion.div>
   );
@@ -403,7 +414,7 @@ const ReturBarangPage = () => {
           </div>
         </div>
       ) : (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-900 rounded-lg">
           {/* Main Content */}
           <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Header with animated gradient background */}
@@ -429,16 +440,21 @@ const ReturBarangPage = () => {
 
             {/* Stats Cards */}
             <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <StatCard title="Today's Returns" value={data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length} icon={<FaQrcode className="text-2xl" />} color="text-gray-900" />
+              <StatCard
+                title="Today's Returns"
+                value={data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length}
+                icon={<FaQrcode className="text-2xl" />}
+                color="text-gray-900 dark:text-yellow-400"
+              />
 
               <StatCard title="Scan Mode" value={scanMode === "barcode-only" ? "Basic" : "Advanced"} icon={<CiBarcode className="text-2xl" />} color="text-purple-500" />
             </motion.div>
 
             {/* Scanner Controls */}
-            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100">
+            <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 mb-8 border border-gray-100 dark:border-slate-700">
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="w-full md:w-auto">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Scan Settings</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 dark:text-yellow-400">Scan Settings</h2>
                   <ScanModeButtons />
                 </div>
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -451,7 +467,7 @@ const ReturBarangPage = () => {
             </motion.div>
 
             {/* Activity List */}
-            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-700">
               <div className="flex flex-wrap items-center gap-5 mb-6">
                 <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
                   <FaCalendarAlt className="text-gray-500 text-xl" />
@@ -485,14 +501,14 @@ const ReturBarangPage = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                       className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg transition-all duration-300
-                        hover:bg-gray-50 border border-gray-100 hover:shadow-sm"
+                        hover:bg-gray-50 dark:hover:bg-slate-800 border border-gray-100 dark:border-slate-800 hover:shadow-sm"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{item.nama_pekerja}</span>
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">{item.status}</span>
+                          <span className="font-medium text-gray-900 dark:text-yellow-400">{item.nama_pekerja}</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 dark:bg-slate-800 dark:shadow-xl text-purple-700 dark:text-purple-300">{item.status}</span>
                         </div>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           Resi: <span className="font-medium">{item.resi_id}</span>
                         </p>
                       </div>

@@ -1,4 +1,4 @@
-/* Modern Barcode Scanner Component Styling */
+/* Modern Barcode Scanner Component Styling - Light Mode */
 
 /* Wrapper for centering */
 .barcode-scanner-wrapper {
@@ -14,29 +14,29 @@
   max-width: 600px;
   padding: 1.5rem;
   border-radius: 16px;
-  background-color: rgba(30, 30, 30, 0.6);
+  background-color: #ffffff;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   margin-bottom: 1.5rem;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e8e8e8;
   padding-left: 2.5rem;
   padding-right: 2.5rem;
   outline: none;
 }
 
 .barcode-scanner-container.focused {
-  border-color: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 15px rgba(24, 144, 255, 0.3);
+  border-color: #d9d9d9;
+  box-shadow: 0 0 15px rgba(24, 144, 255, 0.2);
 }
 
 /* Hover and active states */
 .barcode-scanner-container:hover {
   transform: translateY(-3px);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+  border-color: #d9d9d9;
 }
 
 .barcode-scanner-container:active {
@@ -45,23 +45,22 @@
 
 /* Label styling */
 .barcode-label {
-  color: #f8f8f8;
+  color: #333333;
   font-weight: 700;
   font-size: clamp(0.85rem, 2.5vw, 0.95rem);
   letter-spacing: 1.5px;
   text-transform: uppercase;
   display: block;
   margin-bottom: 0.5rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Input wrapper */
 .barcode-input-wrapper {
   display: flex;
   align-items: center;
-  background: linear-gradient(145deg, rgba(40, 40, 40, 0.8), rgba(50, 50, 50, 0.6));
+  background: #f5f5f5;
   border-radius: 12px;
-  border: 1px solid rgba(80, 80, 80, 0.5);
+  border: 1px solid #e0e0e0;
   padding: 0.5rem 1rem;
   transition: all 0.3s ease;
   overflow: hidden;
@@ -71,7 +70,7 @@
 /* Input wrapper focus state */
 .barcode-input-wrapper.active {
   border-color: #1890ff;
-  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.2), inset 0 0 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.2), inset 0 0 10px rgba(0, 0, 0, 0.05);
 }
 
 /* Active scan animation */
@@ -91,7 +90,7 @@
   color: #1890ff;
   font-size: clamp(1.1rem, 3vw, 1.3rem);
   margin-right: 12px;
-  filter: drop-shadow(0 0 5px rgba(24, 144, 255, 0.5));
+  filter: drop-shadow(0 0 5px rgba(24, 144, 255, 0.2));
 }
 
 /* Input field */
@@ -99,7 +98,7 @@
   background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  color: #fff !important;
+  color: #333333 !important;
   height: 50px;
   font-size: clamp(1rem, 2.5vw, 1.2rem);
   width: 100%;
@@ -107,7 +106,7 @@
 }
 
 .barcode-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(0, 0, 0, 0.4);
   font-style: italic;
 }
 
@@ -120,7 +119,7 @@
 /* Custom input display that looks like an input but is actually a div */
 .barcode-input-display {
   height: 50px;
-  color: #fff;
+  color: #333333;
   font-size: clamp(1rem, 2.5vw, 1.2rem);
   width: 100%;
   letter-spacing: 0.5px;
@@ -140,7 +139,7 @@
 }
 
 .barcode-placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(0, 0, 0, 0.4);
   font-style: italic;
 }
 
@@ -149,7 +148,7 @@
   display: flex;
   align-items: center;
   margin-top: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: #555555;
   font-size: clamp(0.75rem, 2vw, 0.85rem);
   font-weight: 300;
   padding: 0.5rem;
@@ -163,7 +162,7 @@
   border-radius: 50%;
   margin-right: 10px;
   position: relative;
-  box-shadow: 0 0 10px rgba(24, 144, 255, 0.7);
+  box-shadow: 0 0 10px rgba(24, 144, 255, 0.4);
   animation: pulse 1.5s infinite;
 }
 
@@ -171,9 +170,9 @@
 .barcode-result {
   margin-top: 12px;
   padding: 8px 12px;
-  background-color: rgba(24, 144, 255, 0.15);
+  background-color: rgba(24, 144, 255, 0.1);
   border-radius: 8px;
-  color: #ffffff;
+  color: #333333;
   font-size: 14px;
   border-left: 3px solid #1890ff;
   animation: fadeIn 0.3s ease-in;
@@ -231,7 +230,7 @@
 }
 
 .barcode-scanner-container .ant-form-item-label > label {
-  color: #f8f8f8;
+  color: #333333;
 }
 
 .barcode-scanner-container .ant-input-disabled {
@@ -270,9 +269,9 @@
   }
 }
 
-/* Dark mode enhancement */
+/* Remove dark mode enhancement */
 @media (prefers-color-scheme: dark) {
   .barcode-scanner-container {
-    background-color: rgba(20, 20, 20, 0.7);
+    background-color: #ffffff; /* Keep light background even in dark mode */
   }
 }

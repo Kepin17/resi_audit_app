@@ -17,6 +17,8 @@ import { useEffect, useState } from "react";
 import ReturBarang from "./Components/Pages/Admin/ReturBarangPage";
 import ReturBarangPage from "./Components/Pages/Home/ReturBarang";
 import LogisticPage from "./Components/Pages/Admin/Logistic";
+import ErrorPage from "./Components/Pages/ErrorPage";
+
 function App() {
   const [getRole, setRole] = useState("");
   useEffect(() => {
@@ -153,6 +155,7 @@ function App() {
             </AdminProtectedRoute>
           }
         />
+        <Route path="*" element={<ErrorPage />} />
       </Routes>
     </>
   );

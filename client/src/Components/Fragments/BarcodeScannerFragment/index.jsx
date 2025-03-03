@@ -113,6 +113,8 @@ const BarcodeScannerFragment = ({ scanning, scanHandler, dataScan }) => {
               autoFocus
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
+              onPaste={toggleType === "nyala" ? (e) => e.preventDefault() : null}
+              autoComplete="off"
             />
           </div>
           <div className="barcode-instructions">

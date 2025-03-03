@@ -119,7 +119,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
               ? `${
                   thisPage === "picker" ? "bg-gradient-to-br from-blue-400 to-blue-600" : thisPage === "packing" ? "bg-gradient-to-br from-green-400 to-green-600" : "bg-gradient-to-br from-indigo-400 to-indigo-600"
                 } text-white shadow-lg backdrop-blur-sm`
-              : "bg-white hover:bg-slate-50 hover:border-slate-200 text-gray-700 shadow"
+              : "bg-white  hover:bg-slate-50 hover:border-slate-200 text-gray-700 shadow"
           }`}
         onClick={() => setScanMode("barcode-only")}
       >
@@ -134,8 +134,8 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
             scanMode === "barcode-photo"
               ? `${
                   thisPage === "picker" ? "bg-gradient-to-br from-blue-400 to-blue-600" : thisPage === "packing" ? "bg-gradient-to-br from-green-400 to-green-600" : "bg-gradient-to-br from-indigo-400 to-indigo-600"
-                } text-white shadow-lg backdrop-blur-sm`
-              : "bg-white hover:bg-slate-50 hover:border-slate-200 text-gray-700 shadow"
+                } text-white  shadow-lg backdrop-blur-sm`
+              : "bg-white hover:bg-slate-50 hover:border-slate-200 text-gray-700 shadow "
           }`}
         onClick={() => setScanMode("barcode-photo")}
       >
@@ -447,7 +447,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   };
 
   const StatCard = ({ title, value, icon, color }) => (
-    <motion.div whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:border-gray-200 transition-all duration-300">
+    <motion.div whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }} className="bg-white  rounded-xl shadow-sm p-6 border border-gray-100  hover:border-gray-200 transition-all duration-300">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium text-gray-500">{title}</h3>
@@ -459,7 +459,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   );
 
   const ExpeditionCountCard = ({ name, count, color }) => (
-    <motion.div whileHover={{ y: -5 }} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:border-gray-200 transition-all duration-300">
+    <motion.div whileHover={{ y: -5 }} className="bg-white  rounded-xl shadow-sm p-6 border border-gray-100  hover:border-gray-200 transition-all duration-300">
       <h3 className="text-sm font-medium text-gray-500 truncate">{name}</h3>
       <p className={`text-2xl font-bold ${color} mt-2`}>{count || 0}</p>
     </motion.div>
@@ -508,7 +508,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
           </div>
         </div>
       ) : (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 rounded-lg">
           {/* Main Content */}
           <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Header with animated gradient background */}
@@ -544,7 +544,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
 
             {/* Stats Cards */}
             <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <StatCard title="Today's Scans" value={data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length} icon={<FaQrcode className="text-2xl" />} color="text-gray-900" />
+              <StatCard title="Today's Scans" value={data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length} icon={<FaQrcode className="text-2xl" />} color="text-gray-900 " />
               <StatCard
                 title="Scan Mode"
                 value={scanMode === "barcode-only" ? "Basic" : "Advanced"}
@@ -561,22 +561,28 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
             {thisPage === "pickout" && (
               <motion.div variants={itemVariants} className="mb-8">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
-                  Today's Deliveries by Expedition
+                  Today's Deliveries
                   <span className="bg-green-100 text-green-600 p-1 px-4 rounded-md text-xs font-medium">All Activity</span>
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {expeditionCount.map((ekspedisi, index) => (
-                    <ExpeditionCountCard key={index} name={ekspedisi.nama_ekspedisi} count={ekspedisi.total_resi} color="text-indigo-500" />
+                    <ExpeditionCountCard
+                      key={index}
+                      name={ekspedisi.nama_ekspedisi}
+                      count={ekspedisi.total_resi}
+                      color="text-indigo-500
+                    "
+                    />
                   ))}
                 </div>
               </motion.div>
             )}
 
             {/* Scanner Controls */}
-            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100">
+            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100 ">
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="w-full md:w-auto">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Scan Settings</h2>
+                  <h2 className="text-lg font-semibold text-gray-900  mb-4">Scan Settings</h2>
                   <ScanModeButtons />
                 </div>
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -593,14 +599,21 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
             </motion.div>
 
             {/* Activity List */}
-            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 ">
               <div className="flex flex-wrap items-center gap-5 mb-6">
-                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                  <FaCalendarAlt className="text-gray-500 text-xl" />
-                  <DatePicker onChange={handleDateChange} value={selectedDate} format="YYYY-MM-DD" className="border-none bg-transparent focus:ring-0 w-32" />
+                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100 ">
+                  <FaCalendarAlt className="text-gray-500  text-xl" />
+                  <DatePicker
+                    onChange={handleDateChange}
+                    value={selectedDate}
+                    format="YYYY-MM-DD"
+                    className="border-none bg-transparent focus:ring-0 w-32
+                 
+                  "
+                  />
                 </div>
-                <div className="flex-grow">
-                  <SearchFragment onSearch={handleSearch} value={searchQuery} placeholder={"Cari Resi"} icon={<BiSearchAlt className="text-gray-500" />} />
+                <div className="flex-grow ">
+                  <SearchFragment onSearch={handleSearch} value={searchQuery} placeholder={"Cari Resi"} icon={<BiSearchAlt className="text-gray-500 " />} />
                 </div>
               </div>
 
@@ -638,20 +651,20 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                       className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg transition-all duration-300
-                        hover:bg-gray-50 border border-gray-100 hover:shadow-sm"
+                        hover:bg-gray-50 border  border-gray-100 hover:shadow-sm"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{item.nama_pekerja}</span>
+                          <span className="font-medium text-gray-900 ">{item.nama_pekerja}</span>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-xs ${
-                              thisPage === "picker" ? "bg-blue-100 text-blue-700" : thisPage === "packing" ? "bg-green-100 text-green-700" : thisPage === "pickout" ? "bg-indigo-100 text-indigo-700" : "bg-red-100 text-red-700"
+                            className={`px-2 py-0.5 rounded-full text-xs  font-bold ${
+                              thisPage === "picker" ? "bg-blue-100 text-blue-700 " : thisPage === "packing" ? "bg-green-100 text-green-700" : thisPage === "pickout" ? "bg-indigo-100 text-indigo-700" : "bg-red-100 text-red-700"
                             }`}
                           >
                             {item.status}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 ">
                           Resi: <span className="font-medium">{item.resi}</span>
                         </p>
                       </div>

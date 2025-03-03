@@ -1116,7 +1116,7 @@ const AdminBarangSection = () => {
                       </button>
                     </div>
                     <div className="relative">
-                      <img src={`${urlApi}/${Img}`} alt={Img} className={`object-contain rounded-lg shadow-2xl `} style={{ transform: `rotate(${totalDeg}deg)` }} onClick={(e) => e.stopPropagation()} width={"500"} id="imagedetail" />
+                      <img src={`${urlApi}/uploads/${Img}`} alt={Img} className={`object-contain rounded-lg shadow-2xl `} style={{ transform: `rotate(${totalDeg}deg)` }} onClick={(e) => e.stopPropagation()} width={"500"} id="imagedetail" />
                     </div>
                   </div>
                 </div>

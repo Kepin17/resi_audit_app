@@ -23,24 +23,21 @@ const LogisticPage = () => {
   const api = useAxios();
 
   // Fetch logistics data
-  const fetchLogisticsData = useCallback(
-    async (page = 1) => {
-      try {
-        const response = await api.get(`/api/v1/ekspedisi-group?page=${page}`);
-        const { data, pagination: paginationData } = response.data;
+  const fetchLogisticsData = useCallback(async (page = 1) => {
+    try {
+      const response = await api.get(`/api/v1/ekspedisi-group?page=${page}`);
+      const { data, pagination: paginationData } = response.data;
 
-        setEkspedisiData(data);
-        setPagination({
-          currentPage: paginationData.currentPage,
-          pageSize: paginationData.limit,
-          totalItems: paginationData.totalItems,
-        });
-      } catch (error) {
-        message.error("Failed to fetch logistics data");
-      }
-    },
-    [api]
-  );
+      setEkspedisiData(data);
+      setPagination({
+        currentPage: paginationData.currentPage,
+        pageSize: paginationData.limit,
+        totalItems: paginationData.totalItems,
+      });
+    } catch (error) {
+      message.error("Failed to fetch logistics data");
+    }
+  }, []);
 
   // Fetch logistics list for dropdown
   const fetchLogisticsList = useCallback(async () => {
@@ -50,7 +47,7 @@ const LogisticPage = () => {
     } catch (error) {
       message.error("Failed to fetch logistics list");
     }
-  }, [api]);
+  }, []);
 
   useEffect(() => {
     fetchLogisticsData();

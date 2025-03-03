@@ -5,7 +5,6 @@ import { FileExcelOutlined, DownloadOutlined, PlusOutlined, SearchOutlined, Impo
 import axios from "axios";
 import moment from "moment";
 import urlApi from "../../../../utils/url";
-import { FaArrowUp } from "react-icons/fa";
 import LogImportSection from "../BarangManagement/LogImportSection";
 import { IoIosOpen } from "react-icons/io";
 
@@ -576,7 +575,8 @@ const ReturBarangPage = () => {
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
             {/* Search and Date Filter */}
             <Space wrap>
-              <RangePicker onChange={handleDateRangeChange} value={dateRange} />
+              <RangePicker onChange={handleDateRangeChange} value={dateRange} 
+              />
               <Input placeholder="Search by Resi ID" prefix={<SearchOutlined />} onChange={(e) => handleSearch(e.target.value)} value={searchText} style={{ width: 200 }} allowClear />
             </Space>
 

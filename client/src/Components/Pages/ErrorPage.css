@@ -1,0 +1,202 @@
+.error-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: white;
+  padding: 1rem;
+}
+
+.error-container {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.error-code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  font-size: 10rem;
+  font-weight: 700;
+  color: #00f7ff;
+  text-shadow: 0 0 20px rgba(0, 247, 255, 0.5);
+}
+
+.globe {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle at 30% 30%, #00f7ff, #0a1128);
+  border-radius: 50%;
+  margin: 0 1rem;
+  position: relative;
+  box-shadow: 0 0 30px rgba(0, 247, 255, 0.8);
+  animation: pulse 4s infinite alternate;
+}
+
+.globe::before {
+  content: "";
+  position: absolute;
+  width: 110%;
+  height: 15px;
+  background: linear-gradient(90deg, transparent, rgba(0, 247, 255, 0.5), transparent);
+  top: 50%;
+  left: -5%;
+  border-radius: 50%;
+  animation: rotate 8s linear infinite;
+}
+
+.globe::after {
+  content: "";
+  position: absolute;
+  width: 15px;
+  height: 110%;
+  background: linear-gradient(180deg, transparent, rgba(0, 247, 255, 0.5), transparent);
+  top: -5%;
+  left: 50%;
+  border-radius: 50%;
+  animation: rotate-vertical 8s linear infinite;
+}
+
+.error-title {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(90deg, #00f7ff, #8a2be2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.error-message {
+  font-size: 1.2rem;
+  margin-bottom: 2.5rem;
+  color: #a0a0b9;
+  line-height: 1.6;
+}
+
+.back-button {
+  background: linear-gradient(90deg, #0a0a1a, #16213e);
+  border: 1px solid #00f7ff;
+  border-radius: 30px;
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+  color: #00f7ff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(0, 247, 255, 0.2);
+}
+
+.back-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 247, 255, 0.1), transparent);
+  transform: translateX(-100%);
+}
+
+.back-button:hover {
+  transform: translateY(-5px);
+  background: linear-gradient(90deg, #10101e, #1d2d50);
+  box-shadow: 0 8px 20px rgba(0, 247, 255, 0.4);
+}
+
+.button-text {
+  margin-right: 10px;
+}
+
+.button-icon {
+  font-size: 1.2rem;
+  transition: transform 0.3s ease;
+}
+
+.back-button:hover .button-icon {
+  transform: translateX(5px);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(0, 247, 255, 0.8);
+  }
+  100% {
+    transform: scale(1.1);
+    box-shadow: 0 0 50px rgba(0, 247, 255, 1);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rotate-vertical {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .error-code {
+    font-size: 6rem;
+  }
+
+  .globe {
+    width: 80px;
+    height: 80px;
+  }
+
+  .error-title {
+    font-size: 2rem;
+  }
+
+  .error-message {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .error-code {
+    font-size: 4rem;
+  }
+
+  .globe {
+    width: 60px;
+    height: 60px;
+  }
+
+  .error-title {
+    font-size: 1.5rem;
+  }
+
+  .error-message {
+    font-size: 0.9rem;
+  }
+
+  .back-button {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.9rem;
+  }
+}

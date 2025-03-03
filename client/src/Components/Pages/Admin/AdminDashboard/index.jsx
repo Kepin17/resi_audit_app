@@ -9,7 +9,7 @@ import { message } from "antd";
 import moment from "moment";
 import axios from "axios";
 import urlApi from "../../../../utils/url";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area } from "recharts";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -40,8 +40,16 @@ const AdminDashboard = () => {
   const [statisticsData, setStatisticsData] = useState([]);
   const [workerStats, setWorkerStats] = useState([]);
   const [expeditionCounts, setExpeditionCounts] = useState([]);
+  const [loadingExpeditions, setLoadingExpeditions] = useState(false);
+  // Add state for chart series visibility
+  const [visibleSeries, setVisibleSeries] = useState({
+    picker: true,
+    packing: true,
+    pickout: true,
+  });
 
   const [activeEkspedisi, setActiveEkspedisi] = useState("");
+  const [hoveredExpedition, setHoveredExpedition] = useState(null);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
@@ -106,9 +114,9 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = async (period) => {
     try {
-      const response = await axios.get(`${urlApi}/api/v1/statistics?period=${statisticsPeriod}`, {
+      const response = await axios.get(`${urlApi}/api/v1/statistics?period=${period}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -121,9 +129,9 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchWorkerStats = async () => {
+  const fetchWorkerStats = async (period) => {
     try {
-      const response = await axios.get(`${urlApi}/api/v1/worker-statistics?period=${statisticsPeriod}`, {
+      const response = await axios.get(`${urlApi}/api/v1/worker-statistics?period=${period}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -138,9 +146,10 @@ const AdminDashboard = () => {
 
   const fetchExpeditionCounts = async () => {
     try {
+      setLoadingExpeditions(true);
       const params = new URLSearchParams();
-      if (startDate) params.append("startDate", startDate);
-      if (endDate) params.append("endDate", endDate);
+      if (startDate) params.append("startDate", startDate + " 00:00:00");
+      if (endDate) params.append("endDate", endDate + " 23:59:59");
 
       const response = await axios.get(`${urlApi}/api/v1/expedition-counts?${params.toString()}`, {
         headers: {
@@ -152,6 +161,8 @@ const AdminDashboard = () => {
       if (err.response?.status !== 401) {
         message.error("Failed to fetch expedition counts");
       }
+    } finally {
+      setLoadingExpeditions(false);
     }
   };
 
@@ -184,8 +195,8 @@ const AdminDashboard = () => {
         setIsLoading(false);
         // Only fetch these if superadmin
         fetchData();
-        fetchStatistics();
-        fetchWorkerStats();
+        fetchStatistics(statisticsPeriod);
+        fetchWorkerStats(statisticsPeriod);
       } catch (error) {
         console.error("Access check failed:", error);
         navigate("/admin/barang");
@@ -201,15 +212,9 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const userRole = getUserRole();
-    if (userRole === "superadmin") {
-      fetchStatistics();
-    }
-  }, [statisticsPeriod]);
-
-  useEffect(() => {
-    const userRole = getUserRole();
-    if (userRole === "superadmin") {
-      fetchWorkerStats();
+    if (userRole && userRole.includes("superadmin")) {
+      fetchStatistics(statisticsPeriod);
+      fetchWorkerStats(statisticsPeriod);
     }
   }, [statisticsPeriod]);
 
@@ -272,6 +277,20 @@ const AdminDashboard = () => {
     return pages;
   };
 
+  // Add function to toggle series visibility
+  const toggleSeriesVisibility = (series) => {
+    setVisibleSeries((prev) => ({
+      ...prev,
+      [series]: !prev[series],
+    }));
+  };
+
+  // Clear date filters and refresh data
+  const clearDateFilters = () => {
+    setStartDate("");
+    setEndDate("");
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -321,7 +340,7 @@ const AdminDashboard = () => {
                 <p className="text-white text-xs sm:text-sm font-medium mb-1">Total Pickout</p>
                 <h3 className="text-white text-2xl sm:text-3xl font-bold">{statusCounts.pickout || 0}</h3>
               </div>
-              <div className="bg-purple-400 rounded-full p-2 sm:p-3 flex items-center gap-2 cursor-pointer" onClick={toggleCountActive}>
+              <div className="bg-purple-400 rounded-full p-2 sm:p-3 flex items-center gap-2 cursor-pointer hover:bg-purple-300 transition-colors duration-200" onClick={toggleCountActive}>
                 <FaTruck className="text-white text-xl sm:text-2xl" />
                 <FaArrowCircleLeft className={`${isCountActive ? "-rotate-90" : "-rotate-180"} text-white transition-all ease-in duration-300`} />
               </div>
@@ -330,38 +349,136 @@ const AdminDashboard = () => {
 
           <div
             className={`w-full h-auto absolute top-full left-0 right-0 
-            overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex flex-col gap-2 bg-white rounded-md p-3 md:p-4 shadow-md z-20 
-            ${isCountActive ? "block" : "hidden"} max-h-60 md:max-h-80`}
+            overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex flex-col gap-2 bg-white rounded-b-xl rounded-t-none md:rounded-xl p-3 md:p-4 shadow-lg z-20 
+            transition-all duration-300 ease-in-out
+            ${isCountActive ? "max-h-96 opacity-100 transform translate-y-0" : "max-h-0 opacity-0 pointer-events-none transform -translate-y-4"}`}
           >
-            <div className={`h-full flex flex-col gap-3 md:gap-5 items-center justify-start`}>
-              {expeditionCounts.length === 0 && (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500 text-lg md:text-2xl font-bold flex flex-col items-center gap-2 md:gap-3">
-                    <span>
-                      <FaSearch />
-                    </span>
-                    No data available
-                  </p>
+            <div className="sticky top-0 bg-white z-10 pb-2 mb-2 border-b">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-lg text-gray-800">Expedition Summary</h3>
+                <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">{expeditionCounts.length} couriers</span>
+              </div>
+              <p className="text-sm text-gray-500">Breakdown of pickout by expedition service</p>
+            </div>
+
+            {/* Date filter display */}
+            <div className="flex flex-col sm:flex-row sm:items-center mt-2 gap-1 sm:gap-3">
+              <p className="text-sm text-gray-500 flex items-center">
+                <span>Breakdown of pickout by expedition service</span>
+              </p>
+
+              {(startDate || endDate) && (
+                <div className="flex items-center gap-2 text-xs bg-blue-50 text-blue-700 py-1 px-2 rounded-md">
+                  <span className="whitespace-nowrap">
+                    {startDate && !endDate && `From: ${startDate}`}
+                    {!startDate && endDate && `Until: ${endDate}`}
+                    {startDate && endDate && `${startDate} - ${endDate}`}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearDateFilters();
+                    }}
+                    className="text-blue-700 hover:text-blue-900"
+                  >
+                    ×
+                  </button>
                 </div>
               )}
-              {expeditionCounts.map((ekspedisi, index) => (
-                <div
-                  className="w-full h-24 md:h-32 border-2 rounded-lg hover:shadow-md transition-shadow overflow-hidden flex items-center justify-center cursor-pointer"
-                  key={index}
-                  onClick={() => setActiveEkspedisi(ekspedisi.nama_ekspedisi)}
-                >
-                  <div className="flex items-center justify-center w-20 md:w-40 h-full border-r-2">
-                    <FaTruck className="text-2xl md:text-4xl text-blue-600" />
-                  </div>
-                  <div className={`w-full h-full flex items-center justify-between px-2 md:px-4 ${activeEkspedisi === ekspedisi.nama_ekspedisi ? "bg-blue-100" : ""}`}>
-                    <h1 className="font-bold text-base md:text-xl">{ekspedisi.nama_ekspedisi}</h1>
-                    <div className="text-right">
-                      <p className="text-gray-600 text-xs md:text-sm">Total Resi</p>
-                      <p className="font-bold text-lg md:text-2xl text-blue-600">{ekspedisi.total_resi}</p>
-                    </div>
-                  </div>
+            </div>
+
+            {/* Date filter controls */}
+            <div className="flex gap-2 mt-2">
+              <input
+                type="date"
+                className="px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-full sm:w-auto"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                placeholder="Start date"
+              />
+              <input
+                type="date"
+                className="px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-full sm:w-auto"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                placeholder="End date"
+              />
+              <button onClick={fetchExpeditionCounts} className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-xs transition-colors">
+                Apply
+              </button>
+            </div>
+
+            <div className={`flex flex-col gap-3 md:gap-4 items-center justify-start`}>
+              {loadingExpeditions && (
+                <div className="py-8 flex justify-center items-center w-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
                 </div>
-              ))}
+              )}
+
+              {!loadingExpeditions && expeditionCounts.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                  <div className="bg-gray-100 p-4 rounded-full mb-3">
+                    <FaSearch className="text-gray-400 text-2xl" />
+                  </div>
+                  <p className="text-gray-500 font-medium">No expedition data available</p>
+                  <p className="text-gray-400 text-sm mt-1">{startDate || endDate ? "No data found for the selected date range" : "Try adjusting your date filters"}</p>
+                </div>
+              )}
+
+              {!loadingExpeditions &&
+                expeditionCounts.map((ekspedisi, index) => {
+                  // Generate consistent colors based on expedition name
+                  const stringToColor = (str) => {
+                    let hash = 0;
+                    for (let i = 0; i < str.length; i++) {
+                      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                    }
+                    let color = "#";
+                    for (let i = 0; i < 3; i++) {
+                      const value = (hash >> (i * 8)) & 0xff;
+                      color += ("00" + value.toString(16)).substr(-2);
+                    }
+                    return color;
+                  };
+
+                  const baseColor = stringToColor(ekspedisi.nama_ekspedisi);
+                  const isActive = activeEkspedisi === ekspedisi.nama_ekspedisi;
+                  const isHovered = hoveredExpedition === ekspedisi.nama_ekspedisi;
+
+                  return (
+                    <div
+                      className={`w-full border-2 rounded-lg transition-all duration-200 overflow-hidden flex items-center cursor-pointer
+                      ${isActive ? "border-blue-500 shadow-md bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:shadow-md"}
+                      ${isHovered ? "transform scale-[1.02]" : ""}`}
+                      key={index}
+                      onClick={() => setActiveEkspedisi(ekspedisi.nama_ekspedisi)}
+                      onMouseEnter={() => setHoveredExpedition(ekspedisi.nama_ekspedisi)}
+                      onMouseLeave={() => setHoveredExpedition(null)}
+                    >
+                      <div
+                        className="flex items-center justify-center h-16 w-16 md:h-20 md:w-20 flex-shrink-0"
+                        style={{ backgroundColor: `${baseColor}25` }} // Light version of the color
+                      >
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${baseColor}` }}>
+                          <FaTruck className="text-white text-lg" />
+                        </div>
+                      </div>
+
+                      <div className="flex-grow flex items-center justify-between p-3 md:p-4">
+                        <div>
+                          <h3 className="font-semibold text-base md:text-lg text-gray-800">{ekspedisi.nama_ekspedisi}</h3>
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Courier</span>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                          <p className="text-xs text-gray-500 font-medium">Total Packages</p>
+                          <p className="font-bold text-lg md:text-2xl" style={{ color: baseColor }}>
+                            {ekspedisi.total_resi}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>
@@ -369,7 +486,7 @@ const AdminDashboard = () => {
 
       {/* Statistics Chart Section - Improved Responsiveness */}
       <div className="grid gap-3 md:gap-6 p-3 md:p-4">
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
+        <div className="bg-white mobile:w-[22rem] rounded-xl shadow-lg p-4 md:p-6">
           <div className="flex flex-col space-y-4">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 md:gap-5">
               <h2 className="text-lg md:text-xl font-semibold">Activity Statistics</h2>
@@ -377,7 +494,9 @@ const AdminDashboard = () => {
                 {["daily", "weekly", "monthly", "yearly"].map((period) => (
                   <button
                     key={period}
-                    onClick={() => setStatisticsPeriod(period)}
+                    onClick={() => {
+                      setStatisticsPeriod(period);
+                    }}
                     className={`px-2 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 ${
                       statisticsPeriod === period ? "bg-blue-500 text-white shadow-md transform scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
@@ -386,6 +505,37 @@ const AdminDashboard = () => {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Add series toggle buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => toggleSeriesVisibility("picker")}
+                className={`px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1 ${
+                  visibleSeries.picker ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-500 border border-blue-300"
+                }`}
+              >
+                <div className="w-3 h-3 rounded-full bg-blue-600"></div>
+                Picker
+              </button>
+              <button
+                onClick={() => toggleSeriesVisibility("packing")}
+                className={`px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1 ${
+                  visibleSeries.packing ? "bg-green-500 text-white" : "bg-gray-100 text-gray-500 border border-green-300"
+                }`}
+              >
+                <div className="w-3 h-3 rounded-full bg-green-600"></div>
+                Packing
+              </button>
+              <button
+                onClick={() => toggleSeriesVisibility("pickout")}
+                className={`px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1 ${
+                  visibleSeries.pickout ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-500 border border-purple-300"
+                }`}
+              >
+                <div className="w-3 h-3 rounded-full bg-purple-600"></div>
+                Pickout
+              </button>
             </div>
 
             <div className="h-[300px] sm:h-[400px] w-full">
@@ -406,11 +556,11 @@ const AdminDashboard = () => {
                     }}
                   />
                   <YAxis width={40} tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={{ fontSize: "12px" }} />
-                  <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} />
-                  <Line type="monotone" dataKey="picker" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="packing" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="pickout" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 3 }} />
+                  <Tooltip contentStyle={{ fontSize: "12px" }} formatter={(value, name) => [value, name === "picker" ? "Picker" : name === "packing" ? "Packing" : "Pickout"]} />
+                  <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} formatter={(value) => (value === "picker" ? "Picker" : value === "packing" ? "Packing" : "Pickout")} />
+                  {visibleSeries.picker && <Line type="monotone" dataKey="picker" name="Picker" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />}
+                  {visibleSeries.packing && <Line type="monotone" dataKey="packing" name="Packing" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />}
+                  {visibleSeries.pickout && <Line type="monotone" dataKey="pickout" name="Pickout" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />}
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -418,7 +568,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Improved Worker Performance Section */}
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
+        <div className="bg-white mobile:w-[22rem] rounded-xl shadow-lg p-4 md:p-6">
           <div className="flex flex-col space-y-4">
             <h2 className="text-lg md:text-xl font-semibold">Worker Performance</h2>
             <div className="overflow-x-auto">
@@ -447,7 +597,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Improved Main Content Section */}
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
+        <div className="bg-white mobile:w-[22rem] rounded-xl shadow-lg p-4 md:p-6">
           <div className="space-y-4 md:space-y-6">
             {/* Improved Controls Section */}
             <div className="flex flex-col gap-3 md:gap-4">
