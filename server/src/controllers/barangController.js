@@ -1199,10 +1199,25 @@ const exportLogImportToExcel = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).send({
-        success: false,
-        message: "No data to export",
-      });
+      // Create empty workbook with message instead of returning error
+      const workbook = new excelJS.Workbook();
+      const worksheet = workbook.addWorksheet("No Data");
+      
+      // Add explanation message
+      worksheet.mergeCells('A1:D3');
+      worksheet.getCell('A1').value = imporDate 
+        ? `No import logs found for date: ${imporDate}` 
+        : 'No import logs found in the system';
+      worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getCell('A1').font = { bold: true, size: 14 };
+      
+      // Set response headers and send the empty workbook
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename=empty_import_log_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`);
+      
+      await workbook.xlsx.write(res);
+      res.end();
+      return;
     }
 
     // Group data by status
@@ -1262,9 +1277,15 @@ const exportLogImportToExcel = async (req, res) => {
       { status: "Failed", total: groupedData.failed.length },
       { status: "Total", total: rows.length },
     ]);
+    
+    // Add date filter info
+    if (imporDate) {
+      summarySheet.addRow({});
+      summarySheet.addRow({ status: "Filter Date", total: imporDate });
+    }
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename=import_log_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`);
+    res.setHeader("Content-Disposition", `attachment; filename=import_log_${imporDate || moment().format("YYYY-MM-DD")}_${moment().format("HH-mm")}.xlsx`);
 
     await workbook.xlsx.write(res);
     res.end();
