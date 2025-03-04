@@ -363,10 +363,6 @@ const AdminDashboard = () => {
 
             {/* Date filter display */}
             <div className="flex flex-col sm:flex-row sm:items-center mt-2 gap-1 sm:gap-3">
-              <p className="text-sm text-gray-500 flex items-center">
-                <span>Breakdown of pickout by expedition service</span>
-              </p>
-
               {(startDate || endDate) && (
                 <div className="flex items-center gap-2 text-xs bg-blue-50 text-blue-700 py-1 px-2 rounded-md">
                   <span className="whitespace-nowrap">

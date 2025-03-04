@@ -347,35 +347,46 @@ const AdminBarangSection = () => {
       setExportLoading(true);
       message.loading({ content: "Mengexport data...", key: "export" });
 
-      const response = await axios.get(`${urlApi}/api/v1/barang-export`, {
+      // Build query parameters for filtering the export
+      const params = new URLSearchParams();
+      if (searchTerm?.trim()) {
+        params.append("search", searchTerm.trim());
+      }
+      if (activeButton !== "Semua") {
+        params.append("status", activeButton);
+      }
+      if (ekspedisiActiveButton !== "Semua") {
+        params.append("ekspedisi", ekspedisiActiveButton);
+      }
+      if (dateRange?.[0] && dateRange?.[1]) {
+        params.append("startDate", dateRange[0].format("YYYY-MM-DD"));
+        params.append("endDate", dateRange[1].format("YYYY-MM-DD"));
+      }
+
+      const response = await axios.get(`${urlApi}/api/v1/barang-export?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        responseType: "blob", // Penting! Menandakan response sebagai binary
+        responseType: "blob",
       });
 
-      // Cek apakah response adalah file Excel
       const contentType = response.headers["content-type"];
       if (!contentType || !contentType.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
         throw new Error("Response bukan file Excel");
       }
 
-      // Buat blob dari response
       const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
 
-      // Buat URL untuk download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `data_barang_${new Date().toISOString().split("T")[0]}.xlsx`;
 
-      // Trigger download
       document.body.appendChild(link);
       link.click();
 
-      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
@@ -519,7 +530,7 @@ const AdminBarangSection = () => {
             </div>
             <div className="bg-yellow-50 p-4 rounded-lg">
               <h3 className="font-semibold text-yellow-700">Data Duplikat</h3>
-              <p className="text-2xl font-bold text-yellow-800">{results.duplicates}</p>
+              <p className="text-2xl font-bold text-yellow-800">{results.duplicatesInFile + results.duplicates}</p>
             </div>
             <div className="bg-red-50 p-4 rounded-lg">
               <h3 className="font-semibold text-red-700">Gagal Import</h3>
@@ -1060,7 +1071,7 @@ const AdminBarangSection = () => {
                       return <span>{text === "picker" ? "Pickup" : text === "packing" ? "Packing" : text === "pickout" ? "Shipper" : "Cancelled"}</span>;
                     }}
                   />
-                  <Table.Column title="Created At" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("LLLL")} />
+                  <Table.Column title="Last Scan" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("LL HH:mm:ss")} />
                   <Table.Column
                     title="Images View"
                     dataIndex="gambar_resi"
@@ -1116,7 +1127,7 @@ const AdminBarangSection = () => {
                       </button>
                     </div>
                     <div className="relative">
-                      <img src={`${urlApi}/uploads/${Img}`} alt={Img} className={`object-contain rounded-lg shadow-2xl `} style={{ transform: `rotate(${totalDeg}deg)` }} onClick={(e) => e.stopPropagation()} width={"500"} id="imagedetail" />
+                      <img src={`${urlApi}/${Img}`} alt={Img} className={`object-contain rounded-lg shadow-2xl `} style={{ transform: `rotate(${totalDeg}deg)` }} onClick={(e) => e.stopPropagation()} width={"500"} id="imagedetail" />
                     </div>
                   </div>
                 </div>
@@ -1191,7 +1202,7 @@ const AdminBarangSection = () => {
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Create at: {moment(item.created_at).format("LLLL")}
+                          Create at: {moment(item.created_at).format("LL HH:mm:ss")}
                         </span>
                       </div>
 
@@ -1200,7 +1211,7 @@ const AdminBarangSection = () => {
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Last Scan: {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("LLLL")}
+                          Last Scan: {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("LL HH:mm:ss")}
                         </span>
                       </div>
                     </div>

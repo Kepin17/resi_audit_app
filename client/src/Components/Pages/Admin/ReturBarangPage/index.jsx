@@ -316,7 +316,7 @@ const ReturBarangPage = () => {
             </div>
             <div className="bg-yellow-50 p-4 rounded-lg">
               <h3 className="font-semibold text-yellow-700">Data Duplikat</h3>
-              <p className="text-2xl font-bold text-yellow-800">{results.duplicates}</p>
+              <p className="text-2xl font-bold text-yellow-800">{results.duplicates + results.duplicatesInFile}</p>
             </div>
             <div className="bg-red-50 p-4 rounded-lg">
               <h3 className="font-semibold text-red-700">Gagal Import</h3>
@@ -477,7 +477,22 @@ const ReturBarangPage = () => {
       setExportLoading(true);
       message.loading({ content: "Mengexport data...", key: "export" });
 
-      const response = await axios.get(`${urlApi}/api/v1/retur-export`, {
+      const params = new URLSearchParams();
+      if (searchText?.trim()) {
+        params.append("search", searchText.trim());
+      }
+      if (status !== "all") {
+        params.append("status", status);
+      }
+      if (ekspedisi !== "all") {
+        params.append("ekspedisi", ekspedisi);
+      }
+      if (dateRange?.[0] && dateRange?.[1]) {
+        params.append("startDate", dateRange[0].format("YYYY-MM-DD"));
+        params.append("endDate", dateRange[1].format("YYYY-MM-DD"));
+      }
+
+      const response = await axios.get(`${urlApi}/api/v1/retur-export?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -575,8 +590,7 @@ const ReturBarangPage = () => {
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
             {/* Search and Date Filter */}
             <Space wrap>
-              <RangePicker onChange={handleDateRangeChange} value={dateRange} 
-              />
+              <RangePicker onChange={handleDateRangeChange} value={dateRange} />
               <Input placeholder="Search by Resi ID" prefix={<SearchOutlined />} onChange={(e) => handleSearch(e.target.value)} value={searchText} style={{ width: 200 }} allowClear />
             </Space>
 

@@ -35,6 +35,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [switchMode, setSwitchMode] = useState(true);
   const [expeditionCount, setExpeditionCount] = useState([]);
+  const [totalBeloman, setTotalBeloman] = useState(0);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -378,6 +379,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
         .then((res) => {
           if (res.data.success) {
             setDataBeloman(res.data.data);
+            setTotalBeloman(res.data.totalData);
             setPaginationBeloman((prev) => ({
               ...prev,
               currentPage: res.data.pagination.currentPage,
@@ -470,7 +472,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       <ToastContainer position="top-right" autoClose={1000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
       {isPhotoMode || isBarcodeActive ? (
-        <div className="fixed inset-0 bg-black z-50">
+        <div className="fixed inset-0 bg-white z-50">
           <div className={`w-full h-full ${isPortrait ? "flex flex-col" : "flex"} `}>
             {isPhotoMode ? (
               <>
@@ -552,7 +554,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                 color={thisPage === "picker" ? "text-blue-500" : thisPage === "packing" ? "text-green-500" : "text-indigo-500"}
               />
               {thisPage === "pickout" || thisPage === "picker" ? (
-                <StatCard title={`Belum ${thisPage === "picker" ? "Dipickup" : thisPage === "packing" ? "Dipacking" : "Dipickout"}`} value={dataBeloman.length} icon={<FaSpinner className="text-2xl" />} color="text-orange-500" />
+                <StatCard title={`Belum ${thisPage === "picker" ? "Dipickup" : thisPage === "packing" ? "Dipacking" : "Dipickout"}`} value={totalBeloman} icon={<FaSpinner className="text-2xl" />} color="text-orange-500" />
               ) : (
                 ""
               )}
