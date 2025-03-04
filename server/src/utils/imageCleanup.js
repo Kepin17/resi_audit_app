@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const cleanupOldImages = () => {
-  const uploadsDir = path.join(__dirname, "../../../uploads");
+  const uploadsDir = '/var/www/html/uploads';
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 

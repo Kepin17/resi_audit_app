@@ -21,8 +21,9 @@ app.use(express.json({ limit: "50mb" }));
 
 
 
-// Serve uploaded files
-app.use('/uploads', authToken, express.static('/var/www/html/uploads'));
+const uploadsPath = path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsPath));
+
 app.use("/api/v1", routes);
 app.use("/api/v1", protectedRoute);
 

@@ -287,7 +287,8 @@ const processScan = async (req, res, role, id_pekerja, resi_id, nama_pekerja, us
   // Handle photo upload
   let photoPath = null;
   if (req.file) {
-    photoPath = req.file.path;
+    // Store only the filename, not the full path
+    photoPath = req.file.filename;
   }
 
   // Process the scan with transaction
@@ -307,7 +308,6 @@ const processScan = async (req, res, role, id_pekerja, resi_id, nama_pekerja, us
     );
     
    
-
     await connection.commit();
 
     return res.status(200).send({
@@ -464,7 +464,7 @@ const uploadPhoto = async (req, res) => {
     const photo = req.files.photo;
     const fileExtension = photo.name.split(".").pop();
     const fileName = `${resi_id}_${Date.now()}.${fileExtension}`;
-    const uploadPath = `uploads/${fileName}`;
+    const uploadPath = path.join("/var/www/html/uploads", fileName);
 
     // Move the photo to uploads directory
     photo.mv(uploadPath, async (err) => {
@@ -477,7 +477,7 @@ const uploadPhoto = async (req, res) => {
       }
 
       try {
-        // Update the database with photo information
+        // Update the database with only the filename, not the full path
         const query = `
           UPDATE proses 
           SET gambar_resi = ?
@@ -485,7 +485,7 @@ const uploadPhoto = async (req, res) => {
           ORDER BY updated_at DESC 
           LIMIT 1`;
 
-        await pool.query(query, [fileName, notes, resi_id]);
+        await mysqlPool.query(query, [fileName, resi_id]);
 
         res.status(200).json({
           status: "success",

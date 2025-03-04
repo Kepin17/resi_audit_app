@@ -826,7 +826,8 @@ const scanResiRetur = async (req, res) => {
     // Handle photo upload
     let photoPath = null;
     if (req.file) {
-      photoPath = req.file.path;
+      // Store only the filename, not the full path
+      photoPath = req.file.filename;
     }
 
     // Process the scan with transaction
@@ -841,6 +842,7 @@ const scanResiRetur = async (req, res) => {
         [resi_id]
       );
 
+   
       if (existingRecord.length === 0) {
         // If no record exists, create a new one
         await connection.query(
@@ -851,6 +853,11 @@ const scanResiRetur = async (req, res) => {
         );
       } else {
         if (existingRecord[0].status_retur === "diterima") {
+          if (req.file) {
+            const fs = require("fs");
+            fs.unlinkSync(req.file.path);
+          }
+          await connection.rollback();
           return res.status(400).send({
             success: false,
             message: "Resi already marked as 'diterima'",
@@ -875,7 +882,8 @@ const scanResiRetur = async (req, res) => {
         data: {
           nama_pekerja: workerRoles[0].nama_pekerja,
           username: workerRoles[0].username,
-          status: existingRecord.length === 0 ? "diproses" : "selesai",
+          status: existingRecord.length === 0 ? "diproses" : "diterima",
+          ...(photoPath && { gambar_retur: photoPath }),
         },
       });
     } catch (error) {

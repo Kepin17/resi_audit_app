@@ -3,7 +3,7 @@ const path = require("path");
 
 // Ensure uploads directory exists
 const fs = require("fs");
-const uploadDir = "uploads";
+const uploadDir = "/var/www/html/uploads";
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -13,10 +13,11 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    // Get resi_id from form data or use timestamp if not available
-    const resiId = req.body.resi_id || Date.now();
+    // Get resi_id from form data or params
+    const resiId = req.body.resi_id || req.params.resi_id || Date.now();
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `${resiId}_${uniqueSuffix}${path.extname(file.originalname)}`);
+    const fileName = `${resiId}_${uniqueSuffix}${path.extname(file.originalname)}`;
+    cb(null, fileName);
   },
 });
 
