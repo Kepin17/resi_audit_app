@@ -6,25 +6,23 @@ const mysqlPool = require("./src/config/db");
 const protectedRoute = require("./src/routes/protectedRoute");
 const cors = require("cors");
 const cleanupOldImages = require("./src/utils/imageCleanup");
+const authToken = require("./src/middleware/auth");
+const path = require("path");
 
 dotenv.config();
 
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(express.json({ limit: "50mb" }));
 
-// Remove express-fileupload as we're using multer
-// app.use(fileUpload("server/uploads"));
+
 
 // Serve uploaded files
-app.use("/uploads", express.static("uploads"));
-
+app.use('/uploads', authToken, express.static('/var/www/html/uploads'));
 app.use("/api/v1", routes);
 app.use("/api/v1", protectedRoute);
 

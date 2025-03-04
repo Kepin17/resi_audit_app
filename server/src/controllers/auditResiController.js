@@ -1,4 +1,5 @@
 const mysqlPool = require("../config/db");
+const moment = require("moment");
 
 const handleError = (error, res, operation) => {
   console.error(`Error in ${operation}:`, error);
@@ -97,6 +98,18 @@ const scaneHandler = async (req, res) => {
     const nama_pekerja = workerRoles[0].nama_pekerja;
     const username = workerRoles[0].username;
 
+    // Check if worker has the role they're trying to use
+    if (!workerRoleTypes.includes(thisPage)) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(403).send({
+        success: false,
+        message: `Kamu bukan bagian dari ${thisPage}`,
+      });
+    }
+
     // Check if resi exists and its status
     const [checkBarangRow] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
 
@@ -151,17 +164,16 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
+      const formattedDate = moment(cancelledCheck[0].cancelled_at).format("DD MMM YYYY HH:mm:ss");
       return res.status(400).send({
         success: false,
-        message: `Resi ini telah di cancel oleh ${cancelledCheck[0].nama_pekerja} pada ${new Date(cancelledCheck[0].cancelled_at).toLocaleString("id-ID")}`,
+        message: `Resi ini telah di cancel oleh ${cancelledCheck[0].nama_pekerja} pada ${formattedDate}`,
       });
     }
 
     const workflow = ["picker", "packing", "pickout"];
-    let allowedRole;
-    let nextRole;
-
-    // Determine next allowed role and validate
+    
+    // Handle the case where no process exists (first scan)
     if (!currentProcess || currentProcess.length === 0) {
       if (thisPage !== "picker") {
         if (req.file) {
@@ -170,145 +182,150 @@ const scaneHandler = async (req, res) => {
         }
         return res.status(400).send({
           success: false,
-          message: "Resi harus di scan oleh picker terlebih dahulu",
+          message: "Resi harus discan oleh picker terlebih dahulu",
         });
       }
-
-      if (!workerRoleTypes.includes("picker")) {
-        if (req.file) {
-          const fs = require("fs");
-          fs.unlinkSync(req.file.path);
-        }
-        return res.status(400).send({
-          success: false,
-          message: "Kamu bukan bagian dari picker",
-        });
+      
+      // This is a valid first scan by a picker
+      const allowedRole = "picker";
+      
+      // Process the scan with transaction
+      return await processScan(req, res, allowedRole, id_pekerja, resi_id, nama_pekerja, username);
+    }
+    
+    // For existing processes, determine where we are in the workflow
+    const currentStatus = currentProcess[0].status_proses;
+    const currentIndex = workflow.indexOf(currentStatus);
+    
+    // Check if all processes are completed
+    if (currentIndex === workflow.length - 1) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
       }
-      allowedRole = "picker";
-    } else {
-      const currentIndex = workflow.indexOf(currentProcess[0].status_proses);
-      nextRole = workflow[currentIndex + 1];
-
-      // Check if worker has already scanned this resi in the current process
-      const [workerPreviousScan] = await mysqlPool.query(
-        `SELECT lp.*, p.username 
-         FROM log_proses lp
-         JOIN pekerja p ON lp.id_pekerja = p.id_pekerja
-         WHERE lp.resi_id = ? AND lp.status_proses = ? AND lp.id_pekerja = ?
-         ORDER BY lp.created_at DESC
-         LIMIT 1`,
-        [resi_id, thisPage, id_pekerja]
-      );
-
-      if (workerPreviousScan && workerPreviousScan.length > 0) {
-        if (req.file) {
-          const fs = require("fs");
-          fs.unlinkSync(req.file.path);
-        }
-        return res.status(400).send({
-          success: false,
-          message: ` ${nextRole ? `Kamu sudah melakukan scan, resi akan ke proses selanjutnya ${nextRole}` : "Semua proses telah selesai"}`,
-        });
+      return res.status(400).send({
+        success: false,
+        message: "Resi telah selesai diproses",
+      });
+    }
+    
+    // Determine what the next expected role should be
+    const expectedNextRole = workflow[currentIndex + 1];
+    
+    // Check if worker is trying to scan with the wrong role
+    if (thisPage !== expectedNextRole) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
       }
-
-      // Check if all processes are completed
-      if (currentIndex === workflow.length - 1) {
-        if (req.file) {
-          const fs = require("fs");
-          fs.unlinkSync(req.file.path);
-        }
-        return res.status(400).send({
-          success: false,
-          message: "Resi telah selesai diproses",
-        });
-      }
-
-      // Check for duplicate scan in log_proses
-      const [existingScan] = await mysqlPool.query(
+      
+      // Check if this role has already scanned this resi
+      const [roleScanCheck] = await mysqlPool.query(
         `SELECT proses.*, pekerja.username, pekerja.nama_pekerja
          FROM proses 
          JOIN pekerja ON proses.id_pekerja = pekerja.id_pekerja
-         JOIN role_pekerja rp ON pekerja.id_pekerja = rp.id_pekerja
-         JOIN bagian b ON rp.id_bagian = b.id_bagian
          WHERE proses.resi_id = ? 
-         AND b.jenis_pekerja = ?
+         AND proses.status_proses = ?
          ORDER BY proses.created_at DESC
          LIMIT 1`,
         [resi_id, thisPage]
       );
-
-      // Validate if the current page matches the required next role
-      if (thisPage !== nextRole) {
-        if (req.file) {
-          const fs = require("fs");
-          fs.unlinkSync(req.file.path);
-        }
-
-        // If someone with same role has already scanned
-        if (existingScan && existingScan.length > 0) {
-          return res.status(400).send({
-            success: false,
-            message: `Resi ini sudah di scan oleh ${existingScan[0].nama_pekerja} pada ${new Date(existingScan[0].created_at).toLocaleString("id-ID")}`,
-          });
-        }
-
-        // If wrong sequence
+      
+      if (roleScanCheck && roleScanCheck.length > 0) {
+        // This role has already scanned this resi
+        const formattedDate = moment(roleScanCheck[0].created_at).format("DD MMM YYYY HH:mm:ss");
         return res.status(400).send({
           success: false,
-          message: `Resi harus di scan ${nextRole} terlebih dahulu`,
+          message: `Resi ini sudah di scan oleh ${thisPage} (${roleScanCheck[0].nama_pekerja}) pada ${formattedDate}`,
+        });
+      } else {
+        // The sequence is wrong - this role is not the next in line
+        return res.status(400).send({
+          success: false,
+          message: `Resi harus di scan ${expectedNextRole} terlebih dahulu. Status terakhir: ${currentStatus}`,
         });
       }
-
-      allowedRole = nextRole;
     }
+    
+    // Check if this specific worker has already scanned this resi in the current role
+    const [workerPreviousScan] = await mysqlPool.query(
+      `SELECT lp.*, p.username, p.nama_pekerja
+       FROM log_proses lp
+       JOIN pekerja p ON lp.id_pekerja = p.id_pekerja
+       WHERE lp.resi_id = ? AND lp.status_proses = ? AND lp.id_pekerja = ?
+       ORDER BY lp.created_at DESC
+       LIMIT 1`,
+      [resi_id, thisPage, id_pekerja]
+    );
 
-    // Handle photo upload
-    let photoPath = null;
-    if (req.file) {
-      photoPath = req.file.path;
-    }
-
-    // Process the scan with transaction
-    const connection = await mysqlPool.getConnection();
-    try {
-      await connection.beginTransaction();
-
-      // If process exists, UPDATE the existing record
-      [result] = await mysqlPool.query(
-        `UPDATE proses 
-           SET status_proses = ?, 
-               id_pekerja = ?, 
-               gambar_resi = ?,
-               updated_at = CURRENT_TIMESTAMP
-           WHERE resi_id = ?`,
-        [allowedRole, id_pekerja, photoPath, resi_id]
-      );
-
-      await connection.commit();
-
-      return res.status(200).send({
-        success: true,
-        message: "Resi berhasil di scan",
-        page: allowedRole,
-        data: {
-          nama_pekerja,
-          username,
-          proses_scan: allowedRole,
-          ...(photoPath && { gambar_resi: photoPath }),
-        },
+    if (workerPreviousScan && workerPreviousScan.length > 0) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      const formattedDate = moment(workerPreviousScan[0].created_at).format("DD MMM YYYY HH:mm:ss");
+      return res.status(400).send({
+        success: false,
+        message: `Kamu sudah melakukan scan pada ${formattedDate}`,
       });
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
     }
+    
+    // This is a valid scan - process it
+    return await processScan(req, res, expectedNextRole, id_pekerja, resi_id, nama_pekerja, username);
+    
   } catch (error) {
     if (req.file) {
       const fs = require("fs");
       fs.unlinkSync(req.file.path);
     }
     handleError(error, res, "processing scan and photo");
+  }
+};
+
+// Helper function to process valid scans
+const processScan = async (req, res, role, id_pekerja, resi_id, nama_pekerja, username) => {
+  // Handle photo upload
+  let photoPath = null;
+  if (req.file) {
+    photoPath = req.file.path;
+  }
+
+  // Process the scan with transaction
+  const connection = await mysqlPool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Update the existing record
+    [result] = await connection.query(
+      `UPDATE proses 
+       SET status_proses = ?, 
+           id_pekerja = ?, 
+           gambar_resi = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE resi_id = ?`,
+      [role, id_pekerja, photoPath, resi_id]
+    );
+    
+   
+
+    await connection.commit();
+
+    return res.status(200).send({
+      success: true,
+      message: "Resi berhasil di scan",
+      page: role,
+      data: {
+        nama_pekerja,
+        username,
+        proses_scan: role,
+        ...(photoPath && { gambar_resi: photoPath }),
+      },
+    });
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
 };
 
@@ -540,10 +557,13 @@ const getActivityNotComplited = async (req, res) => {
 
     const [rows] = await mysqlPool.query(query, queryParams);
 
+    const [totalCountNoLimit] = await mysqlPool.query(`SELECT COUNT(*) as total FROM (${query.replace("LIMIT ? OFFSET ?", "")}) as count_table`, queryParams.slice(0, -2)); 
+
     res.status(200).send({
       success: true,
       message: "Data found",
       data: rows || [],
+      totalData: totalCountNoLimit[0].total,
       pagination: {
         currentPage: parseInt(page),
         limit: parseInt(limit),

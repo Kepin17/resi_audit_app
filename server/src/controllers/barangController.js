@@ -1,6 +1,8 @@
 const mysqlPool = require("../config/db");
 const excelJS = require("exceljs");
 const moment = require("moment");
+const path = require('path');
+const fs = require('fs');
 
 const addNewBarang = async (req, res) => {
   try {
@@ -785,7 +787,7 @@ function validateResiEntry(resi_id, processedResis, isValidExpedition, isValidNu
 
 const exportBarang = async (req, res) => {
   try {
-    const { search, status, startDate, endDate } = req.query;
+    const { search, status, ekspedisi, startDate, endDate } = req.query;
 
     // Build the WHERE clause dynamically
     let whereConditions = [];
@@ -799,6 +801,11 @@ const exportBarang = async (req, res) => {
       whereConditions.push("latest_process.status_proses = ?");
       queryParams.push(status);
     }
+  
+    if (ekspedisi && ekspedisi !== "Semua") {
+      whereConditions.push("b.id_ekspedisi = ?");
+      queryParams.push(ekspedisi);
+    }
 
     if (startDate && endDate) {
       whereConditions.push("DATE(b.created_at) BETWEEN ? AND ?");
@@ -807,7 +814,7 @@ const exportBarang = async (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
-    // Updated query to use correct table structure
+    // Updated query to include expedition name
     const [rows] = await mysqlPool.query(
       `
       SELECT 
@@ -816,6 +823,8 @@ const exportBarang = async (req, res) => {
         DATE_FORMAT(b.created_at, '%Y-%m-%d %H:%i:%s') as created_at,
         DATE_FORMAT(b.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at,
         COALESCE(latest_process.nama_pekerja, '-') as nama_pekerja,
+        b.id_ekspedisi,
+        e.nama_ekspedisi,
         CASE 
           WHEN latest_process.status_proses = 'cancelled' THEN 'Dibatalkan'
           WHEN latest_process.status_proses = 'pending' OR latest_process.status_proses IS NULL THEN 'Menunggu pickup'
@@ -825,6 +834,7 @@ const exportBarang = async (req, res) => {
           ELSE 'Status tidak diketahui'
         END as status_description
       FROM barang b
+      LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
       LEFT JOIN (
         SELECT p1.resi_id, 
                p1.status_proses,
@@ -856,17 +866,23 @@ const exportBarang = async (req, res) => {
     const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet("Data Barang");
 
-    // Updated column headers to match the actual data
+    // Updated column headers to include expedition info
     worksheet.columns = [
       { header: "Nomor Resi", key: "resi_id", width: 20 },
       { header: "Status", key: "status_description", width: 25 },
+      { header: "Ekspedisi", key: "nama_ekspedisi", width: 15 },
       { header: "Tanggal Dibuat", key: "created_at", width: 25 },
       { header: "Terakhir Update", key: "updated_at", width: 25 },
       { header: "Pekerja", key: "nama_pekerja", width: 25 },
     ];
 
     // Add metadata row for filter information
-    const filterInfo = [`Search: ${search || "None"}`, `Status: ${status || "All"}`, `Date Range: ${startDate || "None"} to ${endDate || "None"}`].join(" | ");
+    const filterInfo = [
+      `Search: ${search || "None"}`, 
+      `Status: ${status || "All"}`, 
+      `Ekspedisi: ${ekspedisi || "All"}`,
+      `Date Range: ${startDate || "None"} to ${endDate || "None"}`
+    ].join(" | ");
     worksheet.addRow([filterInfo]);
 
     // Style header rows
@@ -882,6 +898,7 @@ const exportBarang = async (req, res) => {
       worksheet.addRow({
         resi_id: row.resi_id,
         status_description: row.status_description,
+        nama_ekspedisi: row.nama_ekspedisi || row.id_ekspedisi,
         created_at: row.created_at,
         updated_at: row.updated_at,
         nama_pekerja: row.nama_pekerja,
@@ -1057,7 +1074,7 @@ const getCalendarData = async (req, res) => {
 
     const [rows] = await mysqlPool.query(
       `
-      SELECT DISTINCT
+      SELECT 
         DATE(b.created_at) as date,
         COALESCE(latest_process.status_proses, 'pending') as status_proses,
         COUNT(b.resi_id) as count
@@ -1136,6 +1153,24 @@ const getImportLog = async (req, res) => {
       queryParams
     );
 
+    const totalItems = countResult[0]?.total || 0;
+    
+    // If there are no items at all, return early with an empty array
+    if (totalItems === 0) {
+      connection.release();
+      return res.status(200).json({
+        success: true,
+        message: "No data available",
+        data: [],
+        pagination: {
+          totalItems: 0,
+          totalPages: 0,
+          currentPage: page,
+          limit,
+        },
+      });
+    }
+
     // Get data grouped by exact import time
     const [rows] = await connection.query(
       `SELECT 
@@ -1152,14 +1187,13 @@ const getImportLog = async (req, res) => {
       [...queryParams, limit, offset]
     );
 
-    const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 
     connection.release();
 
     res.status(200).json({
       success: true,
-      message: rows.length > 0 ? "Data found" : "No data available",
+      message: rows.length > 0 ? "Data found" : "No data available for the current page",
       data: rows,
       pagination: {
         totalItems,
@@ -1299,6 +1333,65 @@ const exportLogImportToExcel = async (req, res) => {
   }
 };
 
+
+const viewResiImage = async (req, res) => {
+  try {
+    const { imageName } = req.params;
+    
+    if (!imageName) {
+      return res.status(400).send({
+        success: false,
+        message: "Image name is required",
+      });
+    }
+
+    // For security, validate the filename to prevent directory traversal
+    const sanitizedFileName = path.basename(imageName);
+    
+    // Assuming your uploads directory is in the project structure
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    const filePath = path.join(uploadsDir, sanitizedFileName);
+    
+    // Check if the file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send({
+        success: false,
+        message: "Image not found",
+      });
+    }
+
+    // Determine content type based on file extension
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = 
+      ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+      ext === '.png' ? 'image/png' :
+      ext === '.gif' ? 'image/gif' :
+      ext === '.webp' ? 'image/webp' :
+      'application/octet-stream';
+    
+    // Add CORS headers to solve the CORS issue
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    // Set content type
+    res.setHeader('Content-Type', contentType);
+    
+    // Stream the file to the response
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error("Image view error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error viewing image",
+      error: error.message,
+    });
+  }
+};
+
+
 module.exports = {
   addNewBarang,
   showAllBarang,
@@ -1312,4 +1405,5 @@ module.exports = {
   getCalendarData,
   getImportLog,
   exportLogImportToExcel,
+  viewResiImage
 };

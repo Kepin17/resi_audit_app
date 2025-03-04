@@ -193,11 +193,31 @@ const showAllBarangRetur = async (req, res) => {
       [...queryParams, offset, limit]
     );
 
+    const [total] = await mysqlPool.query(
+      `
+     SELECT
+    b.resi_id,
+    b.id_ekspedisi,
+    e.nama_ekspedisi,
+    b.note,
+    b.created_at,
+    b.updated_at,
+    COALESCE(latest_process.status_retur, 'diproses') as status_retur,
+    latest_process.nama_pekerja,
+    latest_process.last_scan,
+    latest_process.gambar_retur
+    ${baseQuery}
+    ${whereClause}
+    ORDER BY b.created_at DESC
+      `,
+      queryParams  
+    );
+
     return res.status(200).json({
       success: true,
       message: "Data found",
       data: rows,
-      totalData: rows.length,
+      totalData: total.length,
       pagination: {
         totalPages,
         currentPage: page,
@@ -522,10 +542,45 @@ const importRetur = async (req, res) => {
 
 const exportRetur = async (req, res) => {
   try {
+
+    const { search, status, startDate, endDate, ekspedisi } = req.query;
+
+    let whereConditions = [];
+    let queryParams = [];
+
+    if(search) {
+      whereConditions.push("b.resi_id LIKE ?");
+      queryParams.push(`%${search}%`);
+    }
+
+    if(ekspedisi && ekspedisi !== "semua") {
+      whereConditions.push("r.id_ekspedisi = ?");
+      queryParams.push(ekspedisi);
+    }
+
+    if(status && status !== "semua") {
+      if(status === "diproses") {
+        whereConditions.push("p.status_retur IS NULL OR p.status_retur = 'diproses'");
+      } else if(status === "diterima") {
+        whereConditions.push("p.status_retur = 'diterima'");
+      } else if(status === "hilang") {
+        whereConditions.push("p.status_retur = 'hilang'");
+      }
+    }
+
+    if(startDate && endDate) {
+      whereConditions.push("DATE(b.created_at) BETWEEN ? AND ?");
+      queryParams.push(startDate, endDate);
+    }
+
+    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
+
+
     const [rows] = await mysqlPool.query(`
       SELECT 
         r.resi_id,
-        ek.nama_ekspedisi as id_ekspedisi,
+        ek.id_ekspedisi,
+        ek.nama_ekspedisi,
         r.note,
         r.created_at,
         r.updated_at,
@@ -541,8 +596,9 @@ const exportRetur = async (req, res) => {
           GROUP BY resi_id
         )
       ) p ON r.resi_id = p.resi_id
+      ${whereClause}
       ORDER BY r.created_at DESC
-    `);
+    `, queryParams);
 
     const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet("Retur Data");
@@ -550,7 +606,7 @@ const exportRetur = async (req, res) => {
     // Add headers
     worksheet.columns = [
       { header: "Resi ID", key: "resi_id", width: 15 },
-      { header: "ID Ekspedisi", key: "id_ekspedisi", width: 15 },
+      { header: "Ekspedisi", key: "nama_ekspedisi", width: 15 },
       { header: "Note", key: "note", width: 30 },
       { header: "Created At", key: "created_at", width: 20 },
       { header: "Updated At", key: "updated_at", width: 20 },

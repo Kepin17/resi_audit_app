@@ -140,7 +140,7 @@ router.get("/barang-retur-log/download", authToken, roleMiddleware([roles.retur_
 
 // config
 
-router.get("/config", authToken, roleMiddleware([roles.supadmin]), getConfig);
+router.get("/config", authToken, roleMiddleware([roles.supadmin,roles.retur, roles.picker, roles.packing, roles.pickout]), getConfig);
 router.put("/config", authToken, roleMiddleware([roles.supadmin]), updateConfig);
 
 
