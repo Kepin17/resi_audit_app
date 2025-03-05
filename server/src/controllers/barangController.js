@@ -378,11 +378,14 @@ const cancelBarang = async (req, res) => {
       );
 
       await connection.query(
-        `DELETE FROM log_proses
-         WHERE resi_id = ? AND status_proses != 'cancelled'`,
-        [resiId]
+        `UPDATE log_proses
+        SET status_proses = 'cancelled', updated_at = CURRENT_TIMESTAMP
+        WHERE resi_id = ? AND status_proses != 'cancelled'`,
+       [resiId]
       );
     }
+    
+    
 
     await connection.commit();
 

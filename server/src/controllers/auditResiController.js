@@ -372,7 +372,7 @@ const getActivityByName = async (req, res) => {
       JOIN proses ON log_proses.resi_id = proses.resi_id 
       JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
       WHERE pekerja.username = ? 
-      AND log_proses.status_proses = ?`;
+      AND (log_proses.status_proses = ? OR log_proses.status_proses = 'cancelled')`;
 
     const queryParams = [username, thisPage];
 

@@ -109,7 +109,7 @@ const ReturBarangPage = () => {
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
         className={`p-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-2 border border-transparent
-          ${scanMode === "barcode-photo" ? "bg-gradient-to-br  from-purple-400 to-purple-600 text-white shadow-lg backdrop-blur-sm" : "bg-white hover:bg-slate-50  hover:border-slate-200 text-gray-700shadow"}`}
+          ${scanMode === "barcode-photo" ? "bg-gradient-to-br  from-purple-400 to-purple-600 text-white shadow-lg backdrop-blur-sm" : "bg-white hover:bg-slate-50  hover:border-slate-200 text-gray-700 shadow"}`}
         onClick={() => setScanMode("barcode-photo")}
       >
         <CiBarcode className="text-2xl" />
