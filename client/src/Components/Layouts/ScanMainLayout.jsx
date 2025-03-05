@@ -644,36 +644,40 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                 {thisPage === "picker" ? "Pickup" : thisPage === "packing" ? "Packing" : "Delivery"} Activity
               </h2>
 
+              {data.length === 0 && (
+                <div className="flex items-center justify-center h-32">
+                  <p className="text-gray-500">No data available</p>
+                </div>
+              )}
               <AnimatePresence mode="wait">
                 <motion.div key={switchMode ? "scanned" : "pending"} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
                   {(switchMode ? data : dataBeloman).map((item, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg transition-all duration-300
-                        hover:bg-gray-50 border  border-gray-100 hover:shadow-sm"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 ">{item.nama_pekerja}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs  font-bold ${
-                              thisPage === "picker" ? "bg-blue-100 text-blue-700 " : thisPage === "packing" ? "bg-green-100 text-green-700" : thisPage === "pickout" ? "bg-indigo-100 text-indigo-700" : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500 ">
-                          Resi: <span className="font-medium">{item.resi}</span>
-                        </p>
-                      </div>
-                      <p className="text-sm text-gray-500 mt-2 md:mt-0 flex items-center gap-2">
-                        <span className="hidden md:inline">Scanned:</span>
-                        {formatDateTime(item.proses_scan)}
-                      </p>
+                    <motion.div key={index} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
+                      {item.status === "cancelled" || user.includes(["admin", "superadmin"]) ? (
+                        ""
+                      ) : (
+                        <>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900 ">{item.nama_pekerja}</span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs  font-bold ${
+                                  item.status === "picker" ? "bg-blue-100 text-blue-700 " : item.status === "packing" ? "bg-green-100 text-green-700" : item.status === "pickout" ? "bg-indigo-100 text-indigo-700" : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {item.status}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500 ">
+                              Resi: <span className="font-medium">{item.resi}</span>
+                            </p>
+                          </div>
+                          <p className="text-sm text-gray-500 mt-2 md:mt-0 flex items-center gap-2">
+                            <span className="hidden md:inline">Scanned:</span>
+                            {formatDateTime(item.proses_scan)}
+                          </p>
+                        </>
+                      )}
                     </motion.div>
                   ))}
                 </motion.div>

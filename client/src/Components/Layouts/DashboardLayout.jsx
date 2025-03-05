@@ -9,6 +9,7 @@ import axios from "axios";
 import urlApi, { backupEndpoint } from "../../utils/url";
 import { TbTruckReturn } from "react-icons/tb";
 import { message } from "antd";
+import moment from "moment";
 
 const DashboardLayout = ({ children, activePage }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -330,11 +331,10 @@ const DashboardLayout = ({ children, activePage }) => {
                 </div>
                 <div className="text-center mb-4 md:mb-0">
                   <p className="text-sm">&copy; {new Date().getFullYear()} All rights reserved.</p>
-                  <p className="text-xs text-gray-300">Version 1.0.0</p>
+                  <p className="text-xs text-gray-300">Version 1.0.2</p>
                 </div>
                 <div className="text-sm text-gray-300">
-                  <p>Made with ❤️ by Olyzano Team</p>
-                  <p>{currentTime.toLocaleDateString()}</p>
+                  <p>{moment(currentTime.toLocaleDateString()).format("LLL")}</p>
                 </div>
               </div>
             </div>

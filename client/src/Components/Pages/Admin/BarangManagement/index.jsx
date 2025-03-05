@@ -12,7 +12,7 @@ import Modal from "antd/es/modal/Modal";
 import { PiMicrosoftExcelLogoFill } from "react-icons/pi";
 import { TbCancel } from "react-icons/tb";
 import { FaBoxArchive, FaBoxesPacking, FaRotate, FaSort } from "react-icons/fa6";
-import urlApi from "../../../../utils/url";
+import urlApi, { urlImg } from "../../../../utils/url";
 import { PiNoteBlankFill } from "react-icons/pi";
 import { jwtDecode } from "jwt-decode";
 import { FaShoppingCart, FaTrash, FaTruck } from "react-icons/fa";
@@ -1127,7 +1127,7 @@ const AdminBarangSection = () => {
                       </button>
                     </div>
                     <div className="relative">
-                      <img src={`${urlApi}/${Img}`} alt={Img} className={`object-contain rounded-lg shadow-2xl `} style={{ transform: `rotate(${totalDeg}deg)` }} onClick={(e) => e.stopPropagation()} width={"500"} id="imagedetail" />
+                      <img src={`${urlImg}${Img}`} alt={Img} className={`object-contain rounded-lg shadow-2xl `} style={{ transform: `rotate(${totalDeg}deg)` }} onClick={(e) => e.stopPropagation()} width={"500"} id="imagedetail" />
                     </div>
                   </div>
                 </div>

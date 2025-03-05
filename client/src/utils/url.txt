@@ -1,5 +1,5 @@
-const urlApi = "http://localhost:8080";
-
+const urlApi = "YOUR URL";
+export const urlImg = "YOUR URL";
 export const backupEndpoint = `${urlApi}/api/v1/backup/create`;
 
 export default urlApi;

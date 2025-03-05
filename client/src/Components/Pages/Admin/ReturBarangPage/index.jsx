@@ -4,7 +4,7 @@ import { Card, Table, Button, Input, DatePicker, Space, message, Modal, Form, Ta
 import { FileExcelOutlined, DownloadOutlined, PlusOutlined, SearchOutlined, ImportOutlined, ReloadOutlined, EditOutlined, CheckOutlined, CloseOutlined } from "@ant-design/icons";
 import axios from "axios";
 import moment from "moment";
-import urlApi from "../../../../utils/url";
+import urlApi, { urlImg } from "../../../../utils/url";
 import LogImportSection from "../BarangManagement/LogImportSection";
 import { IoIosOpen } from "react-icons/io";
 
@@ -730,7 +730,7 @@ const ReturBarangPage = () => {
                 transform: `rotate(${rotationDegree}deg)`,
                 transition: "transform 0.3s ease",
               }}
-              src={`${urlApi}/${previewImage}`}
+              src={`${urlImg}${previewImage}`}
             />
           </div>
         </Modal>

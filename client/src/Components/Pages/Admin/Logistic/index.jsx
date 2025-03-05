@@ -2,8 +2,10 @@ import React, { useEffect, useState, useCallback } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import { Button, Form, Input, message, Modal, Select, Table, Tag } from "antd";
 import Title from "../../../Elements/Title";
-import { FaTruck } from "react-icons/fa";
+import { FaTruck, FaTimes } from "react-icons/fa";
 import { useAxios } from "../../../../utils/useAxios";
+import axios from "axios";
+import urlApi from "../../../../utils/url";
 
 const LogisticPage = () => {
   // State setup with clear naming
@@ -73,8 +75,37 @@ const LogisticPage = () => {
       render: (_, record) => (
         <div className="flex flex-wrap gap-2">
           {record.kode_resi.map((resi, index) => (
-            <div key={index} className="mb-2">
-              <Tag color={resi.id_resi ? "blue" : "red"}>{resi.id_resi || "Number Only"}</Tag>
+            <div
+              key={index}
+              className="mb-2 relative group cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                axios
+                  .delete(`${urlApi}/api/v1/ekspedisi`, {
+                    headers: {
+                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                    data: {
+                      id_ekspedisi: record.id_ekspedisi,
+                      id_resi: resi.id_resi,
+                    },
+                  })
+                  .then(() => {
+                    message.success("Logistic code removed successfully");
+                    fetchLogisticsData();
+                  })
+                  .catch((error) => {
+                    message.error("Failed to remove logistic code");
+                    console.error(error);
+                  });
+              }}
+            >
+              <Tag color={resi.id_resi ? "blue" : "red"} className="pr-5 relative">
+                {resi.id_resi || "Number Only"}
+                <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 hover:text-red-600 p-1 cursor-pointer transition-opacity duration-200">
+                  <FaTimes size={10} className="absolute -top-1" />
+                </span>
+              </Tag>
             </div>
           ))}
         </div>

@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import Title from "../../../Elements/Title";
-import { MdCancel, MdEdit } from "react-icons/md";
+import { MdCancel, MdEdit, MdOutlineAnalytics } from "react-icons/md";
 import { GiConfirmed } from "react-icons/gi";
-import { Table, DatePicker, Input, Modal, message, Button } from "antd";
+import { Table, DatePicker, Input, Modal, message, Button, Skeleton } from "antd";
 import Form from "../../../Elements/Form";
 import InputFragment from "../../../Fragments/InputFragment";
 import { MdPayments } from "react-icons/md";
+import { BsPeopleFill, BsCalendarCheck } from "react-icons/bs";
+import "./styles.css"; // Import the custom styles
 const { RangePicker } = DatePicker;
 const { Search } = Input;
 import moment from "moment";
@@ -25,7 +27,7 @@ const PackSalary = () => {
   const [dateRange, setDateRange] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalItems, setTotalItems] = useState(0); // Add this state
+  const [totalItems, setTotalItems] = useState(0);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ const PackSalary = () => {
           setForm({
             ...form,
             total_gaji_per_scan: res.data.data[0].total_gaji_per_scan,
-            id_gaji: res.data.data[0].id_gaji, // Add this line
+            id_gaji: res.data.data[0].id_gaji,
           });
         })
         .catch((err) => {
@@ -78,7 +80,6 @@ const PackSalary = () => {
         params.append("search", searchValue.trim());
       }
       if (dateRange?.[0] && dateRange?.[1]) {
-        // Set the time to start of day for start date and end of day for end date
         const startDate = dateRange[0].startOf("day").toISOString();
         const endDate = dateRange[1].endOf("day").toISOString();
         params.append("startDate", startDate);
@@ -95,7 +96,7 @@ const PackSalary = () => {
 
       if (response.data?.success) {
         setSource(response.data.data);
-        setTotalItems(response.data.pagination.totalItems); // Add this line
+        setTotalItems(response.data.pagination.totalItems);
       }
     } catch (err) {
       if (err.response) {
@@ -185,7 +186,7 @@ const PackSalary = () => {
           content: "The payment has been processed successfully",
         });
         fetchGajiPacking(currentPage, pageSize, searchText);
-        fetchTodayStats(); // Refetch stats after successful payment
+        fetchTodayStats();
       }
     } catch (err) {
       Modal.error({
@@ -222,29 +223,29 @@ const PackSalary = () => {
       key: "updated_at",
       render: (text) => formatDate(text),
     },
-
     {
       title: "Status dibayar",
       dataIndex: "is_dibayar",
       key: "is_dibayar",
-      render: (text) => (text ? <span className="bg-green-200 p-2 rounded-md text-green-600 font-bold">Sudah Dibayar</span> : <span className="bg-red-200 p-2 rounded-md text-red-600 font-bold">Belum Dibayar</span>),
+      render: (text) => (text ? <span className="status-badge paid">Sudah Dibayar</span> : <span className="status-badge unpaid">Belum Dibayar</span>),
     },
-
     {
       title: "Action",
       dataIndex: "view",
-      key: "updated_at",
+      key: "action",
       render: (text, record) => (
-        <button
-          className={`${record.is_dibayar || !user?.roles?.includes("superadmin") ? "bg-gray-500 hover:bg-gray-600" : "bg-blue-500 hover:bg-blue-600"} text-white p-2 rounded-lg transition duration-300 flex items-center gap-2`}
+        <Button
+          type={record.is_dibayar ? "default" : "primary"}
+          className={`action-button ${record.is_dibayar ? "bg-gray-100" : "bg-blue-50 text-blue-600"}`}
           onClick={() => {
             setSelectedRecord(record);
             setIsModalVisible(true);
           }}
           disabled={!user?.roles?.includes("superadmin") ? true : record.is_dibayar}
+          icon={<MdPayments />}
         >
-          <MdPayments className="text-xl" /> Payment
-        </button>
+          Payment
+        </Button>
       ),
     },
   ];
@@ -255,7 +256,7 @@ const PackSalary = () => {
     setUpdateLoading(true);
     try {
       await axios.put(
-        `${urlApi}/api/v1/gaji/${form.id_gaji}`, // Updated endpoint with id_gaji
+        `${urlApi}/api/v1/gaji/${form.id_gaji}`,
         { total_gaji_per_scan: form.total_gaji_per_scan },
         {
           headers: {
@@ -344,61 +345,71 @@ const PackSalary = () => {
 
   return (
     <DashboardLayout activePage="Packing Salary">
-      <div className="w-full h-full bg-white rounded-lg shadow-md p-3 sm:p-6">
-        {/* Modified Card Section with improved responsiveness */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 sm:p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-80">Current Salary Rate</p>
-                <h2 className="text-xl sm:text-2xl font-bold mt-2">{formatRupiah(form.total_gaji_per_scan)}</h2>
-                <p className="text-xs opacity-70 mt-2">Per Item Today</p>
-              </div>
-              <div className="text-3xl sm:text-4xl opacity-80">
-                <MdPayments />
-              </div>
+      <div className="w-full h-full bg-white rounded-xl shadow-sm p-6">
+        {/* Stats Cards - Modern & Minimalist Design */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          {/* Card 1 - Salary Rate */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative stats-card">
+            <div className="absolute w-24 h-24 -right-6 -top-6 rounded-full bg-blue-50 opacity-70"></div>
+            <div className="text-blue-600 mb-1">
+              <MdPayments className="text-3xl" />
             </div>
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Current Salary Rate</h3>
+            <div className="flex items-baseline">
+              <h2 className="text-2xl font-bold text-gray-800">{formatRupiah(form.total_gaji_per_scan)}</h2>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Per Item Today</p>
           </div>
 
-          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-80">Packing Workers Today</p>
-                <h2 className="text-xl sm:text-2xl font-bold mt-2">{statsLoading ? "Loading..." : todayStats.totalWorkers}</h2>
-                <p className="text-xs opacity-70 mt-2">{statsLoading ? "Loading..." : `Items Packed`}</p>
-              </div>
-              <div className="text-3xl sm:text-4xl opacity-80">
-                <MdEdit />
-              </div>
+          {/* Card 2 - Workers */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative stats-card">
+            <div className="absolute w-24 h-24 -right-6 -top-6 rounded-full bg-green-50 opacity-70"></div>
+            <div className="text-green-600 mb-1">
+              <BsPeopleFill className="text-3xl" />
             </div>
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Packing Workers Today</h3>
+            {statsLoading ? (
+              <Skeleton.Button active size="small" className="w-16 h-8" />
+            ) : (
+              <div className="flex items-baseline">
+                <h2 className="text-2xl font-bold text-gray-800">{todayStats.totalWorkers}</h2>
+                <span className="text-xs text-gray-500 ml-2">workers</span>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-2">Active Packing: {statsLoading ? "-" : todayStats.activePacking}</p>
           </div>
 
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 sm:p-6 text-white shadow-lg sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-80">Today's Total Payments</p>
-                <h2 className="text-xl sm:text-2xl font-bold mt-2">{formatRupiah(todayStats.totalPayments)}</h2>
-                <p className="text-xs opacity-70 mt-2">{moment().format("DD MMMM YYYY")}</p>
-              </div>
-              <div className="text-3xl sm:text-4xl opacity-80">
-                <GiConfirmed />
-              </div>
+          {/* Card 3 - Payments */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative stats-card">
+            <div className="absolute w-24 h-24 -right-6 -top-6 rounded-full bg-purple-50 opacity-70"></div>
+            <div className="text-purple-600 mb-1">
+              <BsCalendarCheck className="text-3xl" />
             </div>
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Today's Total Payments</h3>
+            {statsLoading ? (
+              <Skeleton.Button active size="small" className="w-24 h-8" />
+            ) : (
+              <div className="flex items-baseline">
+                <h2 className="text-2xl font-bold text-gray-800">{formatRupiah(todayStats.totalPayments)}</h2>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-2">{moment().format("DD MMMM YYYY")}</p>
           </div>
         </div>
 
-        {/* Improved Salary Control Section */}
-        <div className="w-full h-auto bg-gray-50 rounded-xl p-4 sm:p-6 mb-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-            <Title className="text-gray-700">Packing Salary Management</Title>
-            <Button type="primary" onClick={handleExport} loading={exportLoading} className="flex items-center gap-2 h-10 sm:h-12 px-4 sm:px-6 text-base sm:text-lg w-full sm:w-auto" icon={<MdPayments className="text-xl" />}>
+        {/* Salary Management Section - Simplified & Modern */}
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+            <Title className="text-xl font-medium text-gray-800 mb-4 sm:mb-0">Packing Salary Management</Title>
+            <Button type="primary" onClick={handleExport} loading={exportLoading} icon={<MdOutlineAnalytics />} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 border-none rounded-lg h-10">
               Export Data
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 mb-4">
-            {user?.roles?.includes("superadmin") && (
-              <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
+          {user?.roles?.includes("superadmin") && (
+            <div className="bg-gray-50 p-5 rounded-xl mb-6">
+              <h3 className="text-sm font-medium text-gray-600 mb-4">Salary Rate Configuration</h3>
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
                 <Form onSubmit={handleSubmit} className="flex-1 w-full">
                   <InputFragment
                     htmlFor={"total_gaji_per_scan"}
@@ -408,51 +419,48 @@ const PackSalary = () => {
                     inputValue={form.total_gaji_per_scan}
                     isDisabled={!isEdit}
                     inputOnChange={handleInputChange}
-                    className="w-full h-10 sm:h-12"
+                    className="w-full h-10"
                   >
                     Salary Rate Per Item
                   </InputFragment>
                 </Form>
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button
-                    className={`h-10 sm:h-12 px-4 sm:px-6 rounded-lg text-white flex items-center gap-2 transition-all duration-300 flex-1 sm:flex-none justify-center ${
-                      isEdit ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
-                    }`}
+                <div className="flex gap-3 w-full sm:w-auto">
+                  <Button
+                    className={`h-10 px-4 rounded-lg flex items-center gap-2 transition-all duration-300 ${isEdit ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-blue-50 text-blue-600 hover:bg-blue-100"}`}
                     onClick={() => setisEdit(!isEdit)}
                     disabled={updateLoading}
+                    icon={!isEdit ? <MdEdit className="text-lg" /> : <MdCancel className="text-lg" />}
                   >
-                    {!isEdit ? (
-                      <>
-                        <MdEdit className="text-xl" /> <span className="hidden xs:inline">Edit Rate</span>
-                      </>
-                    ) : (
-                      <>
-                        <MdCancel className="text-xl" /> <span className="hidden xs:inline">Cancel</span>
-                      </>
-                    )}
-                  </button>
+                    {!isEdit ? "Edit Rate" : "Cancel"}
+                  </Button>
                   {isEdit && (
-                    <button
-                      className="h-10 sm:h-12 px-4 sm:px-6 bg-green-500 hover:bg-green-600 rounded-lg text-white flex items-center gap-2 transition-all duration-300 flex-1 sm:flex-none justify-center"
+                    <Button
+                      className="h-10 px-4 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg flex items-center gap-2 transition-all duration-300"
                       onClick={handleSubmit}
                       disabled={updateLoading}
+                      loading={updateLoading}
+                      icon={<GiConfirmed className="text-lg" />}
                     >
-                      <GiConfirmed className="text-xl" /> <span className="hidden xs:inline">Save</span>
-                    </button>
+                      Save
+                    </Button>
                   )}
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
+          {/* Search & Filter Controls - Cleaner Layout */}
+          <div className="bg-white border border-gray-100 p-5 rounded-xl shadow-sm mb-6">
+            <h3 className="text-sm font-medium text-gray-600 mb-4">Search & Filter</h3>
             <div className="flex flex-col sm:flex-row gap-4">
-              <RangePicker onChange={handleDateChange} showTime={false} allowSame={true} format="YYYY-MM-DD" className="flex-1 h-10 sm:h-12 w-full" />
-              <Search placeholder="Search by Name" onSearch={handleSearch} enterButton className="flex-1 h-10 sm:h-12" size="large" />
+              <RangePicker onChange={handleDateChange} showTime={false} allowClear format="YYYY-MM-DD" className="flex-1 h-10 border-gray-200" placeholder={["Start date", "End date"]} />
+              <Search placeholder="Search by name" onSearch={handleSearch} allowClear className="flex-1 h-10" size="middle" />
             </div>
           </div>
         </div>
 
-        {/* Enhanced Table Section with responsive classes */}
-        <div className="bg-white rounded-xl overflow-x-auto shadow-sm border border-gray-100">
+        {/* Table Section - Clean & Modern */}
+        <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
           <Table
             columns={coloms}
             rowKey="id_gaji_pegawai"
@@ -464,20 +472,21 @@ const PackSalary = () => {
               showSizeChanger: true,
               showQuickJumper: true,
               showTotal: (total) => `Total ${total} items`,
-              className: "px-2 sm:px-6",
-              responsive: true,
-              size: "small",
+              className: "p-6",
+              size: "default",
             }}
             onChange={handleTableChange}
-            className="custom-table"
+            className="custom-minimal-table"
+            rowClassName={() => "hover:bg-gray-50 transition-colors"}
             scroll={{ x: "max-content" }}
             size="middle"
+            loading={loading}
           />
         </div>
 
-        {/* Modal remains unchanged */}
+        {/* Modernized Modal */}
         <Modal
-          title="Confirm Payment"
+          title={<span className="text-lg">Confirm Payment</span>}
           open={isModalVisible}
           onOk={handlePayment}
           onCancel={() => {
@@ -485,9 +494,24 @@ const PackSalary = () => {
             setSelectedRecord(null);
           }}
           confirmLoading={loading}
+          okText="Process Payment"
+          okButtonProps={{
+            className: "bg-blue-600 hover:bg-blue-700 border-none",
+            size: "middle",
+          }}
+          cancelButtonProps={{ size: "middle" }}
+          centered
         >
-          <p>Are you sure you want to process the payment for {selectedRecord?.nama_pekerja}?</p>
-          <p>Total amount: {selectedRecord ? formatRupiah(selectedRecord.gaji_total) : ""}</p>
+          <div className="py-4">
+            <p className="text-gray-700">Are you sure you want to process the payment for:</p>
+            <p className="font-bold text-lg mt-2">{selectedRecord?.nama_pekerja}</p>
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Total amount:</span>
+                <span className="font-bold text-lg">{selectedRecord ? formatRupiah(selectedRecord.gaji_total) : ""}</span>
+              </div>
+            </div>
+          </div>
         </Modal>
       </div>
     </DashboardLayout>
