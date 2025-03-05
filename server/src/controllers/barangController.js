@@ -88,7 +88,7 @@ const showAllBarang = async (req, res) => {
     let queryParams = [];
 
     if (search) {
-      whereConditions.push("(b.resi_id LIKE ?)");
+      whereConditions.push("(b.resi_id LIKE ? COLLATE utf8mb4_general_ci)");
       queryParams.push(`%${search}%`);
     }
 
@@ -817,7 +817,7 @@ const exportBarang = async (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
-    // Updated query to include expedition name
+    // Updated query to include detailed worker information for each process stage
     const [rows] = await mysqlPool.query(
       `
       SELECT 
@@ -835,9 +835,15 @@ const exportBarang = async (req, res) => {
           WHEN latest_process.status_proses = 'packing' THEN 'Sudah dipacking'
           WHEN latest_process.status_proses = 'pickout' THEN 'Dalam pengiriman'
           ELSE 'Status tidak diketahui'
-        END as status_description
+        END as status_description,
+        picker_info.nama_pekerja as picked_by,
+        DATE_FORMAT(picker_info.created_at, '%Y-%m-%d %H:%i:%s') as picked_time,
+        packing_info.nama_pekerja as packed_by,
+        DATE_FORMAT(packing_info.created_at, '%Y-%m-%d %H:%i:%s') as packed_time,
+        pickout_info.nama_pekerja as pickout_by,
+        DATE_FORMAT(pickout_info.created_at, '%Y-%m-%d %H:%i:%s') as pickout_time
       FROM barang b
-      
+
       LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
       LEFT JOIN (
         SELECT p1.resi_id, 
@@ -854,6 +860,46 @@ const exportBarang = async (req, res) => {
           LIMIT 1
         )
       ) latest_process ON b.resi_id = latest_process.resi_id
+      
+      -- Get picker information
+      LEFT JOIN (
+        SELECT lp.resi_id, pek.nama_pekerja, lp.created_at
+        FROM log_proses lp
+        LEFT JOIN pekerja pek ON lp.id_pekerja = pek.id_pekerja
+        WHERE lp.status_proses = 'picker' 
+        AND lp.id_log = (
+          SELECT MIN(lp2.id_log)
+          FROM log_proses lp2
+          WHERE lp2.resi_id = lp.resi_id AND lp2.status_proses = 'picker'
+        )
+      ) picker_info ON b.resi_id = picker_info.resi_id
+      
+      -- Get packing information
+      LEFT JOIN (
+        SELECT lp.resi_id, pek.nama_pekerja, lp.created_at
+        FROM log_proses lp
+        LEFT JOIN pekerja pek ON lp.id_pekerja = pek.id_pekerja
+        WHERE lp.status_proses = 'packing'
+        AND lp.id_log = (
+          SELECT MIN(lp2.id_log)
+          FROM log_proses lp2
+          WHERE lp2.resi_id = lp.resi_id AND lp2.status_proses = 'packing'
+        )
+      ) packing_info ON b.resi_id = packing_info.resi_id
+      
+      -- Get pickout information
+      LEFT JOIN (
+        SELECT lp.resi_id, pek.nama_pekerja, lp.created_at
+        FROM log_proses lp
+        LEFT JOIN pekerja pek ON lp.id_pekerja = pek.id_pekerja
+        WHERE lp.status_proses = 'pickout'
+        AND lp.id_log = (
+          SELECT MIN(lp2.id_log)
+          FROM log_proses lp2
+          WHERE lp2.resi_id = lp.resi_id AND lp2.status_proses = 'pickout'
+        )
+      ) pickout_info ON b.resi_id = pickout_info.resi_id
+      
       ${whereClause}
       ORDER BY b.created_at DESC
     `,
@@ -870,14 +916,23 @@ const exportBarang = async (req, res) => {
     const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet("Data Barang");
 
-    // Updated column headers to include expedition info
+
+    worksheet.getColumn(1).width = 20;
+
+    // Updated column headers to include worker information for each stage
     worksheet.columns = [
       { header: "Nomor Resi", key: "resi_id", width: 20 },
       { header: "Status", key: "status_description", width: 25 },
       { header: "Ekspedisi", key: "nama_ekspedisi", width: 15 },
       { header: "Tanggal Dibuat", key: "created_at", width: 25 },
+      { header: "Picked By", key: "picked_by", width: 20 },
+      { header: "Picked Time", key: "picked_time", width: 25 },
+      { header: "Packed By", key: "packed_by", width: 20 },
+      { header: "Packed Time", key: "packed_time", width: 25 },
+      { header: "Pickout By", key: "pickout_by", width: 20 },
+      { header: "Pickout Time", key: "pickout_time", width: 25 },
       { header: "Terakhir Update", key: "updated_at", width: 25 },
-      { header: "Pekerja", key: "nama_pekerja", width: 25 },
+      { header: "Pekerja Terakhir", key: "nama_pekerja", width: 20 },
     ];
 
     // Add metadata row for filter information
@@ -896,7 +951,7 @@ const exportBarang = async (req, res) => {
       pattern: "solid",
       fgColor: { argb: "FFE0E0E0" },
     };
-
+   
     // Add data rows starting from row 3
     rows.forEach((row) => {
       worksheet.addRow({
@@ -904,8 +959,14 @@ const exportBarang = async (req, res) => {
         status_description: row.status_description,
         nama_ekspedisi: row.nama_ekspedisi || row.id_ekspedisi,
         created_at: row.created_at,
+        picked_by: row.picked_by || '-',
+        picked_time: row.picked_time || '-',
+        packed_by: row.packed_by || '-',
+        packed_time: row.packed_time || '-',
+        pickout_by: row.pickout_by || '-',
+        pickout_time: row.pickout_time || '-',
         updated_at: row.updated_at,
-        nama_pekerja: row.nama_pekerja,
+        nama_pekerja: row.nama_pekerja || '-',
       });
     });
 
