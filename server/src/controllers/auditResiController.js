@@ -218,35 +218,9 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
-      
-      // Check if this role has already scanned this resi
-      const [roleScanCheck] = await mysqlPool.query(
-        `SELECT proses.*, pekerja.username, pekerja.nama_pekerja
-         FROM proses 
-         JOIN pekerja ON proses.id_pekerja = pekerja.id_pekerja
-         WHERE proses.resi_id = ? 
-         AND proses.status_proses = ?
-         ORDER BY proses.created_at DESC
-         LIMIT 1`,
-        [resi_id, thisPage]
-      );
-      
-      if (roleScanCheck && roleScanCheck.length > 0) {
-        // This role has already scanned this resi
-        const formattedDate = moment(roleScanCheck[0].created_at).format("DD MMM YYYY HH:mm:ss");
-        return res.status(400).send({
-          success: false,
-          message: `Resi ini sudah di scan oleh ${thisPage} (${roleScanCheck[0].nama_pekerja}) pada ${formattedDate}`,
-        });
-      } else {
-        // The sequence is wrong - this role is not the next in line
-        return res.status(400).send({
-          success: false,
-          message: `Resi harus di scan ${expectedNextRole} terlebih dahulu. Status terakhir: ${currentStatus}`,
-        });
-      }
-    }
-    
+
+
+          
     // Check if this specific worker has already scanned this resi in the current role
     const [workerPreviousScan] = await mysqlPool.query(
       `SELECT lp.*, p.username, p.nama_pekerja
@@ -270,6 +244,35 @@ const scaneHandler = async (req, res) => {
       });
     }
     
+      
+      // Check if this role has already scanned this resi
+      const [roleScanCheck] = await mysqlPool.query(
+        `SELECT proses.*, pekerja.username, pekerja.nama_pekerja
+         FROM proses 
+         JOIN pekerja ON proses.id_pekerja = pekerja.id_pekerja
+         WHERE proses.resi_id = ? 
+         AND proses.status_proses = ?
+         ORDER BY proses.created_at DESC
+         LIMIT 1`,
+        [resi_id, thisPage]
+      );
+      
+      if (roleScanCheck && roleScanCheck.length > 0) {
+        // This role has already scanned this resi
+        const formattedDate = moment(roleScanCheck[0].created_at).format("DD MMM YYYY HH:mm:ss");
+        return res.status(400).send({
+          success: false,
+          message: `Resi ini sudah di scan oleh ${thisPage} (${roleScanCheck[0].nama_pekerja}) pada ${formattedDate}`,
+        });
+      } else {
+        // The sequence is wrong - this role is not the next in line
+          return res.status(400).send({
+            success: false,
+            message: `Resi harus di scan ke ${expectedNextRole}. proses terakhir : ${currentStatus} `,
+          });
+      }
+    }
+
     // This is a valid scan - process it
     return await processScan(req, res, expectedNextRole, id_pekerja, resi_id, nama_pekerja, username);
     

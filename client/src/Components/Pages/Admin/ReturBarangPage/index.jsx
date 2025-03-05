@@ -220,14 +220,14 @@ const ReturBarangPage = () => {
       dataIndex: "created_at",
       key: "created_at",
       width: 150,
-      render: (date) => moment(date).format("DD/MM/YYYY HH:mm"),
+      render: (date) => moment(date).format("LL HH:mm:ss"),
     },
     {
       title: "Last Update",
       dataIndex: "last_scan",
       key: "last_scan",
       width: 150,
-      render: (date) => (date ? moment(date).format("DD/MM/YYYY HH:mm") : "-"),
+      render: (date) => (date ? moment(date).format("LL HH:mm:ss") : "-"),
     },
     {
       title: "Image",

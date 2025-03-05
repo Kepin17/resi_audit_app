@@ -542,62 +542,76 @@ const importRetur = async (req, res) => {
 
 const exportRetur = async (req, res) => {
   try {
-
     const { search, status, startDate, endDate, ekspedisi } = req.query;
 
     let whereConditions = [];
     let queryParams = [];
+    let baseQuery = `
+      FROM barang_retur b
+      LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
+      LEFT JOIN (
+        SELECT p1.resi_id, 
+               p1.status_retur,
+               p1.gambar_retur,
+               p1.updated_at as last_scan,
+               pek.nama_pekerja
+        FROM proses_barang_retur p1
+        LEFT JOIN pekerja pek ON p1.id_pekerja = pek.id_pekerja
+        WHERE p1.id_proses = (
+          SELECT p2.id_proses 
+          FROM proses_barang_retur p2 
+          WHERE p2.resi_id = p1.resi_id 
+          ORDER BY p2.updated_at DESC 
+          LIMIT 1
+        )
+      ) latest_process ON b.resi_id = latest_process.resi_id
+    `;
 
-    if(search) {
+    // Search filter
+    if (search) {
       whereConditions.push("b.resi_id LIKE ?");
       queryParams.push(`%${search}%`);
     }
 
-    if(ekspedisi && ekspedisi !== "semua") {
-      whereConditions.push("r.id_ekspedisi = ?");
+    // Add ekspedisi filter
+    if (ekspedisi && ekspedisi !== "all") {
+      whereConditions.push("b.id_ekspedisi = ?");
       queryParams.push(ekspedisi);
     }
 
-    if(status && status !== "semua") {
-      if(status === "diproses") {
-        whereConditions.push("p.status_retur IS NULL OR p.status_retur = 'diproses'");
-      } else if(status === "diterima") {
-        whereConditions.push("p.status_retur = 'diterima'");
-      } else if(status === "hilang") {
-        whereConditions.push("p.status_retur = 'hilang'");
+    // Status filter
+    if (status && status !== "all") {
+      if (status === "diproses") {
+        whereConditions.push("(latest_process.status_retur IS NULL OR latest_process.status_retur = 'diproses')");
+      } else if (status === "diterima") {
+        whereConditions.push("latest_process.status_retur = 'diterima'");
+      } else if (status === "hilang") {
+        whereConditions.push("latest_process.status_retur = 'hilang'");
       }
     }
 
-    if(startDate && endDate) {
+    // Date range filter
+    if (startDate && endDate) {
       whereConditions.push("DATE(b.created_at) BETWEEN ? AND ?");
       queryParams.push(startDate, endDate);
     }
 
-    const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
+    // Combine WHERE conditions
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
-
+    // Get data for export
     const [rows] = await mysqlPool.query(`
       SELECT 
-        r.resi_id,
-        ek.id_ekspedisi,
-        ek.nama_ekspedisi,
-        r.note,
-        r.created_at,
-        r.updated_at,
-        COALESCE(p.status_retur, 'diproses') as status
-      FROM barang_retur r
-      LEFT JOIN ekpedisi ek ON r.id_ekspedisi = ek.id_ekspedisi
-      LEFT JOIN (
-        SELECT resi_id, status_retur
-        FROM proses_barang_retur
-        WHERE id_proses IN (
-          SELECT MAX(id_proses)
-          FROM proses_barang_retur
-          GROUP BY resi_id
-        )
-      ) p ON r.resi_id = p.resi_id
+        b.resi_id,
+        b.id_ekspedisi,
+        e.nama_ekspedisi,
+        b.note,
+        b.created_at,
+        b.updated_at,
+        COALESCE(latest_process.status_retur, 'diproses') as status_retur
+      ${baseQuery}
       ${whereClause}
-      ORDER BY r.created_at DESC
+      ORDER BY b.created_at DESC
     `, queryParams);
 
     const workbook = new excelJS.Workbook();
@@ -610,7 +624,7 @@ const exportRetur = async (req, res) => {
       { header: "Note", key: "note", width: 30 },
       { header: "Created At", key: "created_at", width: 20 },
       { header: "Updated At", key: "updated_at", width: 20 },
-      { header: "Status", key: "status", width: 15 },
+      { header: "Status", key: "status_retur", width: 15 },
     ];
 
     // Style the header row
