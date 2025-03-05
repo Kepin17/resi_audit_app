@@ -191,6 +191,40 @@ const updateEkspedisi = async (req, res) => {
 };
 
 
+const unsignCodeEkspedisi = async (req, res) => {
+  try {
+    const { id_ekspedisi, id_resi } = req.body;
+
+    if (!id_ekspedisi || !id_resi) {
+      return res.status(400).send({
+        success: false,
+        message: "id_ekspedisi and id_resi is required",
+        error: "bad_request",
+      });
+    }
+
+    await mysqlPool.query("DELETE FROM kode_resi WHERE id_ekspedisi = ? AND id_resi = ?", [id_ekspedisi, id_resi]);
+
+    res.status(200).send({
+      success: true,
+      message: "Ekspedisi code unassigned",
+      data: {
+        id_ekspedisi,
+        id_resi,
+      },
+    });
+  } catch (error) {
+    console.error("Error when trying to unassign ekspedisi code:", error);
+
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to unassign ekspedisi code",
+      error: "internal_server_error",
+    });
+  }
+}
+
+
 
 module.exports = {
   getAllEkspedisi,
@@ -198,4 +232,5 @@ module.exports = {
   addEkspedisi,
   assignCodeEkspedisi,
   updateEkspedisi,
+  unsignCodeEkspedisi
 };

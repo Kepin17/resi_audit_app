@@ -24,7 +24,7 @@ const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExc
 const upload = require("../config/multerConfig");
 const { getStatistics, getWorkerStatistics } = require("../controllers/statisticsController");
 const { createBackup } = require("../controllers/backupController");
-const { getAllEkspedisi, getEkspedisiByGroup, addEkspedisi, assignCodeEkspedisi, updateEkspedisi } = require("../controllers/ekspedisiController");
+const { getAllEkspedisi, getEkspedisiByGroup, addEkspedisi, assignCodeEkspedisi, updateEkspedisi, unsignCodeEkspedisi } = require("../controllers/ekspedisiController");
 const {
   addRetur,
   showAllBarangRetur,
@@ -123,6 +123,7 @@ router.get("/ekspedisi-group", authToken, roleMiddleware([roles.logistic]), getE
 router.post("/ekspedisi", authToken, roleMiddleware([roles.logistic]), addEkspedisi);
 router.post("/ekspedisi-assign", authToken, roleMiddleware([roles.logistic]), assignCodeEkspedisi);
 router.put("/ekspedisi", authToken, roleMiddleware([roles.logistic]), updateEkspedisi);
+router.delete("/ekspedisi", authToken, roleMiddleware([roles.logistic]), unsignCodeEkspedisi);
 
 // retur
 router.post("/barang-retur", authToken, roleMiddleware([roles.retur_manager]), addRetur);
