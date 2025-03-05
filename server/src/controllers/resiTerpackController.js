@@ -48,11 +48,12 @@ const showResiTerpack = async (req, res) => {
     }
 
     if (search) {
-      const searchCondition = ` AND (log_proses.resi_id LIKE ? OR pekerja.nama_pekerja LIKE ?)`;
+      // Updated search condition to be more specific but case insensitive
+      const searchCondition = ` AND (log_proses.resi_id = ? COLLATE utf8mb4_general_ci OR pekerja.nama_pekerja = ? COLLATE utf8mb4_general_ci)`;
       dataQuery += searchCondition;
       countQuery += searchCondition;
-      params.push(`%${search}%`, `%${search}%`);
-      countParams.push(`%${search}%`, `%${search}%`);
+      params.push(search, search);
+      countParams.push(search, search);
     }
 
     if (startDate && endDate) {
@@ -66,8 +67,40 @@ const showResiTerpack = async (req, res) => {
     dataQuery += ` ORDER BY log_proses.created_at DESC LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
+    // Modify the expedition count query to get individual rows
+    let expeditionCountQuery = `
+      SELECT 
+        ekpedisi.nama_ekspedisi,
+        COUNT(barang.resi_id) AS total_resi
+      FROM barang
+      JOIN ekpedisi ON barang.id_ekspedisi = ekpedisi.id_ekspedisi
+      JOIN proses ON barang.resi_id = proses.resi_id
+      WHERE proses.status_proses = 'pickout' 
+    `;
+
+    let expeditionParams = [];
+
+    // Tambahkan filter tanggal jika tersedia
+    if (startDate && endDate) {
+      expeditionCountQuery += ` AND barang.created_at BETWEEN ? AND ?`;
+      expeditionParams.push(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
+    }
+
+    // Akhiri query utama dengan GROUP BY
+    expeditionCountQuery += ` GROUP BY ekpedisi.nama_ekspedisi`;
+
     const [rows] = await mysqlPool.query(dataQuery, params);
     const [countResult] = await mysqlPool.query(countQuery, countParams);
+    
+    // Get expedition counts using the modified query
+    let expeditionCounts;
+    try {
+      [expeditionCounts] = await mysqlPool.query(expeditionCountQuery, expeditionParams);
+    } catch (error) {
+      console.error("Error fetching expedition counts:", error);
+      expeditionCounts = [];
+    }
+    
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 
@@ -76,13 +109,10 @@ const showResiTerpack = async (req, res) => {
       message: "Data berhasil ditemukan!",
       data: rows,
       todayCount: todayCount[0].today_count,
-      countEkspedisiToday: {
-        jne: 0,
-        jnt: 0,
-        jntc: 0,
-        jntt: 0,
-        gosend: 0,
-      },
+      countEkspedisiToday: expeditionCounts.map(item => ({
+        nama_ekpedisi: item.nama_ekspedisi,
+        total_resi: item.total_resi
+      })),
       pagination: {
         currentPage: parseInt(page),
         totalPages,

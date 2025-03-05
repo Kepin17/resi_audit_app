@@ -373,7 +373,7 @@ const ReturBarangPage = () => {
       <ToastContainer position="top-right" autoClose={1000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
       {isPhotoMode || isBarcodeActive ? (
-        <div className="fixed inset-0 bg-black z-50">
+        <div className="fixed inset-0 bg-white z-50">
           <div className="w-full h-full flex flex-col">
             {isPhotoMode ? (
               <>

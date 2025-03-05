@@ -39,6 +39,7 @@ const AdminDashboard = () => {
   const [statisticsPeriod, setStatisticsPeriod] = useState("daily");
   const [statisticsData, setStatisticsData] = useState([]);
   const [workerStats, setWorkerStats] = useState([]);
+  // Initialize expeditionCounts as an empty array to prevent undefined.length errors
   const [expeditionCounts, setExpeditionCounts] = useState([]);
   const [loadingExpeditions, setLoadingExpeditions] = useState(false);
   // Add state for chart series visibility
@@ -92,6 +93,7 @@ const AdminDashboard = () => {
       if (selectedStatus !== "all") params.append("status", selectedStatus);
       params.append("page", pagination.currentPage);
 
+      setLoadingExpeditions(true);
       const response = await axios.get(`${urlApi}/api/v1/resi-terpack?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -99,6 +101,9 @@ const AdminDashboard = () => {
       });
       setData(response.data.data);
       setPagination(response.data.pagination);
+      // Add null check for expeditionCounts
+      setExpeditionCounts(response.data.countEkspedisiToday || []);
+      setLoadingExpeditions(false);
 
       // Calculate status counts
       const counts = response.data.data.reduce((acc, item) => {
@@ -107,6 +112,7 @@ const AdminDashboard = () => {
       }, {});
       setStatusCounts(counts);
     } catch (err) {
+      setLoadingExpeditions(false);
       if (err.response?.status !== 401) {
         // Only show error if not 401
         message.error("Failed to fetch data");
@@ -144,27 +150,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchExpeditionCounts = async () => {
-    try {
-      setLoadingExpeditions(true);
-      const params = new URLSearchParams();
-      if (startDate) params.append("startDate", startDate + " 00:00:00");
-      if (endDate) params.append("endDate", endDate + " 23:59:59");
-
-      const response = await axios.get(`${urlApi}/api/v1/expedition-counts?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      setExpeditionCounts(response.data.data);
-    } catch (err) {
-      if (err.response?.status !== 401) {
-        message.error("Failed to fetch expedition counts");
-      }
-    } finally {
-      setLoadingExpeditions(false);
-    }
-  };
 
   const getUserRole = () => {
     const token = localStorage.getItem("token");
@@ -218,12 +203,6 @@ const AdminDashboard = () => {
     }
   }, [statisticsPeriod]);
 
-  useEffect(() => {
-    const userRole = getUserRole();
-    if (userRole.includes("superadmin")) {
-      fetchExpeditionCounts();
-    }
-  }, [startDate, endDate]);
 
   const handleExport = async () => {
     try {
@@ -356,7 +335,10 @@ const AdminDashboard = () => {
             <div className="sticky top-0 bg-white z-10 pb-2 mb-2 border-b">
               <div className="flex justify-between items-center">
                 <h3 className="font-bold text-lg text-gray-800">Expedition Summary</h3>
-                <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">{expeditionCounts.length} couriers</span>
+                {/* Add null check for expeditionCounts.length */}
+                <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                  {expeditionCounts?.length || 0} couriers
+                </span>
               </div>
               <p className="text-sm text-gray-500">Breakdown of pickout by expedition service</p>
             </div>
@@ -383,26 +365,6 @@ const AdminDashboard = () => {
               )}
             </div>
 
-            {/* Date filter controls */}
-            <div className="flex gap-2 mt-2">
-              <input
-                type="date"
-                className="px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-full sm:w-auto"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                placeholder="Start date"
-              />
-              <input
-                type="date"
-                className="px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-full sm:w-auto"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                placeholder="End date"
-              />
-              <button onClick={fetchExpeditionCounts} className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-xs transition-colors">
-                Apply
-              </button>
-            </div>
 
             <div className={`flex flex-col gap-3 md:gap-4 items-center justify-start`}>
               {loadingExpeditions && (
@@ -411,7 +373,8 @@ const AdminDashboard = () => {
                 </div>
               )}
 
-              {!loadingExpeditions && expeditionCounts.length === 0 && (
+              {/* Add null check for expeditionCounts.length */}
+              {!loadingExpeditions && (!expeditionCounts || expeditionCounts.length === 0) && (
                 <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
                   <div className="bg-gray-100 p-4 rounded-full mb-3">
                     <FaSearch className="text-gray-400 text-2xl" />
@@ -421,60 +384,60 @@ const AdminDashboard = () => {
                 </div>
               )}
 
-              {!loadingExpeditions &&
-                expeditionCounts.map((ekspedisi, index) => {
-                  // Generate consistent colors based on expedition name
-                  const stringToColor = (str) => {
-                    let hash = 0;
-                    for (let i = 0; i < str.length; i++) {
-                      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-                    }
-                    let color = "#";
-                    for (let i = 0; i < 3; i++) {
-                      const value = (hash >> (i * 8)) & 0xff;
-                      color += ("00" + value.toString(16)).substr(-2);
-                    }
-                    return color;
-                  };
+              {/* Add null check for expeditionCounts before mapping */}
+              {!loadingExpeditions && expeditionCounts && expeditionCounts.map((ekspedisi, index) => {
+                // Generate consistent colors based on expedition name
+                const stringToColor = (str) => {
+                  let hash = 0;
+                  for (let i = 0; i < str.length; i++) {
+                    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                  }
+                  let color = "#";
+                  for (let i = 0; i < 3; i++) {
+                    const value = (hash >> (i * 8)) & 0xff;
+                    color += ("00" + value.toString(16)).substr(-2);
+                  }
+                  return color;
+                };
 
-                  const baseColor = stringToColor(ekspedisi.nama_ekspedisi);
-                  const isActive = activeEkspedisi === ekspedisi.nama_ekspedisi;
-                  const isHovered = hoveredExpedition === ekspedisi.nama_ekspedisi;
+                const baseColor = stringToColor(ekspedisi.nama_ekspedisi);
+                const isActive = activeEkspedisi === ekspedisi.nama_ekspedisi;
+                const isHovered = hoveredExpedition === ekspedisi.nama_ekspedisi;
 
-                  return (
+                return (
+                  <div
+                    className={`w-full border-2 rounded-lg transition-all duration-200 overflow-hidden flex items-center cursor-pointer
+                    ${isActive ? "border-blue-500 shadow-md bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:shadow-md"}
+                    ${isHovered ? "transform scale-[1.02]" : ""}`}
+                    key={index}
+                    onClick={() => setActiveEkspedisi(ekspedisi.nama_ekspedisi)}
+                    onMouseEnter={() => setHoveredExpedition(ekspedisi.nama_ekspedisi)}
+                    onMouseLeave={() => setHoveredExpedition(null)}
+                  >
                     <div
-                      className={`w-full border-2 rounded-lg transition-all duration-200 overflow-hidden flex items-center cursor-pointer
-                      ${isActive ? "border-blue-500 shadow-md bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:shadow-md"}
-                      ${isHovered ? "transform scale-[1.02]" : ""}`}
-                      key={index}
-                      onClick={() => setActiveEkspedisi(ekspedisi.nama_ekspedisi)}
-                      onMouseEnter={() => setHoveredExpedition(ekspedisi.nama_ekspedisi)}
-                      onMouseLeave={() => setHoveredExpedition(null)}
+                      className="flex items-center justify-center h-16 w-16 md:h-20 md:w-20 flex-shrink-0"
+                      style={{ backgroundColor: `${baseColor}25` }} // Light version of the color
                     >
-                      <div
-                        className="flex items-center justify-center h-16 w-16 md:h-20 md:w-20 flex-shrink-0"
-                        style={{ backgroundColor: `${baseColor}25` }} // Light version of the color
-                      >
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${baseColor}` }}>
-                          <FaTruck className="text-white text-lg" />
-                        </div>
-                      </div>
-
-                      <div className="flex-grow flex items-center justify-between p-3 md:p-4">
-                        <div>
-                          <h3 className="font-semibold text-base md:text-lg text-gray-800">{ekspedisi.nama_ekspedisi}</h3>
-                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Courier</span>
-                        </div>
-                        <div className="text-right flex flex-col items-end">
-                          <p className="text-xs text-gray-500 font-medium">Total Packages</p>
-                          <p className="font-bold text-lg md:text-2xl" style={{ color: baseColor }}>
-                            {ekspedisi.total_resi}
-                          </p>
-                        </div>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${baseColor}` }}>
+                        <FaTruck className="text-white text-lg" />
                       </div>
                     </div>
-                  );
-                })}
+
+                    <div className="flex-grow flex items-center justify-between p-3 md:p-4">
+                      <div>
+                        <h3 className="font-semibold text-base md:text-lg text-gray-800">{ekspedisi.nama_ekspedisi}</h3>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Courier</span>
+                      </div>
+                      <div className="text-right flex flex-col items-end">
+                        <p className="text-xs text-gray-500 font-medium">Total Packages</p>
+                        <p className="font-bold text-lg md:text-2xl" style={{ color: baseColor }}>
+                          {ekspedisi.total_resi}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

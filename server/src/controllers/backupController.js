@@ -58,7 +58,7 @@ const backupDatabase = async (backupDir) => {
 };
 
 const backupImages = async (backupDir) => {
-  const sourceDir = path.join(__dirname, "../../uploads");
+  const sourceDir = path.join("/var/www/html/uploads");
   const destDir = path.join(backupDir, "images");
 
   // Create images directory if it doesn't exist

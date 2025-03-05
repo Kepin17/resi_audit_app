@@ -837,6 +837,7 @@ const exportBarang = async (req, res) => {
           ELSE 'Status tidak diketahui'
         END as status_description
       FROM barang b
+      
       LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
       LEFT JOIN (
         SELECT p1.resi_id, 

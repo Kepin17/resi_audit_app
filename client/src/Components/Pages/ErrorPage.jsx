@@ -14,7 +14,7 @@ const ErrorPage = () => {
       <div className="error-container">
         <div className="error-code">
           <span>4</span>
-          <div className="globe"></div>
+          <div className="circle"></div>
           <span>4</span>
         </div>
         <h2 className="error-title">Page Not Found</h2>

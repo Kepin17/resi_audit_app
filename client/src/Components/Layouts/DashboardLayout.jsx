@@ -144,7 +144,16 @@ const DashboardLayout = ({ children, activePage }) => {
 
       // Get filename from response headers or use default
       const contentDisposition = response.headers["content-disposition"];
-      const fileName = contentDisposition ? contentDisposition.split("filename=")[1] : "backup.zip";
+      let fileName = "backup.zip";
+      
+      if (contentDisposition) {
+        // Properly extract filename from content-disposition header
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(contentDisposition);
+        if (matches != null && matches[1]) {
+          fileName = matches[1].replace(/['"]/g, '');
+        }
+      }
 
       link.setAttribute("download", fileName);
       document.body.appendChild(link);
