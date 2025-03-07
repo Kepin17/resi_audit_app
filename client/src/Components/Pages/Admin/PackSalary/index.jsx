@@ -34,6 +34,7 @@ const PackSalary = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [statusBayar, setStatusBayar] = useState("");
   const [todayStats, setTodayStats] = useState({
     totalWorkers: 0,
     totalPayments: 0,
@@ -86,6 +87,10 @@ const PackSalary = () => {
         params.append("endDate", endDate);
       }
 
+      if (statusBayar) {
+        params.append("is_dibayar", statusBayar === "Sudah Dibayar" ? 1 : 0);
+      }
+
       url.search = params.toString();
 
       const response = await axios.get(url.toString(), {
@@ -108,7 +113,7 @@ const PackSalary = () => {
 
   useEffect(() => {
     fetchGajiPacking(currentPage, pageSize, searchText);
-  }, [currentPage, pageSize, searchText, dateRange]);
+  }, [currentPage, pageSize, searchText, dateRange, statusBayar]);
 
   const fetchTodayStats = async () => {
     setStatsLoading(true);
@@ -315,6 +320,10 @@ const PackSalary = () => {
         params.append("endDate", dateRange[1].format("YYYY-MM-DD"));
       }
 
+      if (statusBayar) {
+        params.append("is_dibayar", statusBayar === "Sudah Dibayar" ? 1 : 0);
+      }
+
       const response = await axios.get(`${urlApi}/api/v1/gaji/packing-export?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -336,8 +345,7 @@ const PackSalary = () => {
 
       message.success("File berhasil diexport");
     } catch (error) {
-      console.error("Error exporting file:", error);
-      message.error("Gagal mengexport file");
+      message.error(error.response?.data?.message || "Gagal mengekspor data");
     } finally {
       setExportLoading(false);
     }
@@ -455,6 +463,22 @@ const PackSalary = () => {
             <div className="flex flex-col sm:flex-row gap-4">
               <RangePicker onChange={handleDateChange} showTime={false} allowClear format="YYYY-MM-DD" className="flex-1 h-10 border-gray-200" placeholder={["Start date", "End date"]} />
               <Search placeholder="Search by name" onSearch={handleSearch} allowClear className="flex-1 h-10" size="middle" />
+            </div>
+
+            <div className="flex flex-wrap gap-4 mt-4">
+              {["Sudah Dibayar", "Belum Dibayar"].map((status) => (
+                <button
+                  className={`border-2 px-3 pt-1 rounded-md 
+                  flex items-center text-md ${statusBayar === status ? "bg-blue-600 text-white border-blue-500" : "border-gray-100"}
+                  hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors
+                  `}
+                  onClick={() => {
+                    setStatusBayar(status);
+                  }}
+                >
+                  {...status}
+                </button>
+              ))}
             </div>
           </div>
         </div>

@@ -396,9 +396,8 @@ const AdminBarangSection = () => {
         duration: 3,
       });
     } catch (error) {
-      console.error("Error exporting data:", error);
       message.error({
-        content: "Gagal mengexport data",
+        content: error.response?.data?.message || "Gagal melakukan export data",
         key: "export",
         duration: 3,
       });

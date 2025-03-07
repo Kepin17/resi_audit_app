@@ -17,14 +17,50 @@ const LoginPage = () => {
   const [error, setError] = React.useState("");
   const [success, setSuccess] = React.useState(false);
   const [animateIn, setAnimateIn] = useState(false);
+  const [timeoutRemaining, setTimeoutRemaining] = useState(0);
 
   useEffect(() => {
     // Trigger animation after component mount
     setTimeout(() => setAnimateIn(true), 100);
+
+    // Check for existing timeout
+    const checkTimeout = () => {
+      const timeoutData = localStorage.getItem("loginTimeout");
+      if (timeoutData) {
+        const { expiry } = JSON.parse(timeoutData);
+        const now = Date.now();
+        if (now < expiry) {
+          setTimeoutRemaining(Math.ceil((expiry - now) / 1000));
+          return true;
+        } else {
+          localStorage.removeItem("loginTimeout");
+        }
+      }
+      return false;
+    };
+
+    // Update countdown timer
+    const timer = setInterval(() => {
+      if (timeoutRemaining > 0) {
+        setTimeoutRemaining((prev) => prev - 1);
+      } else {
+        checkTimeout();
+      }
+    }, 1000);
+
+    checkTimeout();
+    return () => clearInterval(timer);
   }, []);
 
   const loginHandler = (e) => {
     e.preventDefault();
+
+    // Check if we're in timeout
+    if (timeoutRemaining > 0) {
+      setError(`Terlalu banyak percobaan. Silakan tunggu ${timeoutRemaining} detik.`);
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
@@ -32,6 +68,8 @@ const LoginPage = () => {
       .post(`${urlApi}/api/v1/auth/login`, loginData)
       .then((res) => {
         setSuccess(true);
+        localStorage.removeItem("loginAttempts");
+        localStorage.removeItem("loginTimeout");
         const getToken = res.data.yourToken;
         localStorage.setItem("token", getToken);
         const decodeToken = jwtDecode(getToken);
@@ -46,12 +84,30 @@ const LoginPage = () => {
         }, 1000);
       })
       .catch((err) => {
-        if (err.response) {
-          setError(err.response.data.message || "Login gagal. Periksa username dan password.");
-        } else if (err.request) {
-          setError("Tidak dapat terhubung ke server. Periksa koneksi internet Anda.");
+        // Handle failed login attempt
+        const attempts = Number(localStorage.getItem("loginAttempts") || 0) + 1;
+        localStorage.setItem("loginAttempts", attempts);
+
+        if (attempts >= 3) {
+          const timeoutMinutes = Math.pow(3, Math.floor(attempts / 3));
+          const expiry = Date.now() + timeoutMinutes * 60 * 1000;
+          localStorage.setItem(
+            "loginTimeout",
+            JSON.stringify({
+              expiry,
+              attempts,
+            })
+          );
+          setTimeoutRemaining(timeoutMinutes * 60);
+          setError(`Terlalu banyak percobaan. Silakan tunggu ${timeoutMinutes} menit.`);
         } else {
-          setError("Terjadi kesalahan. Silakan coba lagi.");
+          if (err.response) {
+            setError(`${err.response.data.message || "Login gagal. Periksa username dan password."} (Percobaan ${attempts} dari 3)`);
+          } else if (err.request) {
+            setError("Tidak dapat terhubung ke server. Periksa koneksi internet Anda.");
+          } else {
+            setError("Terjadi kesalahan. Silakan coba lagi.");
+          }
         }
       })
       .finally(() => {
@@ -102,9 +158,15 @@ const LoginPage = () => {
               </div>
             </div>
 
-            {error && <div className="text-red-500 text-sm font-medium bg-red-50 p-4 rounded-md border-l-4 border-red-500 animate-pulse">{error}</div>}
+            {error && <div className="text-red-500 text-sm font-medium bg-red-50 p-4 rounded-md border-l-4 border-red-500 ">{error}</div>}
 
-            {success && <div className="text-green-500 text-sm font-medium bg-green-50 p-4 rounded-md border-l-4 border-green-500 animate-pulse">Login berhasil! Mengalihkan...</div>}
+            {success && <div className="text-green-500 text-sm font-medium bg-green-50 p-4 rounded-md border-l-4 border-green-500 ">Login berhasil! Mengalihkan...</div>}
+
+            {timeoutRemaining > 0 && (
+              <div className="text-red-500 text-sm font-medium bg-red-50 p-4 rounded-md border-l-4 border-red-500">
+                Akun terkunci. Silakan tunggu {Math.floor(timeoutRemaining / 60)}:{(timeoutRemaining % 60).toString().padStart(2, "0")} menit
+              </div>
+            )}
 
             <button
               type="submit"

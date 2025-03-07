@@ -1,8 +1,5 @@
 import React from "react";
 import Form from "../Elements/Form";
-import SubTitle from "../Elements/SubTitle";
-
-import { FaDoorClosed } from "react-icons/fa";
 
 const AuthLayout = ({ children, onSubmit }) => {
   return (
