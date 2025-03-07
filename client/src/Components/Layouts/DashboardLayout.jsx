@@ -340,7 +340,7 @@ const DashboardLayout = ({ children, activePage }) => {
                 </div>
                 <div className="text-center mb-4 md:mb-0">
                   <p className="text-sm">&copy; {new Date().getFullYear()} All rights reserved.</p>
-                  <p className="text-xs text-gray-300">Version 1.0.2</p>
+                  <p className="text-xs text-gray-300">Version 1.4.3 - Aplha Tester</p>
                 </div>
                 <div className="text-sm text-gray-300">
                   <p>{moment(currentTime.toLocaleDateString()).format("LLL")}</p>

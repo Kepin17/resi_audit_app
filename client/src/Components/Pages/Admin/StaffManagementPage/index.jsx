@@ -306,11 +306,11 @@ const StaffManagementPage = () => {
           title={editingStaff ? "Edit Staff" : "Add Staff"}
         >
           <Form form={form} onFinish={handleSubmit} layout="vertical" preserve={false}>
-            <Form.Item name="username" label="username" rules={[{ required: true, message: "Please input staff username!" }]}>
+            <Form.Item name="username" label="Username" rules={[{ required: true, message: "Please input staff username!" }]}>
               <Input />
             </Form.Item>
 
-            <Form.Item name="nama_pekerja" label="nama_pekerja" rules={[{ required: true, message: "Please input staff name!" }]}>
+            <Form.Item name="nama_pekerja" label="Nama Pekerja" rules={[{ required: true, message: "Please input staff name!" }]}>
               <Input />
             </Form.Item>
 

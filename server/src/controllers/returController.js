@@ -608,7 +608,8 @@ const exportRetur = async (req, res) => {
         b.note,
         b.created_at,
         b.updated_at,
-        COALESCE(latest_process.status_retur, 'diproses') as status_retur
+        COALESCE(latest_process.status_retur, 'diproses') as status_retur,
+        latest_process.nama_pekerja as diterima_oleh
       ${baseQuery}
       ${whereClause}
       ORDER BY b.created_at DESC
@@ -625,6 +626,7 @@ const exportRetur = async (req, res) => {
       { header: "Created At", key: "created_at", width: 20 },
       { header: "Updated At", key: "updated_at", width: 20 },
       { header: "Status", key: "status_retur", width: 15 },
+      { header: "Diterima Oleh", key: "diterima_oleh", width: 20 }
     ];
 
     // Style the header row
@@ -637,6 +639,7 @@ const exportRetur = async (req, res) => {
         ...row,
         created_at: moment(row.created_at).format("YYYY-MM-DD HH:mm:ss"),
         updated_at: moment(row.updated_at).format("YYYY-MM-DD HH:mm:ss"),
+        diterima_oleh: row.diterima_oleh || '-'
       });
     });
 
