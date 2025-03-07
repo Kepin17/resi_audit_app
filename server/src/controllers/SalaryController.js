@@ -89,7 +89,7 @@ const getGajiPacking = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
-    const { search, status, startDate, endDate } = req.query;
+    const { search, status, startDate, endDate, is_dibayar } = req.query;
 
     let whereConditions = [];
     let queryParams = [];
@@ -107,6 +107,11 @@ const getGajiPacking = async (req, res) => {
     if (startDate && endDate) {
       whereConditions.push("gaji_pegawai.updated_at BETWEEN ? AND ?");
       queryParams.push(startDate, endDate);
+    }
+
+    if(is_dibayar && is_dibayar !== 1){
+      whereConditions.push("gaji_pegawai.is_dibayar = ?");
+      queryParams.push(is_dibayar);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
@@ -328,7 +333,7 @@ const importGajiFromExcel = async (req, res) => {
 
 const exportGaji = async (req, res) => {
   try {
-    const { search, startDate, endDate } = req.query;
+    const { search, startDate, endDate, is_dibayar } = req.query;
 
     // Build the WHERE clause dynamically
     let whereConditions = [];
@@ -343,6 +348,13 @@ const exportGaji = async (req, res) => {
       whereConditions.push("DATE(gaji_pegawai.updated_at) BETWEEN ? AND ?");
       queryParams.push(startDate, endDate);
     }
+
+    
+    if(is_dibayar && is_dibayar !== "Semua"){
+      whereConditions.push("gaji_pegawai.is_dibayar = ?");
+      queryParams.push(is_dibayar);
+    }
+
 
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
