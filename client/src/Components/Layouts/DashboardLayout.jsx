@@ -145,13 +145,13 @@ const DashboardLayout = ({ children, activePage }) => {
       // Get filename from response headers or use default
       const contentDisposition = response.headers["content-disposition"];
       let fileName = "backup.zip";
-      
+
       if (contentDisposition) {
         // Properly extract filename from content-disposition header
         const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
         const matches = filenameRegex.exec(contentDisposition);
         if (matches != null && matches[1]) {
-          fileName = matches[1].replace(/['"]/g, '');
+          fileName = matches[1].replace(/['"]/g, "");
         }
       }
 
@@ -171,11 +171,11 @@ const DashboardLayout = ({ children, activePage }) => {
   };
 
   return (
-    <div className="bg-slate-900 min-h-screen">
+    <div className="bg-slate-100 min-h-screen">
       <div className="flex flex-col md:flex-row py-2 px-2 md:px-5 gap-5">
         {/* Mobile Hamburger Menu */}
         <div className="md:hidden flex items-center p-4">
-          <button onClick={toggleSidebar} className="text-white text-2xl">
+          <button onClick={toggleSidebar} className="text-slate-500 text-2xl">
             <HiMenuAlt3 />
           </button>
         </div>
@@ -183,20 +183,20 @@ const DashboardLayout = ({ children, activePage }) => {
         {/* Sidebar */}
         <nav
           className={`
-          sidebar w-[85%] md:w-[250px] lg:w-[300px] bg-gradient-to-b from-blue-800 to-blue-900 shadow-xl rounded-md h-screen
+          sidebar w-[85%] md:w-[250px] lg:w-[300px] bg-gradient-to-b from-slate-50 to-slate-50 shadow-xl rounded-md h-screen
           fixed md:sticky top-0 left-0 z-40
           transform transition-transform duration-300 ease-in-out 
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
         >
           {/* Sidebar Header */}
-          <div className="h-[6rem] flex items-center justify-between px-4 border-b border-blue-700">
+          <div className="h-[6rem] flex items-center justify-between px-4 ">
             <Link to="/admin">
-              <Title titleStyle="text-white font-semibold text-xl flex items-center gap-2">
+              <Title titleStyle="text-black font-semibold text-xl flex items-center gap-2">
                 <FaDatabase className="text-2xl" /> SIAR DASHBOARD
               </Title>
             </Link>
-            <button onClick={toggleSidebar} className="md:hidden text-white text-2xl hover:text-gray-300">
+            <button onClick={toggleSidebar} className="md:hidden text-slate-700 text-2xl hover:text-gray-300">
               ✕
             </button>
           </div>
@@ -209,15 +209,15 @@ const DashboardLayout = ({ children, activePage }) => {
                 <ul className="space-y-1">
                   {user?.roles?.includes("superadmin") && (
                     <>
-                      <div className="text-gray-300 text-sm font-medium mb-2 px-3">STAFF MANAGEMENT</div>
+                      <div className="text-gray-500 text-sm font-medium mb-2 px-3">STAFF MANAGEMENT</div>
                       <li>
-                        <Link to="/admin/staff" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "staff" && "bg-blue-700"}`}>
+                        <Link to="/admin/staff" className={`flex items-center p-3 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors ${activePage === "staff" && "bg-slate-300 "}`}>
                           <FaUsers className="w-5 h-5" />
                           <span className="ml-3">Data Staff</span>
                         </Link>
                       </li>
                       <li>
-                        <Link to="/admin/staff/log-login" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "log" && "bg-blue-700"}`}>
+                        <Link to="/admin/staff/log-login" className={`flex items-center p-3 text-slate-700 rounded-lg hover:bg-slate-300  transition-colors ${activePage === "log" && "bg-slate-300 "}`}>
                           <FaHistory className="w-5 h-5" />
                           <span className="ml-3">Log Login Staff</span>
                         </Link>
@@ -226,7 +226,7 @@ const DashboardLayout = ({ children, activePage }) => {
                   )}
                   {user?.roles?.includes("finance") && (
                     <li>
-                      <Link to="/admin/staff/packer-salary" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "Packing Salary" && "bg-blue-700"}`}>
+                      <Link to="/admin/staff/packer-salary" className={`flex items-center p-3 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors ${activePage === "Packing Salary" && "bg-slate-300 "}`}>
                         <FaMoneyBillWave className="w-5 h-5" />
                         <span className="ml-3">Packer Salary</span>
                       </Link>
@@ -238,10 +238,10 @@ const DashboardLayout = ({ children, activePage }) => {
               {/* Data Management Section */}
               {user?.roles?.includes("logistic_manager") && (
                 <li className="menu-section">
-                  <div className="text-gray-300 text-sm font-medium mb-2 px-3">LOGISTIC MANAGEMENT</div>
+                  <div className="text-gray-500 text-sm font-medium mb-2 px-3">LOGISTIC MANAGEMENT</div>
                   <ul className="space-y-1">
                     <li>
-                      <Link to="/admin/logictic_management" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "Logistic" && "bg-blue-700"}`}>
+                      <Link to="/admin/logictic_management" className={`flex items-center p-3 text-slate-700 rounded-lg hover:bg-slate-300  transition-colors ${activePage === "Logistic" && "bg-slate-300 "}`}>
                         <FaTruck className="w-5 h-5" />
                         <span className="ml-3">Logistic</span>
                       </Link>
@@ -252,17 +252,17 @@ const DashboardLayout = ({ children, activePage }) => {
 
               {/* Data Management Section */}
               <li className="menu-section">
-                <div className="text-gray-300 text-sm font-medium mb-2 px-3">DATA MANAGEMENT</div>
+                <div className="text-gray-500 text-sm font-medium mb-2 px-3">DATA MANAGEMENT</div>
                 <ul className="space-y-1">
                   <li>
-                    <Link to="/admin/barang" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "barang" && "bg-blue-700"}`}>
+                    <Link to="/admin/barang" className={`flex items-center p-3 text-slate-700 rounded-lg hover:bg-slate-300  transition-colors ${activePage === "barang" && "bg-slate-300 "}`}>
                       <FaBoxes className="w-5 h-5" />
                       <span className="ml-3">Data Resi</span>
                     </Link>
                   </li>
                   {user?.roles?.includes("retur_manager") && (
                     <li>
-                      <Link to="/admin/retur-barang" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "retur" && "bg-blue-700"}`}>
+                      <Link to="/admin/retur-barang" className={`flex items-center p-3 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors ${activePage === "retur" && "bg-slate-300 "}`}>
                         <TbTruckReturn className="w-5 h-5" />
                         <span className="ml-3">Retur Barang</span>
                       </Link>
@@ -270,7 +270,7 @@ const DashboardLayout = ({ children, activePage }) => {
                   )}
                   {(user?.roles?.includes("picker") || user?.roles?.includes("packing") || user?.roles?.includes("pickout") || user?.roles?.includes("retur_barang")) && (
                     <li>
-                      <Link to="/" className={`flex items-center p-3 text-white rounded-lg hover:bg-blue-700 transition-colors ${activePage === "scan" && "bg-blue-700"}`}>
+                      <Link to="/" className={`flex items-center p-3 text-slate-700 rounded-lg hover:bg-slate-300  transition-colors ${activePage === "scan" && "bg-slate-300 "}`}>
                         <FaQrcode className="w-5 h-5" />
                         <span className="ml-3">Scan Resi</span>
                       </Link>
@@ -281,13 +281,13 @@ const DashboardLayout = ({ children, activePage }) => {
 
               {/* System Actions */}
               <li className="menu-section mt-auto">
-                <div className="text-gray-300 text-sm font-medium mb-2 px-3">SYSTEM</div>
+                <div className="text-gray-500 text-sm font-medium mb-2 px-3">SYSTEM</div>
                 <ul className="space-y-1">
                   {user?.roles?.includes("superadmin") && (
                     <li>
                       <button
                         onClick={!isLoading ? handleBackup : undefined}
-                        className={`w-full flex items-center p-3 text-white rounded-lg transition-colors ${isLoading ? "bg-gray-600 cursor-not-allowed" : "bg-green-700 hover:bg-green-600"}`}
+                        className={`w-full flex items-center p-3 text-slate-50 rounded-lg transition-colors ${isLoading ? "bg-white cursor-not-allowed" : "bg-green-700 hover:bg-green-600"}`}
                         disabled={isLoading}
                       >
                         <FaDatabase className="w-5 h-5" />
@@ -296,7 +296,7 @@ const DashboardLayout = ({ children, activePage }) => {
                     </li>
                   )}
                   <li>
-                    <button onClick={handleLogout} className="w-full flex items-center p-3 text-white rounded-lg hover:bg-red-600 bg-red-700 transition-colors">
+                    <button onClick={handleLogout} className="w-full flex items-center p-3 text-slate-50 rounded-lg hover:bg-red-600 bg-red-700 transition-colors">
                       <FaSignOutAlt className="w-5 h-5" />
                       <span className="ml-3">Logout</span>
                     </button>
@@ -312,17 +312,17 @@ const DashboardLayout = ({ children, activePage }) => {
 
         {/* Main Content */}
         <div className="h-auto w-full flex flex-col gap-5 ">
-          <nav className="h-auto md:h-[8rem] p-4 md:px-5 bg-blue-700 shadow-lg rounded-lg flex flex-col md:flex-row md:items-center justify-between">
+          <nav className="h-auto md:h-[8rem] p-4 md:px-5 bg-white shadow-lg rounded-lg flex flex-col md:flex-row md:items-center justify-between">
             <div className="flex items-center gap-4">
-              <h1 className="text-white font-semibold text-xl mb-2 md:mb-0">Admin Dashboard</h1>
-              <div className="font-bold text-white flex items-center gap-2">
+              <h1 className="text-slate-700 font-semibold text-xl mb-2 md:mb-0">Admin Dashboard</h1>
+              <div className="font-bold text-slate-700 flex items-center gap-2">
                 <h3>Auto Scan</h3>
                 <div className={`controlToggle w-12 h-5 border-2 rounded-full bg-white relative flex items-center ${isToggleLoading ? "opacity-70 cursor-wait" : "cursor-pointer"}`} onClick={handleToggleAutoScan}>
                   <div className={`toggle w-5 h-5 rounded-full bg-orange-500 transition-all ease-in duration-300 absolute ${toggleAutoScan ? "left-7" : "-left-1"}`}></div>
                 </div>
               </div>
             </div>
-            <div className="profile cursor-pointer relative text-white">
+            <div className="profile cursor-pointer relative text-slate-700">
               <div className="flex gap-2 flex-col">
                 <p>{user.pekerja}</p>
                 <p>{currentTime.toLocaleTimeString()} | Fighting 🔥</p>
@@ -331,18 +331,18 @@ const DashboardLayout = ({ children, activePage }) => {
           </nav>
           {children}
 
-          <footer className="bg-blue-800 text-white rounded-lg shadow-lg p-4 mt-auto">
+          <footer className="bg-white text-slate-700 rounded-lg shadow-lg p-4 mt-auto">
             <div className="container mx-auto">
               <div className="flex flex-col md:flex-row justify-between items-center">
                 <div className="mb-4 md:mb-0 mobile:text-center">
                   <h3 className="text-lg font-semibold">SIAR Dashboard</h3>
-                  <p className="text-sm text-gray-300">Sistem Informasi Audit Resi</p>
+                  <p className="text-sm text-gray-500">Sistem Informasi Audit Resi</p>
                 </div>
                 <div className="text-center mb-4 md:mb-0">
                   <p className="text-sm">&copy; {new Date().getFullYear()} All rights reserved.</p>
-                  <p className="text-xs text-gray-300">Version 1.4.3 - Aplha Tester</p>
+                  <p className="text-xs text-gray-500">Version 1.4.3 - Aplha Tester</p>
                 </div>
-                <div className="text-sm text-gray-300">
+                <div className="text-sm text-gray-500">
                   <p>{moment(currentTime.toLocaleDateString()).format("LLL")}</p>
                 </div>
               </div>

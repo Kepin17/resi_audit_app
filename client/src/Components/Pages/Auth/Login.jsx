@@ -52,12 +52,12 @@ const LoginPage = () => {
         // Check if it's a new day (past midnight)
         const lastDate = new Date(expiry).getDate();
         const currentDate = new Date(now).getDate();
-        
+
         if (currentDate > lastDate) {
           resetLoginAttempts();
           return false;
         }
-        
+
         if (now < expiry) {
           setTimeoutRemaining(Math.ceil((expiry - now) / 1000));
           return true;
@@ -123,23 +123,28 @@ const LoginPage = () => {
       .catch((err) => {
         // Handle failed login attempt
         const attempts = Number(localStorage.getItem("loginAttempts") || 0) + 1;
-        localStorage.setItem("loginAttempts", attempts);
 
-        if (attempts >= 3) {
-          const timeoutMinutes = Math.pow(3, Math.floor(attempts / 3));
-          const expiry = Date.now() + timeoutMinutes * 60 * 1000;
-          localStorage.setItem(
-            "loginTimeout",
-            JSON.stringify({
-              expiry,
-              attempts,
-            })
-          );
-          setTimeoutRemaining(timeoutMinutes * 60);
-          setError(`Terlalu banyak percobaan. Silakan tunggu ${timeoutMinutes} menit.`);
+        if (err.response?.data?.message === "Invalid credentials" || err.response?.message === "User not found") {
+          localStorage.setItem("loginAttempts", attempts);
+
+          if (attempts >= 3) {
+            const timeoutMinutes = Math.pow(3, Math.floor(attempts / 3));
+            const expiry = Date.now() + timeoutMinutes * 60 * 1000;
+            localStorage.setItem(
+              "loginTimeout",
+              JSON.stringify({
+                expiry,
+                attempts,
+              })
+            );
+            setTimeoutRemaining(timeoutMinutes * 60);
+            setError(`Terlalu banyak percobaan. Silakan tunggu ${timeoutMinutes} menit.`);
+          } else {
+            setError(`${err.response.data.message || "Login gagal. Periksa username dan password."} (Percobaan ${attempts} dari 3)`);
+          }
         } else {
           if (err.response) {
-            setError(`${err.response.data.message || "Login gagal. Periksa username dan password."} (Percobaan ${attempts} dari 3)`);
+            setError(err.response.data.message || "Login gagal. Periksa username dan password.");
           } else if (err.request) {
             setError("Tidak dapat terhubung ke server. Periksa koneksi internet Anda.");
           } else {
