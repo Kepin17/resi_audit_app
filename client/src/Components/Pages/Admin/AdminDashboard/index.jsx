@@ -48,8 +48,6 @@ const AdminDashboard = () => {
     pickout: true,
   });
 
-  const [activeEkspedisi, setActiveEkspedisi] = useState("");
-  const [hoveredExpedition, setHoveredExpedition] = useState(null);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
@@ -314,7 +312,7 @@ const AdminDashboard = () => {
               </div>
               <div className="bg-purple-400 rounded-full p-2 sm:p-3 flex items-center gap-2 cursor-pointer hover:bg-purple-300 transition-colors duration-200" onClick={toggleCountActive}>
                 <FaTruck className="text-white text-xl sm:text-2xl" />
-                <FaArrowCircleLeft className={`${isCountActive ? "-rotate-90" : "-rotate-180"} text-white transition-all ease-in duration-300`} />
+                <FaArrowCircleLeft className={`${isCountActive ? "-rotate-90" : "rotate-90"} text-white transition-all ease-in duration-300`} />
               </div>
             </div>
           </div>
@@ -378,9 +376,6 @@ const AdminDashboard = () => {
                     <div
                       className={`w-full border-2 rounded-lg transition-all duration-200 overflow-hidden flex items-center cursor-pointer`}
                       key={index}
-                      onClick={() => setActiveEkspedisi(ekspedisi.nama_ekspedisi)}
-                      onMouseEnter={() => setHoveredExpedition(ekspedisi.nama_ekspedisi)}
-                      onMouseLeave={() => setHoveredExpedition(null)}
                     >
                       <div
                         className="flex items-center justify-center h-16 w-16 md:h-20 md:w-20 flex-shrink-0"
@@ -412,8 +407,8 @@ const AdminDashboard = () => {
       </div>
 
       {/* Statistics Chart Section - Improved Responsiveness */}
-      <div className="grid gap-3 md:gap-6 p-3 md:p-4">
-        <div className="bg-white mobile:w-[22rem] rounded-xl shadow-lg p-4 md:p-6">
+      <div className="grid gap-3 md:gap-6 p-3 md:p-4 ">
+        <div className="bg-white mobile:w-full rounded-xl shadow-lg p-4 md:p-6">
           <div className="flex flex-col space-y-4">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 md:gap-5">
               <h2 className="text-lg md:text-xl font-semibold">Activity Statistics</h2>
@@ -495,7 +490,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Improved Worker Performance Section */}
-        <div className="bg-white mobile:w-[22rem] rounded-xl shadow-lg p-4 md:p-6">
+        <div className="bg-white mobile:w-full rounded-xl shadow-lg p-4 md:p-6">
           <div className="flex flex-col space-y-4">
             <h2 className="text-lg md:text-xl font-semibold">Worker Performance</h2>
             <div className="overflow-x-auto">
@@ -524,7 +519,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Improved Main Content Section */}
-        <div className="bg-white mobile:w-[22rem] rounded-xl shadow-lg p-4 md:p-6">
+        <div className="bg-white mobile:w-full rounded-xl shadow-lg p-4 md:p-6">
           <div className="space-y-4 md:space-y-6">
             {/* Improved Controls Section */}
             <div className="flex flex-col gap-3 md:gap-4">

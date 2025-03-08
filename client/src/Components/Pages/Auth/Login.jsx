@@ -19,6 +19,26 @@ const LoginPage = () => {
   const [animateIn, setAnimateIn] = useState(false);
   const [timeoutRemaining, setTimeoutRemaining] = useState(0);
 
+  const resetLoginAttempts = () => {
+    localStorage.removeItem("loginAttempts");
+    localStorage.removeItem("loginTimeout");
+    setTimeoutRemaining(0);
+  };
+
+  const checkMidnightReset = () => {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const timeUntilMidnight = midnight - now;
+
+    // Set timeout for midnight reset
+    setTimeout(() => {
+      resetLoginAttempts();
+      // Set up next day's reset
+      checkMidnightReset();
+    }, timeUntilMidnight);
+  };
+
   useEffect(() => {
     // Trigger animation after component mount
     setTimeout(() => setAnimateIn(true), 100);
@@ -29,11 +49,20 @@ const LoginPage = () => {
       if (timeoutData) {
         const { expiry } = JSON.parse(timeoutData);
         const now = Date.now();
+        // Check if it's a new day (past midnight)
+        const lastDate = new Date(expiry).getDate();
+        const currentDate = new Date(now).getDate();
+        
+        if (currentDate > lastDate) {
+          resetLoginAttempts();
+          return false;
+        }
+        
         if (now < expiry) {
           setTimeoutRemaining(Math.ceil((expiry - now) / 1000));
           return true;
         } else {
-          localStorage.removeItem("loginTimeout");
+          resetLoginAttempts();
         }
       }
       return false;
@@ -49,6 +78,8 @@ const LoginPage = () => {
     }, 1000);
 
     checkTimeout();
+    checkMidnightReset();
+
     return () => clearInterval(timer);
   }, []);
 
@@ -58,6 +89,12 @@ const LoginPage = () => {
     // Check if we're in timeout
     if (timeoutRemaining > 0) {
       setError(`Terlalu banyak percobaan. Silakan tunggu ${timeoutRemaining} detik.`);
+      return;
+    }
+
+    // Validate empty fields
+    if (!loginData.username.trim() || !loginData.password.trim()) {
+      setError("Username dan password tidak boleh kosong");
       return;
     }
 

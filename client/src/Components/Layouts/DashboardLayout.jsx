@@ -334,7 +334,7 @@ const DashboardLayout = ({ children, activePage }) => {
           <footer className="bg-blue-800 text-white rounded-lg shadow-lg p-4 mt-auto">
             <div className="container mx-auto">
               <div className="flex flex-col md:flex-row justify-between items-center">
-                <div className="mb-4 md:mb-0">
+                <div className="mb-4 md:mb-0 mobile:text-center">
                   <h3 className="text-lg font-semibold">SIAR Dashboard</h3>
                   <p className="text-sm text-gray-300">Sistem Informasi Audit Resi</p>
                 </div>
