@@ -5,7 +5,7 @@ import DashboardLayout from "../../../Layouts/DashboardLayout";
 import { FaArrowCircleLeft, FaFileExport, FaSearch, FaTruck } from "react-icons/fa";
 import { FaCartFlatbed } from "react-icons/fa6";
 import { LuPackageCheck } from "react-icons/lu";
-import { message } from "antd";
+import { Input, message, Form, Button } from "antd";
 import moment from "moment";
 import axios from "axios";
 import urlApi from "../../../../utils/url";
@@ -47,7 +47,6 @@ const AdminDashboard = () => {
     packing: true,
     pickout: true,
   });
-
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
@@ -202,6 +201,10 @@ const AdminDashboard = () => {
         params.append("status", selectedStatus);
       }
 
+      if (searchQuery) {
+        params.append("search", searchQuery);
+      }
+
       const response = await axios.get(`${urlApi}/api/v1/resi-terpack-export?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -221,10 +224,6 @@ const AdminDashboard = () => {
       console.error("Export failed:", err);
       message.error("Failed to export data");
     }
-  };
-
-  const handlePageChange = (page) => {
-    setPagination((prev) => ({ ...prev, currentPage: page }));
   };
 
   const generatePageNumbers = () => {
@@ -373,10 +372,7 @@ const AdminDashboard = () => {
               {!loadingExpeditions &&
                 expeditionCounts.map((ekspedisi, index) => {
                   return (
-                    <div
-                      className={`w-full border-2 rounded-lg transition-all duration-200 overflow-hidden flex items-center cursor-pointer`}
-                      key={index}
-                    >
+                    <div className={`w-full border-2 rounded-lg transition-all duration-200 overflow-hidden flex items-center cursor-pointer`} key={index}>
                       <div
                         className="flex items-center justify-center h-16 w-16 md:h-20 md:w-20 flex-shrink-0"
                         style={{ backgroundColor: `` }} // Light version of the color
@@ -491,7 +487,6 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Worker Performance Section */}
         <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
           <div className="flex flex-col h-full">
             <h2 className="text-lg md:text-xl font-semibold mb-4">Worker Performance</h2>
@@ -523,25 +518,56 @@ const AdminDashboard = () => {
         {/* Log Table Section */}
         <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
           <div className="flex flex-col h-full">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-              <h2 className="text-lg md:text-xl font-semibold">Activity Log</h2>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  className="px-2 py-1.5 text-xs md:text-sm border rounded-lg"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-                <input
-                  type="date"
-                  className="px-2 py-1.5 text-xs md:text-sm border rounded-lg"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
+            <div className="flex flex-col gap-4 mb-4">
+              {/* Header and Description */}
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg md:text-xl font-semibold">Activity Log</h2>
+                  <p className="text-sm text-gray-500">Track all warehouse activities</p>
+                </div>
+                <Button className="h-full px-3 flex items-center justify-center hover:bg-gray-100 rounded-r-lg" onClick={handleExport} title="Export data">
+                  <FaFileExport className="text-gray-600" /> Export
+                </Button>
+              </div>
+
+              {/* Filters and Search Bar */}
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Date Filters */}
+                <div className="flex flex-col sm:flex-row gap-2 md:w-1/2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <input type="date" className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <input type="date" className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  </div>
+                </div>
+
+                {/* Search and Status Filter */}
+                <div className="flex flex-col sm:flex-row gap-2 md:w-1/2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+                      <option value="all">All Status</option>
+                      <option value="picker">Picker</option>
+                      <option value="packing">Packing</option>
+                      <option value="pickout">Pickout</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                    <div className="relative">
+                      <Input className="w-full py-2" onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search resi or staff" prefix={<FaSearch className="text-gray-400" />} />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="overflow-x-auto flex-grow">
+            {/* Table */}
+            <div className="overflow-x-auto flex-grow rounded-lg border">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -557,21 +583,85 @@ const AdminDashboard = () => {
                       <td className="px-3 py-2 md:px-4 whitespace-nowrap text-xs md:text-sm">{item.resi_id || "N/A"}</td>
                       <td className="px-2 py-2 md:px-3 whitespace-nowrap text-xs md:text-sm">{item.nama_pekerja}</td>
                       <td className="px-2 py-2 md:px-3 whitespace-nowrap">
-                        <span className={`inline-flex text-xs md:text-sm px-2 py-1 rounded-full ${
-                          item.status_proses === "picker" ? "bg-blue-100 text-blue-800" :
-                          item.status_proses === "packing" ? "bg-green-100 text-green-800" :
-                          "bg-purple-100 text-purple-800"
-                        }`}>
+                        <span
+                          className={`inline-flex text-xs md:text-sm px-2 py-1 rounded-full ${
+                            item.status_proses === "picker" ? "bg-blue-100 text-blue-800" : item.status_proses === "packing" ? "bg-green-100 text-green-800" : "bg-purple-100 text-purple-800"
+                          }`}
+                        >
                           {item.status_proses}
                         </span>
                       </td>
-                      <td className="px-2 py-2 md:px-3 whitespace-nowrap text-xs md:text-sm text-gray-500">
-                        {moment(item.created_at).format("DD/MM HH:mm")}
-                      </td>
+                      <td className="px-2 py-2 md:px-3 whitespace-nowrap text-xs md:text-sm text-gray-500">{moment(item.created_at).format("DD/MM HH:mm")}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+              <div className="flex flex-1 justify-between sm:hidden">
+                <button
+                  onClick={() => setPagination((prev) => ({ ...prev, currentPage: prev.currentPage - 1 }))}
+                  disabled={pagination.currentPage === 1}
+                  className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPagination((prev) => ({ ...prev, currentPage: prev.currentPage + 1 }))}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing page <span className="font-medium">{pagination.currentPage}</span> of <span className="font-medium">{pagination.totalPages}</span> pages
+                  </p>
+                </div>
+                <div>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                    <button
+                      onClick={() => setPagination((prev) => ({ ...prev, currentPage: prev.currentPage - 1 }))}
+                      disabled={pagination.currentPage === 1}
+                      className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+
+                    {generatePageNumbers().map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setPagination((prev) => ({ ...prev, currentPage: page }))}
+                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                          page === pagination.currentPage
+                            ? "z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                            : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-offset-0"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+
+                    <button
+                      onClick={() => setPagination((prev) => ({ ...prev, currentPage: prev.currentPage + 1 }))}
+                      disabled={pagination.currentPage === pagination.totalPages}
+                      className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Next</span>
+                      <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
             </div>
           </div>
         </div>
