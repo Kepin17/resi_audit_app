@@ -237,7 +237,8 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
-      const formattedDate = moment(workerPreviousScan[0].created_at).format("DD MMM YYYY HH:mm:ss");
+      moment.locale('id');
+      const formattedDate = moment(workerPreviousScan[0].created_at).format("DD MMM YYYY - HH:mm:ss");
       return res.status(400).send({
         success: false,
         message: `Kamu sudah melakukan scan pada ${formattedDate}`,

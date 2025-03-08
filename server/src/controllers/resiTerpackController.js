@@ -91,7 +91,7 @@ const showResiTerpack = async (req, res) => {
 
     const [rows] = await mysqlPool.query(dataQuery, params);
     const [countResult] = await mysqlPool.query(countQuery, countParams);
-    
+
     // Get expedition counts using the modified query
     let expeditionCounts;
     try {
@@ -100,7 +100,7 @@ const showResiTerpack = async (req, res) => {
       console.error("Error fetching expedition counts:", error);
       expeditionCounts = [];
     }
-    
+
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 
@@ -109,9 +109,9 @@ const showResiTerpack = async (req, res) => {
       message: "Data berhasil ditemukan!",
       data: rows,
       todayCount: todayCount[0].today_count,
-      countEkspedisiToday: expeditionCounts.map(item => ({
+      countEkspedisiToday: expeditionCounts.map((item) => ({
         nama_ekpedisi: item.nama_ekspedisi,
-        total_resi: item.total_resi
+        total_resi: item.total_resi,
       })),
       pagination: {
         currentPage: parseInt(page),
@@ -132,7 +132,7 @@ const showResiTerpack = async (req, res) => {
 
 const exportPackToExcel = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, search } = req.query;
     const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet("Resi Report");
 
@@ -159,6 +159,11 @@ const exportPackToExcel = async (req, res) => {
     if (status && status !== "all") {
       query += ` AND log_proses.status_proses = ?`;
       params.push(status);
+    }
+
+    if (search) {
+      query += ` AND (log_proses.resi_id = ? COLLATE utf8mb4_general_ci OR pekerja.nama_pekerja = ? COLLATE utf8mb4_general_ci)`;
+      params.push(search, search);
     }
 
     query += ` ORDER BY log_proses.created_at DESC`;
