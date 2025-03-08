@@ -406,11 +406,12 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Statistics Chart Section - Improved Responsiveness */}
-      <div className="grid gap-3 md:gap-6 p-3 md:p-4 ">
-        <div className="bg-white mobile:w-full rounded-xl shadow-lg p-4 md:p-6">
+      {/* Statistics Chart Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6 p-3 md:p-4">
+        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 lg:col-span-2">
           <div className="flex flex-col space-y-4">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 md:gap-5">
+            {/* Statistics header and controls section */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
               <h2 className="text-lg md:text-xl font-semibold">Activity Statistics</h2>
               <div className="flex flex-wrap gap-2">
                 {["daily", "weekly", "monthly", "yearly"].map((period) => (
@@ -429,8 +430,8 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Add series toggle buttons */}
-            <div className="flex flex-wrap gap-2">
+            {/* Series toggle buttons with better spacing */}
+            <div className="flex flex-wrap gap-2 pb-2">
               <button
                 onClick={() => toggleSeriesVisibility("picker")}
                 className={`px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1 ${
@@ -460,7 +461,8 @@ const AdminDashboard = () => {
               </button>
             </div>
 
-            <div className="h-[300px] sm:h-[400px] w-full">
+            {/* Adjusted chart height for better visibility */}
+            <div className="h-[350px] sm:h-[400px] lg:h-[450px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={statisticsData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -489,27 +491,27 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Improved Worker Performance Section */}
-        <div className="bg-white mobile:w-full rounded-xl shadow-lg p-4 md:p-6">
-          <div className="flex flex-col space-y-4">
-            <h2 className="text-lg md:text-xl font-semibold">Worker Performance</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm md:text-base">
+        {/* Worker Performance Section */}
+        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
+          <div className="flex flex-col h-full">
+            <h2 className="text-lg md:text-xl font-semibold mb-4">Worker Performance</h2>
+            <div className="overflow-x-auto flex-grow">
+              <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Name</th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Picked</th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Packed</th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Pickout</th>
+                    <th className="px-3 py-2 md:px-4 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Worker</th>
+                    <th className="px-2 py-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Picked</th>
+                    <th className="px-2 py-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Packed</th>
+                    <th className="px-2 py-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Pickout</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {workerStats.map((worker, index) => (
                     <tr key={worker.id_pekerja} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">{worker.nama_pekerja}</td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-blue-600 font-semibold">{worker.picker_count} scan</td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-green-600 font-semibold">{worker.packing_count} scan</td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-purple-600 font-semibold">{worker.pickout_count} scan</td>
+                      <td className="px-3 py-2 md:px-4 whitespace-nowrap text-xs md:text-sm font-medium text-gray-900">{worker.nama_pekerja}</td>
+                      <td className="px-2 py-2 md:px-3 whitespace-nowrap text-xs md:text-sm text-blue-600">{worker.picker_count}</td>
+                      <td className="px-2 py-2 md:px-3 whitespace-nowrap text-xs md:text-sm text-green-600">{worker.packing_count}</td>
+                      <td className="px-2 py-2 md:px-3 whitespace-nowrap text-xs md:text-sm text-purple-600">{worker.pickout_count}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -518,112 +520,58 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Improved Main Content Section */}
-        <div className="bg-white mobile:w-full rounded-xl shadow-lg p-4 md:p-6">
-          <div className="space-y-4 md:space-y-6">
-            {/* Improved Controls Section */}
-            <div className="flex flex-col gap-3 md:gap-4">
-              <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+        {/* Log Table Section */}
+        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
+          <div className="flex flex-col h-full">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+              <h2 className="text-lg md:text-xl font-semibold">Activity Log</h2>
+              <div className="flex gap-2">
                 <input
-                  type="text"
-                  placeholder="Search by Resi ID or Staff Name"
-                  className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex-1 transition-all text-sm"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  type="date"
+                  className="px-2 py-1.5 text-xs md:text-sm border rounded-lg"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
                 />
-                <div className="flex gap-2">
-                  <input
-                    type="date"
-                    className="px-2 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full md:w-auto"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
-                  <input
-                    type="date"
-                    className="px-2 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full md:w-auto"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 md:px-6 md:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 shadow-md text-sm">
-                  <FaFileExport /> Export Data
-                </button>
+                <input
+                  type="date"
+                  className="px-2 py-1.5 text-xs md:text-sm border rounded-lg"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
               </div>
             </div>
 
-            {/* Improved Status Filters */}
-            <div className="flex flex-wrap gap-2">
-              {["all", "picker", "packing", "pickout", "cancelled"].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setSelectedStatus(status)}
-                  className={`px-3 py-1 md:px-6 md:py-2 rounded-lg transition-all duration-200 text-xs md:text-sm 
-                  ${selectedStatus === status ? "bg-blue-500 text-white shadow-md transform scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
-              ))}
-            </div>
-
-            {/* Improved Table Section */}
-            <div className="overflow-x-auto bg-white rounded-lg shadow">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <div className="overflow-x-auto flex-grow">
+              <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    {["Resi ID", "Staff Name", "Activity", "Date & Time"].map((header) => (
-                      <th key={header} className="px-3 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {header}
-                      </th>
-                    ))}
+                    <th className="px-3 py-2 md:px-4 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Resi ID</th>
+                    <th className="px-2 py-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                    <th className="px-2 py-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-2 py-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {data.map((order, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">{!order.resi_id ? "Telah dihapus / bermasalah" : order.resi_id}</td>
-                      <td className="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">{order.nama_pekerja}</td>
-                      <td className="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 md:px-3 md:py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            order.status_proses === "picker"
-                              ? "bg-blue-100 text-blue-800"
-                              : order.status_proses === "packing"
-                              ? "bg-green-100 text-green-800"
-                              : order.status_proses === "pickout"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {`Telah ${order.status_proses} resi`}
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.map((item, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 md:px-4 whitespace-nowrap text-xs md:text-sm">{item.resi_id || "N/A"}</td>
+                      <td className="px-2 py-2 md:px-3 whitespace-nowrap text-xs md:text-sm">{item.nama_pekerja}</td>
+                      <td className="px-2 py-2 md:px-3 whitespace-nowrap">
+                        <span className={`inline-flex text-xs md:text-sm px-2 py-1 rounded-full ${
+                          item.status_proses === "picker" ? "bg-blue-100 text-blue-800" :
+                          item.status_proses === "packing" ? "bg-green-100 text-green-800" :
+                          "bg-purple-100 text-purple-800"
+                        }`}>
+                          {item.status_proses}
                         </span>
                       </td>
-                      <td className="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">{moment(order.created_at).format(window.innerWidth < 640 ? "DD/MM/YY HH:mm" : "LLLL")}</td>
+                      <td className="px-2 py-2 md:px-3 whitespace-nowrap text-xs md:text-sm text-gray-500">
+                        {moment(item.created_at).format("DD/MM HH:mm")}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            {/* Improved Pagination */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 md:gap-4 mt-4 md:mt-6">
-              <div className="flex flex-wrap gap-1 md:gap-2 justify-center sm:justify-start">
-                {generatePageNumbers().map((pageNum) => (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`px-2 py-1 md:px-4 md:py-2 rounded-lg transition-colors text-xs md:text-sm
-                    ${pagination.currentPage === pageNum ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
-              </div>
-              <span className="text-xs md:text-sm text-gray-600">
-                Page {pagination.currentPage} of {pagination.totalPages}
-              </span>
             </div>
           </div>
         </div>

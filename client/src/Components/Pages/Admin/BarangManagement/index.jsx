@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import DashboardLayout from "../../../Layouts/DashboardLayout";
 import SearchFragment from "../../../Fragments/SearchFragment";
 import moment from "moment";
-import { DatePicker, Form, Input, message, Table, Calendar } from "antd";
+import { DatePicker, Form, Input, message, Table, Calendar, Tag } from "antd";
 import Button from "../../../Elements/Button";
 import { MdOutlinePendingActions, MdLocalShipping } from "react-icons/md";
 import { MdCancelScheduleSend } from "react-icons/md";
@@ -15,7 +15,7 @@ import { FaBoxArchive, FaBoxesPacking, FaRotate, FaSort } from "react-icons/fa6"
 import urlApi, { urlImg } from "../../../../utils/url";
 import { PiNoteBlankFill } from "react-icons/pi";
 import { jwtDecode } from "jwt-decode";
-import { FaShoppingCart, FaTrash, FaTruck } from "react-icons/fa";
+import { FaReceipt, FaShoppingCart, FaTrash, FaTruck } from "react-icons/fa";
 import { RiEBikeFill, RiCheckboxMultipleFill } from "react-icons/ri";
 import LogImportSection from "./LogImportSection";
 
@@ -853,7 +853,7 @@ const AdminBarangSection = () => {
             </Form.Item>
           </Form>
         </Modal>
-        <div className="w-full h-auto bg-slate-50 rounded-md px-3 sm:px-6 py-4 sm:py-5">
+        <div className="w-full h-auto bg-white rounded-md px-3 sm:px-6 py-4 sm:py-5">
           <div className="flex flex-col gap-4 max-w-[1400px] mx-auto">
             {/* Search and Filter Section */}
             <div className="flex flex-col gap-4">
@@ -1058,9 +1058,14 @@ const AdminBarangSection = () => {
             <div className="text-red-500 text-center py-4">{error}</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 relative">
-              <Modal width={"1000px"} className="  absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" open={isModalDetailOpen} onCancel={handleModalDetailClose} title="Detail Resi" footer={null}>
-                <Table dataSource={resiDetail} pagination={false}>
-                  <Table.Column title="Resi ID" dataIndex="resi_id" key="resi_id" />
+              <Modal width={"1000px"} className=" absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" open={isModalDetailOpen} onCancel={handleModalDetailClose} title="Detail Resi" footer={null}>
+                <Tag color="blue" className="mb-4">
+                  <span className="font-semibold text-xl flex items-center gap-2">
+                    <FaReceipt />
+                    {resiDetail[0]?.resi_id}
+                    </span> 
+                </Tag>
+                <Table dataSource={resiDetail} pagination={false} className="my-3">
                   <Table.Column title="Nama Pekerja" dataIndex="nama_pekerja" key="nama_pekerja" />
                   <Table.Column
                     title="Status"
@@ -1080,6 +1085,7 @@ const AdminBarangSection = () => {
                         <div className="flex gap-2">
                           {text ? (
                             <Button
+                            buttonStyle="m-auto px-2 py-1 text-blue-500 hover:text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg"
                               onClick={() => {
                                 setImg(text);
                                 setModalDetailOpen(false);
@@ -1089,7 +1095,7 @@ const AdminBarangSection = () => {
                               View
                             </Button>
                           ) : (
-                            <span>-</span>
+                            <span className="m-auto">-</span>
                           )}
                         </div>
                       );
@@ -1100,9 +1106,10 @@ const AdminBarangSection = () => {
 
               {isImageViewerOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-                  <div className="relative w-[1280px] h-[720px] flex items-center justify-center">
-                    <div className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors flex items-center gap-2 z-50">
+                  <div className="relative bg-slate-50 w-[1280px] h-[720px] flex items-center justify-center rounded-lg">
+                    <div className="absolute bottom-4 right-4 text-gray-500 hover:text-gray-600 transition-colors flex items-center gap-2 z-50">
                       <button
+                      className="flex items-center gap-2 bg-slate-100 p-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
                         onClick={() => {
                           setIsImageViewerOpen(true);
                           if (totalDeg === 0) setTotalDeg(90);
@@ -1111,18 +1118,18 @@ const AdminBarangSection = () => {
                           else setTotalDeg(0);
                         }}
                       >
-                        <FaRotate className="text-4xl text-orange-500" />
+                        <FaRotate className="text-xl " />
+                        Rotate
                       </button>
 
                       <button
+                        className="flex items-center gap-2 bg-slate-100 p-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
                         onClick={() => {
                           setIsImageViewerOpen(false);
                           setImg("");
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        Close
                       </button>
                     </div>
                     <div className="relative">
