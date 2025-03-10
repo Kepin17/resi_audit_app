@@ -16,8 +16,7 @@ const DashboardLayout = ({ children, activePage }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [toggleAutoScan, setToggleAutoScan] = useState(false);
-  const [isToggleLoading, setIsToggleLoading] = useState(false);
+
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -87,38 +86,6 @@ const DashboardLayout = ({ children, activePage }) => {
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const handleToggleAutoScan = () => {
-    if (isToggleLoading) return;
-
-    const newValue = !toggleAutoScan;
-    const newConfigValue = newValue ? "nyala" : "mati";
-    setIsToggleLoading(true);
-
-    axios
-      .put(
-        `${urlApi}/api/v1/config`,
-        {
-          auto_scan: newConfigValue,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      )
-      .then((res) => {
-        setToggleAutoScan(newValue);
-        localStorage.setItem("autoScan", newValue ? "true" : "false");
-        message.success(`Auto Scan is ${newValue ? "on" : "off"}`);
-      })
-      .catch((err) => {
-        message.error("Failed to change Auto Scan");
-      })
-      .finally(() => {
-        setIsToggleLoading(false);
-      });
   };
 
   const handleBackup = async () => {
@@ -315,12 +282,6 @@ const DashboardLayout = ({ children, activePage }) => {
           <nav className="h-auto md:h-[8rem] p-4 md:px-5 bg-white shadow-lg rounded-lg flex flex-col md:flex-row md:items-center justify-between">
             <div className="flex items-center gap-4">
               <h1 className="text-slate-700 font-semibold text-xl mb-2 md:mb-0">Admin Dashboard</h1>
-              <div className="font-bold text-slate-700 flex items-center gap-2">
-                <h3>Auto Scan</h3>
-                <div className={`controlToggle w-12 h-5 border-2 rounded-full bg-white relative flex items-center ${isToggleLoading ? "opacity-70 cursor-wait" : "cursor-pointer"}`} onClick={handleToggleAutoScan}>
-                  <div className={`toggle w-5 h-5 rounded-full bg-orange-500 transition-all ease-in duration-300 absolute ${toggleAutoScan ? "left-7" : "-left-1"}`}></div>
-                </div>
-              </div>
             </div>
             <div className="profile cursor-pointer relative text-slate-700">
               <div className="flex gap-2 flex-col">

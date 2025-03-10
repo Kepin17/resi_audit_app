@@ -11,6 +11,8 @@ const LogisticPage = () => {
   // State setup with clear naming
   const [ekspedisiData, setEkspedisiData] = useState([]);
   const [logisticsList, setLogisticsList] = useState([]);
+  const [toggleAutoScan, setToggleAutoScan] = useState(false);
+  const [isToggleLoading, setIsToggleLoading] = useState(false);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     pageSize: 10,
@@ -151,14 +153,54 @@ const LogisticPage = () => {
     fetchLogisticsData(page);
   };
 
+  const handleToggleAutoScan = () => {
+    if (isToggleLoading) return;
+
+    const newValue = !toggleAutoScan;
+    const newConfigValue = newValue ? "nyala" : "mati";
+    setIsToggleLoading(true);
+
+    axios
+      .put(
+        `${urlApi}/api/v1/config`,
+        {
+          auto_scan: newConfigValue,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      )
+      .then((res) => {
+        setToggleAutoScan(newValue);
+        localStorage.setItem("autoScan", newValue ? "true" : "false");
+        message.success(`Auto Scan is ${newValue ? "on" : "off"}`);
+      })
+      .catch((err) => {
+        message.error("Failed to change Auto Scan");
+      })
+      .finally(() => {
+        setIsToggleLoading(false);
+      });
+  };
+
   return (
     <DashboardLayout activePage={"Logistic"}>
       <div className="h-screen bg-slate-100 p-4 rounded-md">
         <div className="header flex mobile:flex-col mobile:items-start mobile:justify-none items-center justify-between mb-5 gap-5">
-          <Title titleStyle="flex items-center gap-2 font-bold text-2xl ">
-            <FaTruck />
-            <span>Logistic Management</span>
-          </Title>
+          <div>
+            <Title titleStyle="flex items-center gap-2 font-bold text-2xl ">
+              <FaTruck />
+              <span>Logistic Management</span>
+            </Title>
+            <div className="font-bold text-slate-700 flex items-center gap-2 my-5">
+              <h3>Auto Scan</h3>
+              <div className={`controlToggle w-12 h-5 border-2 rounded-full bg-white relative flex items-center ${isToggleLoading ? "opacity-70 cursor-wait" : "cursor-pointer"}`} onClick={handleToggleAutoScan}>
+                <div className={`toggle w-5 h-5 rounded-full bg-orange-500 transition-all ease-in duration-300 absolute ${toggleAutoScan ? "left-7" : "-left-1"}`}></div>
+              </div>
+            </div>
+          </div>
 
           <div className="btn-action flex items-center gap-4">
             <Button type="primary" onClick={() => handleOpenModal("Add Logistic")} className="bg-blue-700">

@@ -97,13 +97,7 @@ const AdminDashboard = () => {
       setData(response.data.data);
       setPagination(response.data.pagination);
       setExpeditionCounts(response.data.countEkspedisiToday);
-
-      // Calculate status counts
-      const counts = response.data.data.reduce((acc, item) => {
-        acc[item.status_proses] = (acc[item.status_proses] || 0) + 1;
-        return acc;
-      }, {});
-      setStatusCounts(counts);
+      setStatusCounts(response.data.statusCounts);
     } catch (err) {
       if (err.response?.status !== 401) {
         // Only show error if not 401

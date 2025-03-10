@@ -170,11 +170,22 @@
 .barcode-result {
   margin-top: 12px;
   padding: 8px 12px;
-  background-color: rgba(24, 144, 255, 0.1);
+  background-color: rgba(7, 64, 138, 0.1);
+  border-radius: 8px;
+  color: #181ceb;
+  font-size: 14px;
+  border-left: 3px solid #1645c4;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.error {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: rgba(252, 36, 36, 0.158);
   border-radius: 8px;
   color: #333333;
   font-size: 14px;
-  border-left: 3px solid #1890ff;
+  border-left: 3px solid #ff2727;
   animation: fadeIn 0.3s ease-in;
 }
 

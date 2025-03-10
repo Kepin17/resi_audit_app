@@ -101,6 +101,25 @@ const showResiTerpack = async (req, res) => {
       expeditionCounts = [];
     }
 
+    // Get counts for different statuses
+    let statusCountsQuery = `
+      SELECT 
+        status_proses, 
+        COUNT(*) as count 
+      FROM log_proses 
+      WHERE 1=1
+    `;
+    const statusCountsParams = [];
+
+    if (startDate && endDate) {
+      statusCountsQuery += ` AND DATE(created_at) BETWEEN ? AND ?`;
+      statusCountsParams.push(startDate, endDate);
+    }
+
+    statusCountsQuery += ` GROUP BY status_proses`;
+
+    const [statusCounts] = await mysqlPool.query(statusCountsQuery, statusCountsParams);
+
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 
@@ -113,6 +132,10 @@ const showResiTerpack = async (req, res) => {
         nama_ekpedisi: item.nama_ekspedisi,
         total_resi: item.total_resi,
       })),
+      statusCounts: statusCounts.reduce((acc, item) => {
+        acc[item.status_proses] = item.count;
+        return acc;
+      }, {}),
       pagination: {
         currentPage: parseInt(page),
         totalPages,

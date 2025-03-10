@@ -60,12 +60,12 @@ const PhotoCaptureFragment = ({ onPhotoCapture, onCancel }) => {
 
           <Webcam ref={webcamRef} screenshotFormat="image/jpeg" className={`w-full h-full object-cover ${isPortrait ? "aspect-[9/16]" : "aspect-[16/9]"}`} videoConstraints={videoConstraints} />
 
-          <div className={`absolute ${isPortrait ? "bottom-24 right-6" : "right-10 top-1/2 -translate-y-1/2"} flex ${isPortrait ? "flex-row" : "flex-col"} gap-6`}>
+          <div className={`absolute ${isPortrait ? "bottom-36 right-6" : "right-10 top-1/2 -translate-y-1/2"} flex ${isPortrait ? "flex-row" : "flex-col"} gap-6`}>
             <button className="w-14 h-14 bg-gray-800 bg-opacity-50 text-white rounded-full flex items-center justify-center" onClick={toggleTorch}>
               {isFlashOn ? <MdFlashOn size={28} /> : <MdFlashOff size={28} />}
             </button>
           </div>
-          <div className={`absolute ${isPortrait ? "bottom-20 left-1/2 -translate-x-1/2" : "right-10 top-1/2 -translate-y-1/2"} flex ${isPortrait ? "flex-row" : "flex-col"} gap-6`}>
+          <div className={`absolute ${isPortrait ? "bottom-32 left-1/2 -translate-x-1/2" : "right-10 top-1/2 -translate-y-1/2"} flex ${isPortrait ? "flex-row" : "flex-col"} gap-6`}>
             <button className="w-20 h-20 bg-transparent border-4 border-white rounded-full relative" onClick={capture}>
               <div className="absolute inset-3 bg-white rounded-full"></div>
             </button>

@@ -6,7 +6,7 @@ import axios from "axios";
 import urlApi from "../../../utils/url";
 import { jwtDecode } from "jwt-decode";
 
-const BarcodeScannerFragment = ({ scanning, scanHandler, dataScan }) => {
+const BarcodeScannerFragment = ({ scanning, scanHandler, dataScan, isError }) => {
   const inputRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
   const [barcode, setBarcode] = useState("");
@@ -96,7 +96,7 @@ const BarcodeScannerFragment = ({ scanning, scanHandler, dataScan }) => {
   };
 
   return (
-    <div className="barcode-scanner-wrapper">
+    <div className={`barcode-scanner-wrapper`}>
       <div className="barcode-scanner-container" onClick={focusInput}>
         <Form.Item label={<span className="barcode-label">SCAN BARCODE</span>}>
           <div className={`barcode-input-wrapper ${isFocused ? "active" : ""}`}>
@@ -122,7 +122,7 @@ const BarcodeScannerFragment = ({ scanning, scanHandler, dataScan }) => {
             <span>{scanning ? "Position barcode in front of scanner" : "Processing..."}</span>
           </div>
           {dataScan && (
-            <div className="barcode-result">
+            <div className={`${isError === true ? "error" : "barcode-result"}`}>
               <p>Last scan: {dataScan}</p>
             </div>
           )}
