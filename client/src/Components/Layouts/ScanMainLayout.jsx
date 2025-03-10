@@ -284,6 +284,15 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   };
 
   useEffect(() => {
+    return () => {
+      if (isBarcodeActive || isPhotoMode) {
+        setIsBarcodeActive(true);
+        setIsPhotoMode(false);
+      }
+    };
+  }, [isBarcodeActive, isPhotoMode]);
+
+  useEffect(() => {
     if (thisPage === "pickout") {
       fetchExpeditionCounts();
     }
