@@ -16,8 +16,9 @@ const {
   getCalendarData,
   getImportLog,
   exportLogImportToExcel,
+  resetBarangStatus,
 } = require("../controllers/barangController");
-const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff } = require("../controllers/auth");
+const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, showPackingStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel, getGajiPackingStats, getDailyEarnings } = require("../controllers/SalaryController");
 const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExcel } = require("../controllers/resiTerpackController");
@@ -60,6 +61,7 @@ router.get("/auth/show/:id_pekerja", authToken, roleMiddleware([roles.supadmin])
 router.delete("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), deleteStaff);
 router.put("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), editStaff);
 router.get("/auth/log", authToken, roleMiddleware([roles.admin, roles.supadmin]), deviceLog);
+router.get("/auth/packing-staff", authToken, roleMiddleware([roles.finance]), showPackingStaff);
 
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllBarang);
@@ -71,6 +73,7 @@ router.get("/barang/:resi_id", authToken, roleMiddleware([roles.admin, roles.sup
 router.get("/barang-export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportBarang);
 router.post("/barang/import", authToken, roleMiddleware([roles.admin, roles.supadmin]), upload.single("file"), importResiFromExcel);
 router.get("/barang-backup", authToken, roleMiddleware([roles.admin, roles.supadmin]), backupBarang);
+router.put("/barang-reset-status/:resi_id", authToken, roleMiddleware([roles.supadmin]), resetBarangStatus);
 
 router.get("/barang-impor-log", authToken, roleMiddleware([roles.admin, roles.supadmin]), getImportLog);
 router.get("/barang-impor-log/export", authToken, roleMiddleware([roles.admin, roles.supadmin]), exportLogImportToExcel);
@@ -99,7 +102,7 @@ router.get("/bagian", authToken, roleMiddleware([roles.supadmin]), upload.single
 router.get("/gaji", authToken, roleMiddleware([roles.supadmin]), getSalary);
 router.get("/salary/daily-earnings", authToken, roleMiddleware([roles.packing]), getDailyEarnings);
 router.put("/gaji/:id_gaji", authToken, roleMiddleware([roles.supadmin]), editGaji);
-router.get("/gaji/packing", authToken, roleMiddleware([roles.supadmin, roles.admin]), getGajiPacking);
+router.get("/gaji/packing/:id_pekerja", authToken, roleMiddleware([roles.finance]), getGajiPacking);
 router.put("/gaji/packing/:id_gaji_pegawai", authToken, roleMiddleware([roles.supadmin]), payPackingStaff);
 
 // audit gaji
@@ -118,7 +121,7 @@ router.get("/template-resi", authToken, roleMiddleware([roles.supadmin, roles.ad
 router.get("/calendar-data", authToken, roleMiddleware([roles.supadmin, roles.admin]), getCalendarData);
 
 // ekspedisi
-router.get("/ekspedisi", authToken, roleMiddleware([roles.logistic, roles.admin,roles.supadmin]), getAllEkspedisi);
+router.get("/ekspedisi", authToken, roleMiddleware([roles.logistic, roles.admin, roles.supadmin]), getAllEkspedisi);
 router.get("/ekspedisi-group", authToken, roleMiddleware([roles.logistic]), getEkspedisiByGroup);
 router.post("/ekspedisi", authToken, roleMiddleware([roles.logistic]), addEkspedisi);
 router.post("/ekspedisi-assign", authToken, roleMiddleware([roles.logistic]), assignCodeEkspedisi);
@@ -138,13 +141,9 @@ router.put("/barang-retur/note", authToken, roleMiddleware([roles.retur_manager]
 router.get("/barang-retur-log", authToken, roleMiddleware([roles.retur_manager]), getImportReturLog);
 router.get("/barang-retur-log/download", authToken, roleMiddleware([roles.retur_manager]), exportLogImportReturToExcel);
 
-
 // config
 
-router.get("/config", authToken, roleMiddleware([roles.supadmin,roles.retur, roles.picker, roles.packing, roles.pickout]), getConfig);
+router.get("/config", authToken, roleMiddleware([roles.supadmin, roles.retur, roles.picker, roles.packing, roles.pickout]), getConfig);
 router.put("/config", authToken, roleMiddleware([roles.supadmin]), updateConfig);
-
-
-
 
 module.exports = router;

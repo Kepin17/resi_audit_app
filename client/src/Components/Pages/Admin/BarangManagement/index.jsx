@@ -18,6 +18,7 @@ import { jwtDecode } from "jwt-decode";
 import { FaReceipt, FaShoppingCart, FaTrash, FaTruck } from "react-icons/fa";
 import { RiEBikeFill, RiCheckboxMultipleFill } from "react-icons/ri";
 import LogImportSection from "./LogImportSection";
+import { BiReset } from "react-icons/bi";
 
 const AdminBarangSection = () => {
   const [dateRange, setDateRange] = useState([null, null]);
@@ -1059,13 +1060,46 @@ const AdminBarangSection = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 relative">
               <Modal width={"1000px"} className=" absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" open={isModalDetailOpen} onCancel={handleModalDetailClose} title="Detail Resi" footer={null}>
-                <Tag color="blue" className="mb-4">
-                  <span className="font-semibold text-xl flex items-center gap-2">
-                    <FaReceipt />
-                    {resiDetail[0]?.resi_id}
-                    </span> 
-                </Tag>
-                <Table dataSource={resiDetail} pagination={false} className="my-3">
+                <div className="flex items-center justify-between gap-4">
+                  <Tag color="blue">
+                    <span className="font-semibold text-xl flex items-center gap-2">
+                      <FaReceipt />
+                      {resiDetail[0]?.resi_id}
+                    </span>
+                  </Tag>
+                  <button
+                    className={`bg-slate-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-slate-600
+                  flex items-center gap-2 
+                  ${user?.roles?.includes("superadmin") ? "block" : "hidden"}
+                  `}
+                    onClick={() => {
+                      axios
+                        .put(
+                          `${urlApi}/api/v1/barang-reset-status/${resiDetail[0]?.resi_id}`,
+                          {},
+                          {
+                            headers: {
+                              Authorization: `Bearer ${localStorage.getItem("token")}`,
+                            },
+                          }
+                        )
+                        .then((res) => {
+                          message.success("Status berhasil direset");
+                          fetchBarang(currentPage);
+                        })
+                        .catch((err) => {
+                          message.error("Gagal mereset status");
+                        })
+                        .finally(() => {
+                          handleModalDetailClose();
+                        });
+                    }}
+                  >
+                    <BiReset />
+                    Reset Status
+                  </button>
+                </div>
+                <Table dataSource={resiDetail} pagination={false} className="my-3" key={resiDetail[0]?.resi_id}>
                   <Table.Column title="Nama Pekerja" dataIndex="nama_pekerja" key="nama_pekerja" />
                   <Table.Column
                     title="Status"
@@ -1085,7 +1119,7 @@ const AdminBarangSection = () => {
                         <div className="flex gap-2">
                           {text ? (
                             <Button
-                            buttonStyle="m-auto px-2 py-1 text-blue-500 hover:text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg"
+                              buttonStyle="m-auto px-2 py-1 text-blue-500 hover:text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg"
                               onClick={() => {
                                 setImg(text);
                                 setModalDetailOpen(false);
@@ -1109,7 +1143,7 @@ const AdminBarangSection = () => {
                   <div className="relative bg-slate-50 w-[1280px] h-[720px] flex items-center justify-center rounded-lg">
                     <div className="absolute bottom-4 right-4 text-gray-500 hover:text-gray-600 transition-colors flex items-center gap-2 z-50">
                       <button
-                      className="flex items-center gap-2 bg-slate-100 p-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                        className="flex items-center gap-2 bg-slate-100 p-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
                         onClick={() => {
                           setIsImageViewerOpen(true);
                           if (totalDeg === 0) setTotalDeg(90);

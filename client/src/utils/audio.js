@@ -5,6 +5,7 @@ const loadAudio = (type) => {
   return new Promise((resolve, reject) => {
     const audio = new Audio(`/audios/${type}.mp3`);
     audio.preload = "auto";
+    audio.volume = 1.0;
 
     audio.addEventListener(
       "canplaythrough",

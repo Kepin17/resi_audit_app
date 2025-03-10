@@ -12,7 +12,7 @@ dotenv.config();
 
 app.use(
   cors({
-    origin: "https://guudstore.my.id",
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

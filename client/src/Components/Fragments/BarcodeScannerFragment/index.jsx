@@ -28,7 +28,6 @@ const BarcodeScannerFragment = ({ scanning, scanHandler, dataScan, isError }) =>
       })
       .then((res) => {
         setToggleType(res.data.auto_scan[0].config_value);
-        console.log(res.data.auto_scan[0].config_value);
       })
       .catch((err) => {
         message.error({ content: err.response.data.message, key: "error" });

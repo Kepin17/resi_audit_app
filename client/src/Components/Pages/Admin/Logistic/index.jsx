@@ -8,7 +8,6 @@ import axios from "axios";
 import urlApi from "../../../../utils/url";
 
 const LogisticPage = () => {
-  // State setup with clear naming
   const [ekspedisiData, setEkspedisiData] = useState([]);
   const [logisticsList, setLogisticsList] = useState([]);
   const [toggleAutoScan, setToggleAutoScan] = useState(false);

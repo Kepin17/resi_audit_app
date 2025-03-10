@@ -17,7 +17,6 @@ import { FaTruck, FaSpinner, FaQrcode, FaCalendarAlt } from "react-icons/fa";
 import { BiSearchAlt } from "react-icons/bi";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { VariantContext } from "antd/es/form/context";
 
 const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -37,6 +36,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const [expeditionCount, setExpeditionCount] = useState([]);
   const [todayScans, setTodayScans] = useState(0);
   const [totalBeloman, setTotalBeloman] = useState(0);
+  const [isError, setIsError] = useState(false);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -150,7 +150,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   useEffect(() => {
     return () => {
       if (isBarcodeActive || isPhotoMode) {
-        setIsBarcodeActive(false);
+        setIsBarcodeActive(isBarcodeActive);
         setIsPhotoMode(false);
       }
     };
@@ -200,6 +200,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     } catch (err) {
       playErrorSound();
       toast.error(err.response?.data?.message || "Failed to process");
+      setIsError(true);
     } finally {
       setScanning(true);
       setCurrentResi(null);
@@ -245,6 +246,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     } catch (err) {
       playErrorSound();
       toast.error(err.response?.data?.message || "Failed to process");
+      setIsError(true);
     } finally {
       setIsPhotoMode(false);
       setIsBarcodeActive(true);
@@ -444,6 +446,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
 
   const handleBarcodeClose = () => {
     setScanning(false);
+    setIsBarcodeActive(false);
     setTimeout(() => {
       setIsBarcodeActive(false);
       setScanning(true);
@@ -471,7 +474,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
 
   return (
     <MainLayout getPage={thisPage}>
-      <ToastContainer position="top-right" autoClose={1000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
       {isPhotoMode || isBarcodeActive ? (
         <div className="fixed inset-0 bg-white z-50">
@@ -505,7 +508,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                   </motion.button>
                 </div>
                 <div className="flex-1">
-                  <BarcodeScannerFragment dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
+                  <BarcodeScannerFragment isError={isError} dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
                 </div>
               </>
             )}

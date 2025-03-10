@@ -89,30 +89,16 @@ const getGajiPacking = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
-    const { search, status, startDate, endDate, is_dibayar } = req.query;
+
+    const { id_pekerja } = req.query;
+
+    if (id_pekerja) {
+      whereConditions.push("gaji_pegawai.id_pekerja = ?");
+      queryParams.push(id_pekerja);
+    }
 
     let whereConditions = [];
     let queryParams = [];
-
-    if (search) {
-      whereConditions.push("(pekerja.nama_pekerja LIKE ?)");
-      queryParams.push(`%${search}%`);
-    }
-
-    if (status && status !== "Semua") {
-      whereConditions.push("gaji_pegawai.is_dibayar = ?");
-      queryParams.push(status === "Sudah Dibayar" ? 1 : 0);
-    }
-
-    if (startDate && endDate) {
-      whereConditions.push("gaji_pegawai.updated_at BETWEEN ? AND ?");
-      queryParams.push(startDate, endDate);
-    }
-
-    if(is_dibayar && is_dibayar !== 1){
-      whereConditions.push("gaji_pegawai.is_dibayar = ?");
-      queryParams.push(is_dibayar);
-    }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
@@ -139,15 +125,29 @@ const getGajiPacking = async (req, res) => {
       JOIN pekerja ON gaji_pegawai.id_pekerja = pekerja.id_pekerja
       JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
       ${whereClause}
+      WHERE gaji_pegawai.is_dibayar = 0
       ORDER BY gaji_pegawai.updated_at DESC
       LIMIT ?, ?`,
       [...queryParams, offset, limit]
+    );
+
+    const [totalGajiResult] = await mysqlPool.query(
+      `
+      SELECT SUM(gaji_total) as totalGaji
+      FROM gaji_pegawai
+      JOIN pekerja ON gaji_pegawai.id_pekerja = pekerja.id_pekerja
+      JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
+      WHERE is_dibayar = 0
+      ${whereClause}
+      `,
+      queryParams
     );
 
     return res.status(200).send({
       success: true,
       message: "gaji packing found",
       data: rows,
+      totalGaji: totalGajiResult[0].totalGaji,
       pagination: {
         totalPages,
         currentPage: page,
@@ -349,12 +349,10 @@ const exportGaji = async (req, res) => {
       queryParams.push(startDate, endDate);
     }
 
-    
-    if(is_dibayar && is_dibayar !== "Semua"){
+    if (is_dibayar && is_dibayar !== "Semua") {
       whereConditions.push("gaji_pegawai.is_dibayar = ?");
       queryParams.push(is_dibayar);
     }
-
 
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 

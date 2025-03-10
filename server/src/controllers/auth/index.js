@@ -518,6 +518,44 @@ const deleteStaff = async (req, res) => {
   }
 };
 
+const showPackingStaff = async (req, res) => {
+  try {
+    const [rows] = await mysqlPool.query(`
+       SELECT 
+          p.id_pekerja, 
+          p.nama_pekerja, 
+          GROUP_CONCAT(DISTINCT b.jenis_pekerja) as roles,
+          COALESCE((
+              SELECT SUM(gaji_total) 
+              FROM gaji_pegawai 
+              WHERE id_pekerja = p.id_pekerja 
+              AND is_dibayar = 0
+          ), 0) as gaji_pokok
+      FROM pekerja p
+      LEFT JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
+      LEFT JOIN bagian b ON rp.id_bagian = b.id_bagian
+      GROUP BY p.id_pekerja
+      HAVING 
+          COUNT(CASE WHEN b.jenis_pekerja = 'packing' THEN 1 END) > 0
+          AND
+          COUNT(CASE WHEN b.jenis_pekerja = 'freelance' THEN 1 END) > 0
+      ORDER BY p.nama_pekerja ASC 
+  `);
+
+    res.status(200).send({
+      success: true,
+      message: "Data found",
+      data: rows,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to show packing worker",
+      error: "internal_server_error",
+    });
+  }
+};
+
 module.exports = {
   RegisterHandler,
   loginHandler,
@@ -527,4 +565,5 @@ module.exports = {
   editStaff,
   deviceLog,
   deleteStaff,
+  showPackingStaff,
 };

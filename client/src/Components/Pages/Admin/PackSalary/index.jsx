@@ -3,7 +3,7 @@ import DashboardLayout from "../../../Layouts/DashboardLayout";
 import Title from "../../../Elements/Title";
 import { MdCancel, MdEdit, MdOutlineAnalytics } from "react-icons/md";
 import { GiConfirmed } from "react-icons/gi";
-import { Table, DatePicker, Input, Modal, message, Button, Skeleton } from "antd";
+import { Table, DatePicker, Input, Modal, message, Button, Skeleton, Tag } from "antd";
 import Form from "../../../Elements/Form";
 import InputFragment from "../../../Fragments/InputFragment";
 import { MdPayments } from "react-icons/md";
@@ -23,6 +23,7 @@ const PackSalary = () => {
   });
 
   const [source, setSource] = useState([]);
+  const [packingStaff, setPackingStaff] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [dateRange, setDateRange] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,7 +42,7 @@ const PackSalary = () => {
     activePacking: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
-
+  const [totalBayar, setTotalBayar] = useState(0);
   useEffect(() => {
     const token = localStorage.getItem("token");
     const decodedUser = jwtDecode(token);
@@ -69,51 +70,17 @@ const PackSalary = () => {
     }
   }, [user]);
 
-  const fetchGajiPacking = async (page, pageSize, searchValue) => {
-    try {
-      let url = new URL(`${urlApi}/api/v1/gaji/packing`);
-
-      const params = new URLSearchParams();
-      params.append("page", page);
-      params.append("limit", pageSize);
-
-      if (searchValue?.trim()) {
-        params.append("search", searchValue.trim());
-      }
-      if (dateRange?.[0] && dateRange?.[1]) {
-        const startDate = dateRange[0].startOf("day").toISOString();
-        const endDate = dateRange[1].endOf("day").toISOString();
-        params.append("startDate", startDate);
-        params.append("endDate", endDate);
-      }
-
-      if (statusBayar) {
-        params.append("is_dibayar", statusBayar === "Sudah Dibayar" ? 1 : 0);
-      }
-
-      url.search = params.toString();
-
-      const response = await axios.get(url.toString(), {
+  useEffect(() => {
+    axios
+      .get(`${urlApi}/api/v1/auth/packing-staff`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
+      })
+      .then((res) => {
+        setPackingStaff(res.data.data);
       });
-
-      if (response.data?.success) {
-        setSource(response.data.data);
-        setTotalItems(response.data.pagination.totalItems);
-      }
-    } catch (err) {
-      if (err.response) {
-        message.error(err.response.data.message);
-        setSource([]);
-      }
-    }
-  };
-
-  useEffect(() => {
-    fetchGajiPacking(currentPage, pageSize, searchText);
-  }, [currentPage, pageSize, searchText, dateRange, statusBayar]);
+  }, []);
 
   const fetchTodayStats = async () => {
     setStatsLoading(true);
@@ -223,17 +190,30 @@ const PackSalary = () => {
       key: "jumlah_scan",
     },
     {
-      title: "Last Update",
+      title: "Last Scan",
       dataIndex: "updated_at",
       key: "updated_at",
       render: (text) => formatDate(text),
     },
+  ];
+
+  const packingStaffCol = [
     {
-      title: "Status dibayar",
-      dataIndex: "is_dibayar",
-      key: "is_dibayar",
-      render: (text) => (text ? <span className="status-badge paid">Sudah Dibayar</span> : <span className="status-badge unpaid">Belum Dibayar</span>),
+      title: "Nama Pekerja",
+      dataIndex: "nama_pekerja",
+      key: "nama_pekerja",
     },
+    {
+      title: "Belum Dibayar",
+      dataIndex: "gaji_pokok",
+      key: "gaji_pokok",
+      render: (text, record) => (
+        <Tag color={text == 0 ? "blue" : "red"} key={record.id_gaji_pegawai}>
+          {formatRupiah(record.gaji_pokok)}
+        </Tag>
+      ),
+    },
+
     {
       title: "Action",
       dataIndex: "view",
@@ -245,6 +225,19 @@ const PackSalary = () => {
           onClick={() => {
             setSelectedRecord(record);
             setIsModalVisible(true);
+            axios
+              .get(`${urlApi}/api/v1/gaji/packing/${record.id_pekerja}`, {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              })
+              .then((res) => {
+                setSource(res.data.data);
+                setTotalBayar(res.data.totalGaji);
+              })
+              .catch((err) => {
+                message.error("Failed to fetch salary data");
+              });
           }}
           disabled={!user?.roles?.includes("superadmin") ? true : record.is_dibayar}
           icon={<MdPayments />}
@@ -457,38 +450,14 @@ const PackSalary = () => {
             </div>
           )}
 
-          {/* Search & Filter Controls - Cleaner Layout */}
-          <div className="bg-white border border-gray-100 p-5 rounded-xl shadow-sm mb-6">
-            <h3 className="text-sm font-medium text-gray-600 mb-4">Search & Filter</h3>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <RangePicker onChange={handleDateChange} showTime={false} allowClear format="YYYY-MM-DD" className="flex-1 h-10 border-gray-200" placeholder={["Start date", "End date"]} />
-              <Search placeholder="Search by name" onSearch={handleSearch} allowClear className="flex-1 h-10" size="middle" />
-            </div>
-
-            <div className="flex flex-wrap gap-4 mt-4">
-              {["Sudah Dibayar", "Belum Dibayar"].map((status) => (
-                <button
-                  className={`border-2 px-3 pt-1 rounded-md 
-                  flex items-center text-md ${statusBayar === status ? "bg-blue-600 text-white border-blue-500" : "border-gray-100"}
-                  hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors
-                  `}
-                  onClick={() => {
-                    setStatusBayar(status);
-                  }}
-                >
-                  {...status}
-                </button>
-              ))}
-            </div>
-          </div>
+          <Search placeholder="Search by name" onSearch={handleSearch} allowClear className="flex-1 h-10" size="middle" />
         </div>
 
-        {/* Table Section - Clean & Modern */}
         <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
           <Table
-            columns={coloms}
+            columns={packingStaffCol}
             rowKey="id_gaji_pegawai"
-            dataSource={source}
+            dataSource={packingStaff}
             pagination={{
               current: currentPage,
               pageSize: pageSize,
@@ -510,6 +479,7 @@ const PackSalary = () => {
 
         {/* Modernized Modal */}
         <Modal
+          width={1000}
           title={<span className="text-lg">Confirm Payment</span>}
           open={isModalVisible}
           onOk={handlePayment}
@@ -528,11 +498,35 @@ const PackSalary = () => {
         >
           <div className="py-4">
             <p className="text-gray-700">Are you sure you want to process the payment for:</p>
-            <p className="font-bold text-lg mt-2">{selectedRecord?.nama_pekerja}</p>
+            <p className="font-bold text-lg mt-2 mb-4">{selectedRecord?.nama_pekerja}</p>
+            {/* Table Section - Clean & Modern */}
+            <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
+              <Table
+                columns={coloms}
+                rowKey="id_gaji_pegawai"
+                dataSource={source}
+                pagination={{
+                  current: currentPage,
+                  pageSize: pageSize,
+                  total: totalItems,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total) => `Total ${total} items`,
+                  className: "p-6",
+                  size: "default",
+                }}
+                onChange={handleTableChange}
+                className="custom-minimal-table"
+                rowClassName={() => "hover:bg-gray-50 transition-colors"}
+                scroll={{ x: "max-content" }}
+                size="middle"
+                loading={loading}
+              />
+            </div>
             <div className="mt-4 p-3 bg-gray-50 rounded-lg">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Total amount:</span>
-                <span className="font-bold text-lg">{selectedRecord ? formatRupiah(selectedRecord.gaji_total) : ""}</span>
+                <span className="font-bold text-lg">{totalBayar ? formatRupiah(totalBayar) : ""}</span>
               </div>
             </div>
           </div>

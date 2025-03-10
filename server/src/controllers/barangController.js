@@ -1,8 +1,8 @@
 const mysqlPool = require("../config/db");
 const excelJS = require("exceljs");
 const moment = require("moment");
-const path = require('path');
-const fs = require('fs');
+const path = require("path");
+const fs = require("fs");
 
 const addNewBarang = async (req, res) => {
   try {
@@ -381,11 +381,9 @@ const cancelBarang = async (req, res) => {
         `UPDATE log_proses
         SET status_proses = 'cancelled', updated_at = CURRENT_TIMESTAMP
         WHERE resi_id = ? AND status_proses != 'cancelled'`,
-       [resiId]
+        [resiId]
       );
     }
-    
-    
 
     await connection.commit();
 
@@ -804,7 +802,7 @@ const exportBarang = async (req, res) => {
       whereConditions.push("latest_process.status_proses = ?");
       queryParams.push(status);
     }
-  
+
     if (ekspedisi && ekspedisi !== "Semua") {
       whereConditions.push("b.id_ekspedisi = ?");
       queryParams.push(ekspedisi);
@@ -916,7 +914,6 @@ const exportBarang = async (req, res) => {
     const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet("Data Barang");
 
-
     worksheet.getColumn(1).width = 20;
 
     // Updated column headers to include worker information for each stage
@@ -936,12 +933,7 @@ const exportBarang = async (req, res) => {
     ];
 
     // Add metadata row for filter information
-    const filterInfo = [
-      `Search: ${search || "None"}`, 
-      `Status: ${status || "All"}`, 
-      `Ekspedisi: ${ekspedisi || "All"}`,
-      `Date Range: ${startDate || "None"} to ${endDate || "None"}`
-    ].join(" | ");
+    const filterInfo = [`Search: ${search || "None"}`, `Status: ${status || "All"}`, `Ekspedisi: ${ekspedisi || "All"}`, `Date Range: ${startDate || "None"} to ${endDate || "None"}`].join(" | ");
     worksheet.addRow([filterInfo]);
 
     // Style header rows
@@ -951,7 +943,7 @@ const exportBarang = async (req, res) => {
       pattern: "solid",
       fgColor: { argb: "FFE0E0E0" },
     };
-   
+
     // Add data rows starting from row 3
     rows.forEach((row) => {
       worksheet.addRow({
@@ -959,14 +951,14 @@ const exportBarang = async (req, res) => {
         status_description: row.status_description,
         nama_ekspedisi: row.nama_ekspedisi || row.id_ekspedisi,
         created_at: row.created_at,
-        picked_by: row.picked_by || '-',
-        picked_time: row.picked_time || '-',
-        packed_by: row.packed_by || '-',
-        packed_time: row.packed_time || '-',
-        pickout_by: row.pickout_by || '-',
-        pickout_time: row.pickout_time || '-',
+        picked_by: row.picked_by || "-",
+        picked_time: row.picked_time || "-",
+        packed_by: row.packed_by || "-",
+        packed_time: row.packed_time || "-",
+        pickout_by: row.pickout_by || "-",
+        pickout_time: row.pickout_time || "-",
         updated_at: row.updated_at,
-        nama_pekerja: row.nama_pekerja || '-',
+        nama_pekerja: row.nama_pekerja || "-",
       });
     });
 
@@ -1219,7 +1211,7 @@ const getImportLog = async (req, res) => {
     );
 
     const totalItems = countResult[0]?.total || 0;
-    
+
     // If there are no items at all, return early with an empty array
     if (totalItems === 0) {
       connection.release();
@@ -1301,19 +1293,17 @@ const exportLogImportToExcel = async (req, res) => {
       // Create empty workbook with message instead of returning error
       const workbook = new excelJS.Workbook();
       const worksheet = workbook.addWorksheet("No Data");
-      
+
       // Add explanation message
-      worksheet.mergeCells('A1:D3');
-      worksheet.getCell('A1').value = imporDate 
-        ? `No import logs found for date: ${imporDate}` 
-        : 'No import logs found in the system';
-      worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getCell('A1').font = { bold: true, size: 14 };
-      
+      worksheet.mergeCells("A1:D3");
+      worksheet.getCell("A1").value = imporDate ? `No import logs found for date: ${imporDate}` : "No import logs found in the system";
+      worksheet.getCell("A1").alignment = { vertical: "middle", horizontal: "center" };
+      worksheet.getCell("A1").font = { bold: true, size: 14 };
+
       // Set response headers and send the empty workbook
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename=empty_import_log_${moment().format("YYYY-MM-DD_HH-mm")}.xlsx`);
-      
+
       await workbook.xlsx.write(res);
       res.end();
       return;
@@ -1376,7 +1366,7 @@ const exportLogImportToExcel = async (req, res) => {
       { status: "Failed", total: groupedData.failed.length },
       { status: "Total", total: rows.length },
     ]);
-    
+
     // Add date filter info
     if (imporDate) {
       summarySheet.addRow({});
@@ -1398,11 +1388,10 @@ const exportLogImportToExcel = async (req, res) => {
   }
 };
 
-
 const viewResiImage = async (req, res) => {
   try {
     const { imageName } = req.params;
-    
+
     if (!imageName) {
       return res.status(400).send({
         success: false,
@@ -1412,11 +1401,11 @@ const viewResiImage = async (req, res) => {
 
     // For security, validate the filename to prevent directory traversal
     const sanitizedFileName = path.basename(imageName);
-    
+
     // Assuming your uploads directory is in the project structure
-    const uploadsDir = path.join(__dirname, '../../uploads');
+    const uploadsDir = path.join(__dirname, "../../uploads");
     const filePath = path.join(uploadsDir, sanitizedFileName);
-    
+
     // Check if the file exists
     if (!fs.existsSync(filePath)) {
       return res.status(404).send({
@@ -1427,25 +1416,19 @@ const viewResiImage = async (req, res) => {
 
     // Determine content type based on file extension
     const ext = path.extname(filePath).toLowerCase();
-    const contentType = 
-      ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
-      ext === '.png' ? 'image/png' :
-      ext === '.gif' ? 'image/gif' :
-      ext === '.webp' ? 'image/webp' :
-      'application/octet-stream';
-    
+    const contentType = ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : ext === ".png" ? "image/png" : ext === ".gif" ? "image/gif" : ext === ".webp" ? "image/webp" : "application/octet-stream";
+
     // Add CORS headers to solve the CORS issue
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
     // Set content type
-    res.setHeader('Content-Type', contentType);
-    
+    res.setHeader("Content-Type", contentType);
+
     // Stream the file to the response
     const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
-    
   } catch (error) {
     console.error("Image view error:", error);
     res.status(500).send({
@@ -1456,6 +1439,82 @@ const viewResiImage = async (req, res) => {
   }
 };
 
+const resetBarangStatus = async (req, res) => {
+  const connection = await mysqlPool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const { resi_id } = req.params;
+
+    // Support for multiple resi_ids
+    const resiIds = Array.isArray(resi_id) ? resi_id : [resi_id];
+
+    // Check if resis exist and get current status
+    const [existingResis] = await connection.query("SELECT resi_id, status_proses FROM proses WHERE resi_id IN (?) ORDER BY updated_at DESC", [resiIds]);
+
+    const notFoundResis = resiIds.filter((id) => !existingResis.some((resi) => resi.resi_id === id));
+
+    if (notFoundResis.length > 0) {
+      return res.status(404).send({
+        success: false,
+        message: `Resi not found: ${notFoundResis.join(", ")}`,
+      });
+    }
+
+    // Check if any are already cancelled
+    const alreadyCancelled = existingResis.filter((resi) => resi.status_proses === "cancelled");
+    if (alreadyCancelled.length > 0) {
+      return res.status(400).send({
+        success: false,
+        message: `Some resis are already reset: ${alreadyCancelled.map((r) => r.resi_id).join(", ")}`,
+      });
+    }
+
+    // Updated query to handle multiple resis
+    for (const resiId of resiIds) {
+      await connection.query(
+        `UPDATE proses 
+         SET status_proses = 'pending', 
+             id_pekerja = ?,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE resi_id = ? 
+         AND id_proses = (
+           SELECT id_proses 
+           FROM (
+             SELECT MAX(id_proses) as id_proses 
+             FROM proses 
+             WHERE resi_id = ?
+           ) as latest
+         )`,
+        [req.user.id_pekerja, resiId, resiId]
+      );
+
+      await connection.query(
+        `DELETE FROM log_proses
+        WHERE resi_id = ?`,
+        [resiId]
+      );
+    }
+
+    await connection.commit();
+
+    res.status(200).send({
+      success: true,
+      message: `${resiIds.length} resi(s) have been reset`,
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Cancel resi error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error cancelling resi",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+};
 
 module.exports = {
   addNewBarang,
@@ -1470,5 +1529,6 @@ module.exports = {
   getCalendarData,
   getImportLog,
   exportLogImportToExcel,
-  viewResiImage
+  viewResiImage,
+  resetBarangStatus,
 };
