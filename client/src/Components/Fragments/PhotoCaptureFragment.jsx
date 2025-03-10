@@ -49,7 +49,7 @@ const PhotoCaptureFragment = ({ onPhotoCapture, onCancel }) => {
   };
 
   return (
-    <div className="relative  bg-black overflow-hidden">
+    <div className="relative h-screen bg-white overflow-hidden">
       {!imgSrc ? (
         <>
           <div className="absolute top-4 left-4 z-10">
@@ -58,29 +58,31 @@ const PhotoCaptureFragment = ({ onPhotoCapture, onCancel }) => {
             </button>
           </div>
 
-          <Webcam ref={webcamRef} screenshotFormat="image/jpeg" className="w-full object-cover" videoConstraints={videoConstraints} />
+          <Webcam ref={webcamRef} screenshotFormat="image/jpeg" className={`w-full h-full object-cover ${isPortrait ? "aspect-[9/16]" : "aspect-[16/9]"}`} videoConstraints={videoConstraints} />
 
-          <div className={`absolute ${isPortrait ? "bottom-12 right-0 -translate-x-1/2 flex-row" : "right-10  top-10 -translate-y-1/2 flex-col"} flex gap-6`}>
-            <button className="w-12 h-12 bg-gray-800 bg-opacity-50 text-white rounded-full flex items-center justify-center" onClick={toggleTorch}>
-              {isFlashOn ? <MdFlashOn size={24} /> : <MdFlashOff size={24} />}
+          <div className={`absolute ${isPortrait ? "bottom-24 right-6" : "right-10 top-1/2 -translate-y-1/2"} flex ${isPortrait ? "flex-row" : "flex-col"} gap-6`}>
+            <button className="w-14 h-14 bg-gray-800 bg-opacity-50 text-white rounded-full flex items-center justify-center" onClick={toggleTorch}>
+              {isFlashOn ? <MdFlashOn size={28} /> : <MdFlashOff size={28} />}
             </button>
           </div>
-          <div className={`absolute ${isPortrait ? "bottom-10 left-1/2 -translate-x-1/2 flex-row" : "right-10  top-52 -translate-y-1/2 flex-col"} flex gap-6`}>
-            <button className="w-16 h-16 bg-transparent border-4 border-white rounded-full relative" onClick={capture}>
-              <div className="absolute inset-2 bg-white rounded-full"></div>
+          <div className={`absolute ${isPortrait ? "bottom-20 left-1/2 -translate-x-1/2" : "right-10 top-1/2 -translate-y-1/2"} flex ${isPortrait ? "flex-row" : "flex-col"} gap-6`}>
+            <button className="w-20 h-20 bg-transparent border-4 border-white rounded-full relative" onClick={capture}>
+              <div className="absolute inset-3 bg-white rounded-full"></div>
             </button>
           </div>
         </>
       ) : (
-        <div className="h-[80vh] flex flex-col justify-between p-4 bg-slate-900 relative overflow-hidden">
-          <img src={imgSrc} alt="captured" className="w-full h-auto rounded-lg" />
+        <div className="h-screen flex flex-col justify-between bg-slate-900 relative overflow-hidden">
+          <div className="flex-1 overflow-hidden p-4">
+            <img src={imgSrc} alt="captured" className="w-full h-full object-contain rounded-lg" />
+          </div>
 
-          <div className={`fixed bottom-0 left-0 right-0 flex ${isPortrait ? "p-4 pb-8 bg-slate-800 bg-opacity-80" : ""} z-50`}>
-            <div className={`w-full flex ${isPortrait ? "justify-between gap-4" : "absolute bottom-0 left-1/2 -translate-x-1/2 items-center justify-between gap-4"}`}>
-              <Button buttonStyle={`bg-yellow-500 hover:bg-yellow-600 text-white ${isPortrait ? "py-4 text-lg font-medium" : "w-32 h-32"} rounded-lg w-full`} onClick={retake}>
+          <div className={`fixed bottom-0 left-0 right-0 ${isPortrait ? "p-6 bg-gradient-to-t from-slate-900 to-transparent" : "p-4"}`}>
+            <div className={`max-w-md mx-auto flex gap-3 ${isPortrait ? "flex-row" : "justify-center"}`}>
+              <Button buttonStyle={`flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl ${isPortrait ? "py-4 text-base font-medium" : "px-6 py-3"} transition-all duration-200 shadow-lg`} onClick={retake}>
                 Retake
               </Button>
-              <Button buttonStyle={`bg-green-500 hover:bg-green-600 text-white ${isPortrait ? "py-4 text-lg font-medium" : "w-32 h-32"} rounded-lg w-full`} onClick={handleSubmit}>
+              <Button buttonStyle={`flex-1 bg-blue-600 hover:bg-blue-500 text-white rounded-xl ${isPortrait ? "py-4 text-base font-medium" : "px-6 py-3"} transition-all duration-200 shadow-lg`} onClick={handleSubmit}>
                 Submit
               </Button>
             </div>
