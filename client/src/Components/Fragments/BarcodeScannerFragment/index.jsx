@@ -1,7 +1,6 @@
 import { Form, Input, message } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { BarcodeOutlined } from "@ant-design/icons";
-import "./style.css";
 import axios from "axios";
 import urlApi from "../../../utils/url";
 import { jwtDecode } from "jwt-decode";
@@ -96,18 +95,18 @@ const BarcodeScannerFragment = ({ scanning, scanHandler, dataScan, isError }) =>
   };
 
   return (
-    <div className={`barcode-scanner-wrapper`}>
-      <div className="barcode-scanner-container" onClick={focusInput}>
-        <Form.Item label={<span className="barcode-label">SCAN BARCODE</span>}>
-          <div className={`barcode-input-wrapper ${isFocused ? "active" : ""}`}>
-            <BarcodeOutlined className="barcode-icon" />
+    <div className="flex justify-center w-full p-4">
+      <div className="w-full max-w-[600px] p-6 md:px-10 bg-white rounded-2xl shadow-lg hover:-translate-y-1 hover:shadow-xl transition-all cursor-pointer border border-gray-200" onClick={focusInput}>
+        <Form.Item label={<span className="text-gray-800 font-bold text-sm tracking-wider uppercase block mb-2">SCAN BARCODE</span>}>
+          <div className={`flex items-center bg-gray-50 rounded-xl border ${isFocused ? "border-blue-500 shadow-blue-100 shadow-lg" : "border-gray-200"} p-2 transition-all relative overflow-hidden`}>
+            <BarcodeOutlined className="text-blue-500 text-xl mr-3" />
             <Input
               id="barcode"
               ref={inputRef}
               value={barcode}
               onChange={handleBarcodeInput}
               onKeyPress={handleKeyPress}
-              className="barcode-input"
+              className="bg-transparent border-none shadow-none text-gray-700 h-[50px] text-lg w-full tracking-wide focus:ring-0"
               placeholder="Ready to scan..."
               tabIndex="0"
               autoFocus
@@ -117,12 +116,12 @@ const BarcodeScannerFragment = ({ scanning, scanHandler, dataScan, isError }) =>
               autoComplete="off"
             />
           </div>
-          <div className="barcode-instructions">
-            <div className="pulse-dot"></div>
+          <div className="flex items-center mt-3 text-gray-600 text-sm">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2.5 animate-pulse"></div>
             <span>{scanning ? "Position barcode in front of scanner" : "Processing..."}</span>
           </div>
           {dataScan && (
-            <div className={`${isError === true ? "error" : "barcode-result"}`}>
+            <div className={`mt-3 p-2 px-3 rounded-lg ${isError ? "bg-red-50 border-l-4 border-red-500 text-gray-700" : "bg-blue-50 border-l-4 border-blue-500 text-blue-700"} animate-fadeIn`}>
               <p>Last scan: {dataScan}</p>
             </div>
           )}

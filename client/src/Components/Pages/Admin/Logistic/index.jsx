@@ -153,6 +153,29 @@ const LogisticPage = () => {
     fetchLogisticsData(page);
   };
 
+  useEffect(() => {
+    // Fetch auto scan config
+    const token = localStorage.getItem("token");
+    axios
+      .get(`${urlApi}/api/v1/config`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((res) => {
+        const isAutoScanOn = res.data.auto_scan[0].config_value === "nyala";
+        setToggleAutoScan(isAutoScanOn);
+        localStorage.setItem("autoScan", isAutoScanOn ? "true" : "false");
+      })
+      .catch((err) => {
+        console.error("Failed to fetch auto scan config:", err);
+        const storedValue = localStorage.getItem("autoScan");
+        if (storedValue) {
+          setToggleAutoScan(storedValue === "true");
+        }
+      });
+  }, []);
+
   const handleToggleAutoScan = () => {
     if (isToggleLoading) return;
 

@@ -17,6 +17,7 @@ import { FaTruck, FaSpinner, FaQrcode, FaCalendarAlt } from "react-icons/fa";
 import { BiSearchAlt } from "react-icons/bi";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { VariantContext } from "antd/es/form/context";
 
 const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const [isBarcodeActive, setIsBarcodeActive] = useState(false);
@@ -34,8 +35,8 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [switchMode, setSwitchMode] = useState(true);
   const [expeditionCount, setExpeditionCount] = useState([]);
+  const [todayScans, setTodayScans] = useState(0);
   const [totalBeloman, setTotalBeloman] = useState(0);
-  const [dailyScanTotal, setDailyScanTotal] = useState(0);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -146,6 +147,15 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     </div>
   );
 
+  useEffect(() => {
+    return () => {
+      if (isBarcodeActive || isPhotoMode) {
+        setIsBarcodeActive(false);
+        setIsPhotoMode(false);
+      }
+    };
+  }, [isBarcodeActive, isPhotoMode]);
+
   const scanHandler = async (err, result) => {
     if (result) {
       setDataScan(result.text);
@@ -162,8 +172,6 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       setScanning(true);
     }
   };
-
-  const [isError, setIsError] = useState(false);
 
   const handleSubmitWithoutPhoto = async (resiId) => {
     if (!checkTokenExpiration()) return;
@@ -185,12 +193,13 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       if (response.data.success) {
         playSuccessSound();
         toast.success(response.data.message || "Process completed successfully");
-        setIsError(false);
+      } else {
+        playErrorSound();
+        toast.error(response.data.message || "Process failed");
       }
     } catch (err) {
       playErrorSound();
       toast.error(err.response?.data?.message || "Failed to process");
-      setIsError(true);
     } finally {
       setScanning(true);
       setCurrentResi(null);
@@ -229,12 +238,13 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       if (response.data.success) {
         playSuccessSound();
         toast.success(response.data.message || "Process completed successfully");
-        setIsError(false);
+      } else {
+        playErrorSound();
+        toast.error(response.data.message || "Process failed");
       }
     } catch (err) {
       playErrorSound();
       toast.error(err.response?.data?.message || "Failed to process");
-      setIsError(true);
     } finally {
       setIsPhotoMode(false);
       setIsBarcodeActive(true);
@@ -284,15 +294,6 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   };
 
   useEffect(() => {
-    return () => {
-      if (isBarcodeActive || isPhotoMode) {
-        setIsBarcodeActive(true);
-        setIsPhotoMode(false);
-      }
-    };
-  }, [isBarcodeActive, isPhotoMode]);
-
-  useEffect(() => {
     if (thisPage === "pickout") {
       fetchExpeditionCounts();
     }
@@ -330,7 +331,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
         .then((res) => {
           if (res.data.success) {
             setData(res.data.data);
-            setDailyScanTotal(res.data.todayScans);
+            setTodayScans(res.data.todayScans);
             setPagination((prev) => ({
               ...prev,
               currentPage: res.data.pagination.currentPage,
@@ -470,20 +471,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
 
   return (
     <MainLayout getPage={thisPage}>
-      <ToastContainer
-        position="top-right"
-        className={`
-        absolute top-14 right-0 p-4
-        text-sm ${isPortrait ? "w-full" : "w-96"}`}
-        autoClose={2000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
+      <ToastContainer position="top-right" autoClose={1000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
       {isPhotoMode || isBarcodeActive ? (
         <div className="fixed inset-0 bg-white z-50">
@@ -517,7 +505,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                   </motion.button>
                 </div>
                 <div className="flex-1">
-                  <BarcodeScannerFragment dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} isError={isError} />
+                  <BarcodeScannerFragment dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
                 </div>
               </>
             )}
@@ -560,7 +548,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
 
             {/* Stats Cards */}
             <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <StatCard title="Today's Scans" value={dailyScanTotal} icon={<FaQrcode className="text-2xl" />} color="text-gray-900 " />
+              <StatCard title="Today's Scans" value={todayScans} icon={<FaQrcode className="text-2xl" />} color="text-gray-900 " />
               <StatCard
                 title="Scan Mode"
                 value={scanMode === "barcode-only" ? "Basic" : "Advanced"}
