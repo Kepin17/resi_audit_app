@@ -152,6 +152,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       if (isBarcodeActive || isPhotoMode) {
         setIsBarcodeActive(isBarcodeActive);
         setIsPhotoMode(false);
+        console.log(isBarcodeActive);
       }
     };
   }, [isBarcodeActive, isPhotoMode]);
@@ -445,12 +446,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   }
 
   const handleBarcodeClose = () => {
-    setScanning(false);
-    setIsBarcodeActive(false);
-    setTimeout(() => {
-      setIsBarcodeActive(false);
-      setScanning(true);
-    }, 0);
+    window.location.reload();
   };
 
   const StatCard = ({ title, value, icon, color }) => (
@@ -474,7 +470,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
 
   return (
     <MainLayout getPage={thisPage}>
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      <ToastContainer className={"fixed top-[5rem] right-4"} autoClose={2000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
       {isPhotoMode || isBarcodeActive ? (
         <div className="fixed inset-0 bg-white z-50">

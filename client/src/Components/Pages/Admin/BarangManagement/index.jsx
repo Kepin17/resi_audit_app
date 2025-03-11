@@ -1067,37 +1067,6 @@ const AdminBarangSection = () => {
                       {resiDetail[0]?.resi_id}
                     </span>
                   </Tag>
-                  <button
-                    className={`bg-slate-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-slate-600
-                  flex items-center gap-2 
-                  ${user?.roles?.includes("superadmin") ? "block" : "hidden"}
-                  `}
-                    onClick={() => {
-                      axios
-                        .put(
-                          `${urlApi}/api/v1/barang-reset-status/${resiDetail[0]?.resi_id}`,
-                          {},
-                          {
-                            headers: {
-                              Authorization: `Bearer ${localStorage.getItem("token")}`,
-                            },
-                          }
-                        )
-                        .then((res) => {
-                          message.success("Status berhasil direset");
-                          fetchBarang(currentPage);
-                        })
-                        .catch((err) => {
-                          message.error("Gagal mereset status");
-                        })
-                        .finally(() => {
-                          handleModalDetailClose();
-                        });
-                    }}
-                  >
-                    <BiReset />
-                    Reset Status
-                  </button>
                 </div>
                 <Table dataSource={resiDetail} pagination={false} className="my-3" key={resiDetail[0]?.resi_id}>
                   <Table.Column title="Nama Pekerja" dataIndex="nama_pekerja" key="nama_pekerja" />
@@ -1106,7 +1075,37 @@ const AdminBarangSection = () => {
                     dataIndex="status_proses"
                     key="status_proses"
                     render={(text) => {
-                      return <span>{text === "picker" ? "Pickup" : text === "packing" ? "Packing" : text === "pickout" ? "Shipper" : "Cancelled"}</span>;
+                      return (
+                        <span
+                          className="cursor-pointer hover:text-red-500"
+                          onClick={() => {
+                            axios
+                              .put(
+                                `${urlApi}/api/v1/barang-reset-status/${resiDetail[0]?.resi_id}`,
+                                {
+                                  newStatus: text,
+                                },
+                                {
+                                  headers: {
+                                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                                  },
+                                }
+                              )
+                              .then((res) => {
+                                message.success(res.data.message);
+                                fetchBarang(currentPage);
+                              })
+                              .catch((err) => {
+                                message.error(err.response?.data?.message || "Gagal mereset status");
+                              })
+                              .finally(() => {
+                                handleModalDetailClose();
+                              });
+                          }}
+                        >
+                          {text === "picker" ? "Pickup" : text === "packing" ? "Packing" : text === "pickout" ? "Shipper" : "Cancelled"}
+                        </span>
+                      );
                     }}
                   />
                   <Table.Column title="Last Scan" dataIndex="created_at" key="created_at" render={(text) => moment(text).format("LL HH:mm:ss")} />

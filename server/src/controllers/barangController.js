@@ -1446,12 +1446,24 @@ const resetBarangStatus = async (req, res) => {
     await connection.beginTransaction();
 
     const { resi_id } = req.params;
+    const { newStatus } = req.body;
 
-    // Support for multiple resi_ids
+    // Define valid status progression in reverse order (from latest to earliest)
+    const statusProgression = ["pickout", "packing", "picker", "pending"];
+
     const resiIds = Array.isArray(resi_id) ? resi_id : [resi_id];
 
     // Check if resis exist and get current status
-    const [existingResis] = await connection.query("SELECT resi_id, status_proses FROM proses WHERE resi_id IN (?) ORDER BY updated_at DESC", [resiIds]);
+    const [existingResis] = await connection.query(
+      `SELECT resi_id, status_proses, 
+       (SELECT created_at FROM log_proses 
+        WHERE resi_id = p.resi_id 
+        ORDER BY created_at DESC LIMIT 1) as last_log_time
+       FROM proses p 
+       WHERE resi_id IN (?) 
+       ORDER BY updated_at DESC`,
+      [resiIds]
+    );
 
     const notFoundResis = resiIds.filter((id) => !existingResis.some((resi) => resi.resi_id === id));
 
@@ -1462,20 +1474,46 @@ const resetBarangStatus = async (req, res) => {
       });
     }
 
-    // Check if any are already cancelled
-    const alreadyCancelled = existingResis.filter((resi) => resi.status_proses === "cancelled");
-    if (alreadyCancelled.length > 0) {
-      return res.status(400).send({
-        success: false,
-        message: `Some resis are already reset: ${alreadyCancelled.map((r) => r.resi_id).join(", ")}`,
-      });
-    }
-
-    // Updated query to handle multiple resis
+    // Process each resi
     for (const resiId of resiIds) {
+      const currentResi = existingResis.find((resi) => resi.resi_id === resiId);
+      const currentStatus = currentResi?.status_proses || "pending";
+
+      const currentIndex = statusProgression.indexOf(currentStatus);
+      const newIndex = statusProgression.indexOf(newStatus);
+
+      if (newIndex === -1) {
+        return res.status(400).send({
+          success: false,
+          message: `Invalid status: ${newStatus}`,
+        });
+      }
+
+      // Only allow resetting to a previous status
+      if (newIndex < currentIndex) {
+        return res.status(400).send({
+          success: false,
+          message: `Cannot reset to a later status. Current: ${currentStatus}, Requested: ${newStatus}`,
+        });
+      }
+
+      // Get all statuses that need to be removed
+      const statusesToRemove = statusProgression.slice(0, statusProgression.indexOf(newStatus));
+
+      // Delete log entries for the statuses being removed
+      if (statusesToRemove.length > 0) {
+        await connection.query(
+          `DELETE FROM log_proses 
+           WHERE resi_id = ? 
+           AND status_proses IN (?)`,
+          [resiId, statusesToRemove]
+        );
+      }
+
+      // Update the current status in proses table
       await connection.query(
         `UPDATE proses 
-         SET status_proses = 'pending', 
+         SET status_proses = ?, 
              id_pekerja = ?,
              updated_at = CURRENT_TIMESTAMP
          WHERE resi_id = ? 
@@ -1487,13 +1525,7 @@ const resetBarangStatus = async (req, res) => {
              WHERE resi_id = ?
            ) as latest
          )`,
-        [req.user.id_pekerja, resiId, resiId]
-      );
-
-      await connection.query(
-        `DELETE FROM log_proses
-        WHERE resi_id = ?`,
-        [resiId]
+        [newStatus, req.user.id_pekerja, resiId, resiId]
       );
     }
 
@@ -1501,14 +1533,14 @@ const resetBarangStatus = async (req, res) => {
 
     res.status(200).send({
       success: true,
-      message: `${resiIds.length} resi(s) have been reset`,
+      message: `${resiIds.length} resi(s) have been reset to ${newStatus}`,
     });
   } catch (error) {
     await connection.rollback();
-    console.error("Cancel resi error:", error);
+    console.error("Status reset error:", error);
     res.status(500).send({
       success: false,
-      message: "Error cancelling resi",
+      message: "Error resetting status",
       error: error.message,
     });
   } finally {

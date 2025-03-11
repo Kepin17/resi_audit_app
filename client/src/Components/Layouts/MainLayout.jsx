@@ -17,7 +17,7 @@ const MainLayout = ({ children, getPage }) => {
       <header>
         <NavFragment />
       </header>
-      <main className="flex-1 w-full p-4">{children}</main>
+      <main className="flex-1 w-full p-4 relative">{children}</main>
       <footer className={`bg-slate-50 text-white rounded-lg shadow-lg p-4 mx-4 mb-4`}>
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center text-black">
