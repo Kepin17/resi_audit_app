@@ -86,10 +86,6 @@ const editGaji = async (req, res) => {
 
 const getGajiPacking = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-
     let whereConditions = [];
     let queryParams = [];
 
@@ -103,20 +99,6 @@ const getGajiPacking = async (req, res) => {
     whereConditions.push("gaji_pegawai.is_dibayar = 0");
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
-    const [constResult] = await mysqlPool.query(
-      `
-      SELECT COUNT(*) as count
-      FROM gaji_pegawai
-      JOIN pekerja ON gaji_pegawai.id_pekerja = pekerja.id_pekerja
-      JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
-      ${whereClause}
-      `,
-      queryParams
-    );
-
-    const totalItems = constResult[0].count;
-    const totalPages = Math.ceil(totalItems / limit);
-
     const [rows] = await mysqlPool.query(
       `
       SELECT gaji_pegawai.*, nama_pekerja, total_gaji_per_scan
@@ -125,9 +107,85 @@ const getGajiPacking = async (req, res) => {
       JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
       ${whereClause}
       ORDER BY gaji_pegawai.updated_at DESC
-      LIMIT ?, ?
+     
       `,
-      [...queryParams, offset, limit]
+      [...queryParams]
+    );
+
+    const [totalGajiResult] = await mysqlPool.query(
+      `
+      SELECT SUM(gaji_total) as totalGaji
+      FROM gaji_pegawai
+      JOIN pekerja ON gaji_pegawai.id_pekerja = pekerja.id_pekerja
+      JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
+      ${whereClause}
+      `,
+      queryParams
+    );
+
+    return res.status(200).send({
+      success: true,
+      message: "gaji packing found",
+      data: rows,
+      totalGaji: totalGajiResult[0].totalGaji,
+    });
+  } catch (error) {
+    console.log(error);
+    if (!res.headersSent) {
+      return res.status(500).send({
+        success: false,
+        message: "Error when trying to show all barang",
+        error: error.message,
+      });
+    }
+  }
+};
+
+const getSudahGajianPacking = async (req, res) => {
+  try {
+    let whereConditions = [];
+    let queryParams = [];
+
+    const { id_pekerja } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    if (id_pekerja) {
+      whereConditions.push("gaji_pegawai.id_pekerja = ?");
+      queryParams.push(id_pekerja);
+    }
+
+    whereConditions.push("gaji_pegawai.is_dibayar = 1");
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+
+    // Get total count for pagination
+    const [countResult] = await mysqlPool.query(
+      `
+      SELECT COUNT(*) as total
+      FROM gaji_pegawai
+      JOIN pekerja ON gaji_pegawai.id_pekerja = pekerja.id_pekerja
+      JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
+      ${whereClause}
+      `,
+      queryParams
+    );
+
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // Get paginated data
+    const [rows] = await mysqlPool.query(
+      `
+      SELECT gaji_pegawai.*, nama_pekerja, total_gaji_per_scan
+      FROM gaji_pegawai
+      JOIN pekerja ON gaji_pegawai.id_pekerja = pekerja.id_pekerja
+      JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
+      ${whereClause}
+      ORDER BY gaji_pegawai.updated_at DESC
+      LIMIT ? OFFSET ?
+      `,
+      [...queryParams, limit, offset]
     );
 
     const [totalGajiResult] = await mysqlPool.query(
@@ -147,9 +205,10 @@ const getGajiPacking = async (req, res) => {
       data: rows,
       totalGaji: totalGajiResult[0].totalGaji,
       pagination: {
-        totalPages,
         currentPage: page,
-        totalItems,
+        totalPages: totalPages,
+        totalItems: totalItems,
+        itemsPerPage: limit,
       },
     });
   } catch (error) {
@@ -170,42 +229,83 @@ const payPackingStaff = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { id_gaji_pegawai } = req.params;
+    const { id_gaji_pegawai_list } = req.body;
 
-    if (!id_gaji_pegawai) {
+    if (!id_gaji_pegawai_list || !Array.isArray(id_gaji_pegawai_list) || id_gaji_pegawai_list.length === 0) {
       await connection.rollback();
       return res.status(400).send({
         success: false,
-        message: "ID gaji pegawai tidak ditemukan",
+        message: "Daftar gaji yang akan dibayar tidak valid",
       });
     }
 
-    // Check if id_gaji_pegawai exists and not already paid
-    const [gajiPegawai] = await connection.query("SELECT gp.*, p.nama_pekerja FROM gaji_pegawai gp " + "LEFT JOIN pekerja p ON gp.id_pekerja = p.id_pekerja " + "WHERE gp.id_gaji_pegawai = ?", [id_gaji_pegawai]);
+    const results = [];
+    const errors = [];
 
-    if (!gajiPegawai || gajiPegawai.length === 0) {
-      await connection.rollback();
-      return res.status(404).send({
-        success: false,
-        message: `Data gaji pegawai dengan ID ${id_gaji_pegawai} tidak ditemukan`,
-      });
+    for (const id_gaji_pegawai of id_gaji_pegawai_list) {
+      try {
+        const [gajiPegawai] = await connection.query(
+          `SELECT gp.*, p.nama_pekerja, g.total_gaji_per_scan
+           FROM gaji_pegawai gp
+           LEFT JOIN pekerja p ON gp.id_pekerja = p.id_pekerja
+           LEFT JOIN gaji g ON gp.id_gaji = g.id_gaji
+           WHERE gp.id_gaji_pegawai = ?
+        `,
+          [id_gaji_pegawai]
+        );
+
+        if (!gajiPegawai || gajiPegawai.length === 0) {
+          errors.push({
+            id_gaji_pegawai,
+            message: `Data pembayaran tidak ditemukan`,
+          });
+          continue;
+        }
+
+        if (gajiPegawai[0].is_dibayar === 1) {
+          errors.push({
+            id_gaji_pegawai,
+            message: `Pembayaran untuk ${gajiPegawai[0].nama_pekerja} sudah diproses sebelumnya`,
+          });
+          continue;
+        }
+
+        // Update payment status
+        const result = await connection.query(
+          `UPDATE gaji_pegawai
+           SET is_dibayar = 1, updated_at = NOW()
+           WHERE id_gaji_pegawai = ?`,
+          [id_gaji_pegawai]
+        );
+
+        if (result[0].affectedRows === 0) {
+          errors.push({
+            id_gaji_pegawai,
+            message: `Gagal memperbarui status pembayaran untuk ${gajiPegawai[0].nama_pekerja}`,
+          });
+          continue;
+        }
+
+        results.push({
+          id_gaji_pegawai,
+          nama_pekerja: gajiPegawai[0].nama_pekerja,
+          gaji_total: gajiPegawai[0].gaji_total,
+          status: "Sudah Dibayar",
+        });
+      } catch (error) {
+        errors.push({
+          id_gaji_pegawai,
+          message: `Error: ${error.message}`,
+        });
+      }
     }
 
-    if (gajiPegawai[0].is_dibayar === 1) {
+    if (errors.length === id_gaji_pegawai_list.length) {
       await connection.rollback();
       return res.status(400).send({
         success: false,
-        message: `Gaji untuk ${gajiPegawai[0].nama_pekerja} sudah dibayarkan sebelumnya`,
-      });
-    }
-
-    const result = await connection.query(`UPDATE gaji_pegawai SET is_dibayar = 1, updated_at = NOW() WHERE id_gaji_pegawai = ?`, [id_gaji_pegawai]);
-
-    if (result[0].affectedRows === 0) {
-      await connection.rollback();
-      return res.status(400).send({
-        success: false,
-        message: "Gagal memperbarui status pembayaran",
+        message: "Gagal memproses semua pembayaran",
+        errors,
       });
     }
 
@@ -213,11 +313,10 @@ const payPackingStaff = async (req, res) => {
 
     return res.status(200).send({
       success: true,
-      message: `Pembayaran gaji untuk ${gajiPegawai[0].nama_pekerja} berhasil dilakukan`,
+      message: `Pembayaran berhasil: ${results.length} berhasil, ${errors.length} gagal`,
       data: {
-        id_gaji_pegawai,
-        nama_pekerja: gajiPegawai[0].nama_pekerja,
-        status: "Sudah Dibayar",
+        successful: results,
+        failed: errors,
       },
     });
   } catch (error) {
@@ -225,7 +324,7 @@ const payPackingStaff = async (req, res) => {
     console.error("Error in payPackingStaff:", error);
     return res.status(500).send({
       success: false,
-      message: "Terjadi kesalahan saat melakukan pembayaran",
+      message: "Terjadi kesalahan server saat melakukan pembayaran",
       error: error.message,
     });
   } finally {
@@ -645,4 +744,5 @@ module.exports = {
   getSalaryByID,
   getGajiPackingStats,
   getDailyEarnings,
+  getSudahGajianPacking,
 };

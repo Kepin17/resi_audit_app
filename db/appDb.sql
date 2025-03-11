@@ -400,6 +400,9 @@ BEGIN
     VALUES (NEW.resi_id, 'pending');
 END$$
 
+use  siar_db;
+
+DELIMITER ;
 -- Single trigger to handle all process logging
 CREATE TRIGGER trg_proses_log_changes
 AFTER UPDATE ON proses

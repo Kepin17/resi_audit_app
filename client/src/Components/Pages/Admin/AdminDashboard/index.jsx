@@ -16,8 +16,8 @@ const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(moment().format("YYYY-MM-DD "));
+  const [endDate, setEndDate] = useState(moment().format("YYYY-MM-DD"));
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [isCountActive, setIsCountActive] = useState(false);
 

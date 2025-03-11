@@ -15,6 +15,7 @@ import moment from "moment";
 import axios from "axios";
 import urlApi from "../../../../utils/url";
 import { jwtDecode } from "jwt-decode";
+import { FaHistory } from "react-icons/fa";
 
 const PackSalary = () => {
   const [isEdit, setisEdit] = useState(false);
@@ -27,7 +28,7 @@ const PackSalary = () => {
   const [searchText, setSearchText] = useState("");
   const [dateRange, setDateRange] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(10); // Changed from 3 to 10
   const [totalItems, setTotalItems] = useState(0);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -35,6 +36,7 @@ const PackSalary = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [modalStatus, setModalStatus] = useState("");
   const [statusBayar, setStatusBayar] = useState("");
   const [todayStats, setTodayStats] = useState({
     totalWorkers: 0,
@@ -43,6 +45,11 @@ const PackSalary = () => {
   });
   const [statsLoading, setStatsLoading] = useState(true);
   const [totalBayar, setTotalBayar] = useState(0);
+  const [historyPagination, setHistoryPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
   useEffect(() => {
     const token = localStorage.getItem("token");
     const decodedUser = jwtDecode(token);
@@ -70,17 +77,32 @@ const PackSalary = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    axios
-      .get(`${urlApi}/api/v1/auth/packing-staff`, {
+  const showPackingStaff = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${urlApi}/api/v1/auth/packing-staff`, {
+        params: {
+          page: currentPage,
+          limit: pageSize,
+          search: searchText.trim(),
+        },
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-      })
-      .then((res) => {
-        setPackingStaff(res.data.data);
       });
-  }, []);
+
+      setPackingStaff(response.data.data);
+      setTotalItems(response.data.pagination.totalItems);
+    } catch (error) {
+      message.error("Failed to fetch packing staff data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    showPackingStaff();
+  }, [currentPage, pageSize, searchText]);
 
   const fetchTodayStats = async () => {
     setStatsLoading(true);
@@ -138,13 +160,13 @@ const PackSalary = () => {
   };
 
   const handlePayment = async () => {
-    if (!selectedRecord) return;
-
     setLoading(true);
     try {
-      const response = await axios.put(
-        `${urlApi}/api/v1/gaji/packing/${selectedRecord.id_gaji_pegawai}`,
-        {},
+      const response = await axios.post(
+        `${urlApi}/api/v1/gaji/packing-pay`,
+        {
+          id_gaji_pegawai_list: source.map((item) => item.id_gaji_pegawai),
+        },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -154,17 +176,27 @@ const PackSalary = () => {
 
       if (response.data?.success) {
         Modal.success({
-          title: "Payment Success",
-          content: "The payment has been processed successfully",
+          title: "Pembayaran Berhasil",
+          content: response.data.message,
         });
-        fetchGajiPacking(currentPage, pageSize, searchText);
+        // Refresh data
+        axios
+          .get(`${urlApi}/api/v1/auth/packing-staff`, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          })
+          .then((res) => {
+            setPackingStaff(res.data.data);
+          });
         fetchTodayStats();
       }
     } catch (err) {
       Modal.error({
-        title: "Payment Failed",
-        content: err.response?.data?.message || "An error occurred while processing the payment",
+        title: "Pembayaran Gagal",
+        content: err.response?.data?.message || "Terjadi kesalahan saat memproses pembayaran",
       });
+      console.error("Payment error:", err);
     } finally {
       setLoading(false);
       setIsModalVisible(false);
@@ -202,14 +234,19 @@ const PackSalary = () => {
       title: "Nama Pekerja",
       dataIndex: "nama_pekerja",
       key: "nama_pekerja",
+      render: (text) => (
+        <div className="flex items-center gap-2">
+          <span>{text}</span>
+        </div>
+      ),
     },
     {
       title: "Belum Dibayar",
       dataIndex: "gaji_pokok",
       key: "gaji_pokok",
       render: (text, record) => (
-        <Tag color={text == 0 ? "blue" : "red"} key={record.id_gaji_pegawai}>
-          {formatRupiah(record.gaji_pokok)}
+        <Tag color={text == 0 ? "green" : "red"} key={record.id_gaji_pegawai}>
+          {text == 0 ? "Sudah Dibayar" : "Belum Dibayar"}
         </Tag>
       ),
     },
@@ -219,31 +256,46 @@ const PackSalary = () => {
       dataIndex: "view",
       key: "action",
       render: (text, record) => (
-        <Button
-          type={record.is_dibayar ? "default" : "primary"}
-          className={`action-button ${record.is_dibayar ? "bg-gray-100" : "bg-blue-50 text-blue-600"}`}
-          onClick={() => {
-            setSelectedRecord(record);
-            setIsModalVisible(true);
-            axios
-              .get(`${urlApi}/api/v1/gaji/packing/${record.id_pekerja}`, {
-                headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-              })
-              .then((res) => {
-                setSource(res.data.data);
-                setTotalBayar(res.data.totalGaji);
-              })
-              .catch((err) => {
-                message.error("Failed to fetch salary data");
-              });
-          }}
-          disabled={!user?.roles?.includes("superadmin") ? true : record.is_dibayar}
-          icon={<MdPayments />}
-        >
-          Payment
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type={record.is_dibayar ? "default" : "primary"}
+            id={record.id_pekerja}
+            className={`action-button ${record.is_dibayar ? "bg-gray-100" : "bg-blue-50 text-blue-600"}`}
+            onClick={() => {
+              setSelectedRecord(record);
+              setIsModalVisible(true);
+              setModalStatus("belum_dibayar");
+              axios
+                .get(`${urlApi}/api/v1/gaji/packing/${record.id_pekerja}`, {
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  },
+                })
+                .then((res) => {
+                  setSource(res.data.data);
+                  setTotalBayar(res.data.totalGaji);
+                  if (res.data.data.length > 0) {
+                    setSelectedRecord({
+                      ...record,
+                      id_gaji_pegawai: res.data.data[0].id_gaji_pegawai,
+                    });
+                  }
+                })
+                .catch((err) => {
+                  message.error("Failed to fetch salary data");
+                });
+            }}
+            disabled={!user?.roles?.includes("superadmin") || record.is_dibayar === 1 ? true : record.is_dibayar}
+            icon={<MdPayments />}
+          >
+            Payment
+          </Button>
+
+          <Button className="action-button bg-orange-50 text-orange-600" onClick={() => handleHistoryClick(record)}>
+            <FaHistory />
+            Payment History
+          </Button>
+        </div>
       ),
     },
   ];
@@ -285,7 +337,7 @@ const PackSalary = () => {
 
   const handleSearch = (value) => {
     setSearchText(value);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
   const handleDateChange = (dates) => {
@@ -342,6 +394,66 @@ const PackSalary = () => {
     } finally {
       setExportLoading(false);
     }
+  };
+
+  const handleHistoryTableChange = (pagination) => {
+    setHistoryPagination((prev) => ({
+      ...prev,
+      current: pagination.current,
+      pageSize: pagination.pageSize,
+    }));
+
+    // Refetch data with new pagination
+    axios
+      .get(`${urlApi}/api/v1/gaji/packing-sudahdibayar/${selectedRecord.id_pekerja}`, {
+        params: {
+          page: pagination.current,
+          limit: pagination.pageSize,
+        },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
+      .then((res) => {
+        setSource(res.data.data);
+        setTotalBayar(res.data.totalGaji);
+        setHistoryPagination((prev) => ({
+          ...prev,
+          total: res.data.pagination.totalItems,
+        }));
+      })
+      .catch((err) => {
+        message.error("Failed to fetch payment history");
+      });
+  };
+
+  const handleHistoryClick = (record) => {
+    setSelectedRecord(record);
+    setModalStatus("sudah_dibayar");
+    setIsModalVisible(true);
+
+    axios
+      .get(`${urlApi}/api/v1/gaji/packing-sudahdibayar/${record.id_pekerja}`, {
+        params: {
+          page: 1,
+          limit: 10,
+        },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
+      .then((res) => {
+        setSource(res.data.data);
+        setTotalBayar(res.data.totalGaji);
+        setHistoryPagination({
+          current: 1,
+          pageSize: 10,
+          total: res.data.pagination.totalItems,
+        });
+      })
+      .catch((err) => {
+        message.error("Failed to fetch payment history");
+      });
   };
 
   return (
@@ -467,6 +579,8 @@ const PackSalary = () => {
               showTotal: (total) => `Total ${total} items`,
               className: "p-6",
               size: "default",
+              responsive: true,
+              position: ["bottomCenter"],
             }}
             onChange={handleTableChange}
             className="custom-minimal-table"
@@ -480,15 +594,17 @@ const PackSalary = () => {
         {/* Modernized Modal */}
         <Modal
           width={1000}
-          title={<span className="text-lg">Confirm Payment</span>}
+          title={<span className="text-lg">{modalStatus === "sudah_dibayar" ? "History Pembayaran" : "Confirm Payment"} </span>}
           open={isModalVisible}
           onOk={handlePayment}
+          footer={modalStatus === "sudah_dibayar" ? null : undefined}
           onCancel={() => {
             setIsModalVisible(false);
             setSelectedRecord(null);
           }}
           confirmLoading={loading}
           okText="Process Payment"
+          okType="primary"
           okButtonProps={{
             className: "bg-blue-600 hover:bg-blue-700 border-none",
             size: "middle",
@@ -497,7 +613,7 @@ const PackSalary = () => {
           centered
         >
           <div className="py-4">
-            <p className="text-gray-700">Are you sure you want to process the payment for:</p>
+            <p className={`text-gray-700 ${modalStatus === "sudah_dibayar" ? "hidden" : ""}`}>Are you sure you want to process the payment for:</p>
             <p className="font-bold text-lg mt-2 mb-4">{selectedRecord?.nama_pekerja}</p>
             {/* Table Section - Clean & Modern */}
             <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
@@ -505,17 +621,18 @@ const PackSalary = () => {
                 columns={coloms}
                 rowKey="id_gaji_pegawai"
                 dataSource={source}
-                pagination={{
-                  current: currentPage,
-                  pageSize: pageSize,
-                  total: totalItems,
-                  showSizeChanger: true,
-                  showQuickJumper: true,
-                  showTotal: (total) => `Total ${total} items`,
-                  className: "p-6",
-                  size: "default",
-                }}
                 onChange={handleTableChange}
+                pagination={
+                  modalStatus === "sudah_dibayar"
+                    ? {
+                        ...historyPagination,
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total) => `Total ${total} items`,
+                        onChange: handleHistoryTableChange,
+                      }
+                    : false
+                }
                 className="custom-minimal-table"
                 rowClassName={() => "hover:bg-gray-50 transition-colors"}
                 scroll={{ x: "max-content" }}

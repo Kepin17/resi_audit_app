@@ -271,6 +271,13 @@ const scaneHandler = async (req, res) => {
       }
     }
 
+    let gambar_resi = null;
+    if (req.file) {
+      gambar_resi = req.file.filename;
+    }
+
+    await mysqlPool.query("INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi) VALUES (?, ?, ?, ?)", [resi_id, id_pekerja, thisPage, gambar_resi]);
+
     // This is a valid scan - process it
     return await processScan(req, res, expectedNextRole, id_pekerja, resi_id, nama_pekerja, username);
   } catch (error) {
@@ -568,8 +575,12 @@ const getActivityNotComplited = async (req, res) => {
 
     const [rows] = await mysqlPool.query(query, queryParams);
 
-    const [totalCountNoLimit] = await mysqlPool.query(`SELECT COUNT(*) as total FROM (${query.replace("LIMIT ? OFFSET ?", "")}) as count_table`, queryParams.slice(0, -2));
+    const baseCountQuery = `
+    SELECT COUNT(*) as total 
+    FROM proses 
+    WHERE status_proses = ?`;
 
+    const [totalCountNoLimit] = await mysqlPool.query(baseCountQuery, [statusToCheck]);
     res.status(200).send({
       success: true,
       message: "Data found",

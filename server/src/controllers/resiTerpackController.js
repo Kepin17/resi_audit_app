@@ -85,7 +85,6 @@ const showResiTerpack = async (req, res) => {
       expeditionCountQuery += ` AND barang.created_at BETWEEN ? AND ?`;
       expeditionParams.push(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
     }
-
     // Akhiri query utama dengan GROUP BY
     expeditionCountQuery += ` GROUP BY ekpedisi.nama_ekspedisi`;
 

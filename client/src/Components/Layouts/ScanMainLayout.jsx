@@ -385,6 +385,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
           if (res.data.success) {
             setDataBeloman(res.data.data);
             setTotalBeloman(res.data.totalData);
+            console.log(res.data);
             setPaginationBeloman((prev) => ({
               ...prev,
               currentPage: res.data.pagination.currentPage,

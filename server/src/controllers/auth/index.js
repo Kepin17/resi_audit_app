@@ -520,34 +520,68 @@ const deleteStaff = async (req, res) => {
 
 const showPackingStaff = async (req, res) => {
   try {
-    const [rows] = await mysqlPool.query(`
-       SELECT 
-          p.id_pekerja, 
-          p.nama_pekerja, 
-          GROUP_CONCAT(DISTINCT b.jenis_pekerja) as roles,
-          COALESCE((
-              SELECT SUM(gaji_total) 
-              FROM gaji_pegawai 
-              WHERE id_pekerja = p.id_pekerja 
-              AND is_dibayar = 0
-          ), 0) as gaji_pokok
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const search = req.query.search?.trim();
+
+    // First, get total count with search condition
+    const countQuery = `
+      SELECT COUNT(DISTINCT p.id_pekerja) as total
       FROM pekerja p
       LEFT JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
       LEFT JOIN bagian b ON rp.id_bagian = b.id_bagian
+      ${search ? "WHERE p.nama_pekerja LIKE ?" : ""}
+      HAVING 
+        COUNT(CASE WHEN b.jenis_pekerja = 'packing' THEN 1 END) > 0
+        AND
+        COUNT(CASE WHEN b.jenis_pekerja = 'freelance' THEN 1 END) > 0
+    `;
+
+    const [countResult] = await mysqlPool.query(countQuery, search ? [`%${search}%`] : []);
+
+    const totalItems = countResult[0]?.total || 0;
+
+    // Then get the paginated data
+    const query = `
+      SELECT 
+        p.id_pekerja, 
+        p.nama_pekerja, 
+        GROUP_CONCAT(DISTINCT b.jenis_pekerja) as roles,
+        COALESCE((
+          SELECT SUM(gaji_total) 
+          FROM gaji_pegawai 
+          WHERE id_pekerja = p.id_pekerja 
+          AND is_dibayar = 0
+        ), 0) as gaji_pokok
+      FROM pekerja p
+      LEFT JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
+      LEFT JOIN bagian b ON rp.id_bagian = b.id_bagian
+      ${search ? "WHERE p.nama_pekerja LIKE ?" : ""}
       GROUP BY p.id_pekerja
       HAVING 
-          COUNT(CASE WHEN b.jenis_pekerja = 'packing' THEN 1 END) > 0
-          AND
-          COUNT(CASE WHEN b.jenis_pekerja = 'freelance' THEN 1 END) > 0
-      ORDER BY p.nama_pekerja ASC 
-  `);
+        COUNT(CASE WHEN b.jenis_pekerja = 'packing' THEN 1 END) > 0
+        AND
+        COUNT(CASE WHEN b.jenis_pekerja = 'freelance' THEN 1 END) > 0
+      ORDER BY p.nama_pekerja ASC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [rows] = await mysqlPool.query(query, search ? [`%${search}%`, limit, offset] : [limit, offset]);
 
     res.status(200).send({
       success: true,
       message: "Data found",
       data: rows,
+      pagination: {
+        currentPage: page,
+        pageSize: limit,
+        totalItems: totalItems,
+        totalPages: Math.ceil(totalItems / limit),
+      },
     });
   } catch (error) {
+    console.error("Error in showPackingStaff:", error);
     res.status(500).send({
       success: false,
       message: "Error when trying to show packing worker",

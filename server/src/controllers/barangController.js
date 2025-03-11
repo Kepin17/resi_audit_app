@@ -385,6 +385,12 @@ const cancelBarang = async (req, res) => {
       );
     }
 
+    await connection.query(
+      `INSERT INTO log_proses (resi_id, status_proses, created_at, updated_at)
+        VALUES ?`,
+      [resiIds.map((resiId) => [resiId, "cancelled", moment().format("YYYY-MM-DD HH:mm:ss"), moment().format("YYYY-MM-DD HH:mm:ss")])]
+    );
+
     await connection.commit();
 
     res.status(200).send({
@@ -1446,22 +1452,30 @@ const resetBarangStatus = async (req, res) => {
     await connection.beginTransaction();
 
     const { resi_id } = req.params;
-    const { newStatus } = req.body;
+    const { currentStatus } = req.body;
 
-    // Define valid status progression in reverse order (from latest to earliest)
-    const statusProgression = ["pickout", "packing", "picker", "pending"];
+    // Define status progression (in order)
+    const statusProgression = ["pending", "picker", "packing", "pickout"];
+
+    // Define valid status resets
+    const statusResetMap = {
+      pickout: "packing",
+      packing: "picker",
+      picker: "pending",
+    };
 
     const resiIds = Array.isArray(resi_id) ? resi_id : [resi_id];
 
     // Check if resis exist and get current status
     const [existingResis] = await connection.query(
-      `SELECT resi_id, status_proses, 
-       (SELECT created_at FROM log_proses 
-        WHERE resi_id = p.resi_id 
-        ORDER BY created_at DESC LIMIT 1) as last_log_time
+      `SELECT resi_id, status_proses
        FROM proses p 
        WHERE resi_id IN (?) 
-       ORDER BY updated_at DESC`,
+       AND id_proses = (
+         SELECT MAX(id_proses)
+         FROM proses
+         WHERE resi_id = p.resi_id
+       )`,
       [resiIds]
     );
 
@@ -1477,38 +1491,51 @@ const resetBarangStatus = async (req, res) => {
     // Process each resi
     for (const resiId of resiIds) {
       const currentResi = existingResis.find((resi) => resi.resi_id === resiId);
-      const currentStatus = currentResi?.status_proses || "pending";
+      const dbStatus = currentResi?.status_proses || "pending";
 
+      // Validate that currentStatus matches what's in the database
+      if (currentStatus !== dbStatus) {
+        return res.status(400).send({
+          success: false,
+          message: `Status mismatch. Current status : ${dbStatus}`,
+        });
+      }
+
+      // Get indices for validation
       const currentIndex = statusProgression.indexOf(currentStatus);
-      const newIndex = statusProgression.indexOf(newStatus);
 
-      if (newIndex === -1) {
+      // Validate current status
+      if (currentIndex === -1 || !statusResetMap[currentStatus]) {
         return res.status(400).send({
           success: false,
-          message: `Invalid status: ${newStatus}`,
+          message: `Invalid current status: ${currentStatus}. Must be one of: pickout, packing, or picker`,
         });
       }
 
-      // Only allow resetting to a previous status
-      if (newIndex < currentIndex) {
+      const previousStatus = statusResetMap[currentStatus];
+      const previousIndex = statusProgression.indexOf(previousStatus);
+
+      // Validate linear progression
+      if (currentIndex - previousIndex !== 1) {
         return res.status(400).send({
           success: false,
-          message: `Cannot reset to a later status. Current: ${currentStatus}, Requested: ${newStatus}`,
+          message: `Invalid status reset. Can only reset from ${currentStatus} to ${previousStatus}`,
         });
       }
 
-      // Get all statuses that need to be removed
-      const statusesToRemove = statusProgression.slice(0, statusProgression.indexOf(newStatus));
-
-      // Delete log entries for the statuses being removed
-      if (statusesToRemove.length > 0) {
-        await connection.query(
-          `DELETE FROM log_proses 
-           WHERE resi_id = ? 
-           AND status_proses IN (?)`,
-          [resiId, statusesToRemove]
-        );
-      }
+      // Delete the current status log
+      await connection.query(
+        `DELETE FROM log_proses 
+         WHERE resi_id = ? 
+         AND status_proses = ?
+         AND created_at = (
+           SELECT MAX(created_at)
+           FROM log_proses
+           WHERE resi_id = ?
+           AND status_proses = ?
+         )`,
+        [resiId, currentStatus, resiId, currentStatus]
+      );
 
       // Update the current status in proses table
       await connection.query(
@@ -1525,7 +1552,7 @@ const resetBarangStatus = async (req, res) => {
              WHERE resi_id = ?
            ) as latest
          )`,
-        [newStatus, req.user.id_pekerja, resiId, resiId]
+        [previousStatus, req.user.id_pekerja, resiId, resiId]
       );
     }
 
@@ -1533,7 +1560,7 @@ const resetBarangStatus = async (req, res) => {
 
     res.status(200).send({
       success: true,
-      message: `${resiIds.length} resi(s) have been reset to ${newStatus}`,
+      message: `${resiIds.length} resi(s) have been reset from ${currentStatus} to ${statusResetMap[currentStatus]}`,
     });
   } catch (error) {
     await connection.rollback();

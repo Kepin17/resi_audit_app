@@ -1083,7 +1083,7 @@ const AdminBarangSection = () => {
                               .put(
                                 `${urlApi}/api/v1/barang-reset-status/${resiDetail[0]?.resi_id}`,
                                 {
-                                  newStatus: text,
+                                  currentStatus: text,
                                 },
                                 {
                                   headers: {
@@ -1182,7 +1182,7 @@ const AdminBarangSection = () => {
                     e.preventDefault();
                     if (isMultipleActive) {
                       handleItemSelection(item.resi_id);
-                    } else if (item.status_proses !== "pending") {
+                    } else if (item.status_proses !== "pending" && item.status_proses !== "cancelled") {
                       try {
                         const response = await axios.get(`${urlApi}/api/v1/barang/${item.resi_id}`, {
                           headers: {

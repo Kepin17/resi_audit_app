@@ -20,7 +20,7 @@ const {
 } = require("../controllers/barangController");
 const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, showPackingStaff } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
-const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel, getGajiPackingStats, getDailyEarnings } = require("../controllers/SalaryController");
+const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel, getGajiPackingStats, getDailyEarnings, getSudahGajianPacking } = require("../controllers/SalaryController");
 const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExcel } = require("../controllers/resiTerpackController");
 const upload = require("../config/multerConfig");
 const { getStatistics, getWorkerStatistics } = require("../controllers/statisticsController");
@@ -103,7 +103,8 @@ router.get("/gaji", authToken, roleMiddleware([roles.supadmin]), getSalary);
 router.get("/salary/daily-earnings", authToken, roleMiddleware([roles.packing]), getDailyEarnings);
 router.put("/gaji/:id_gaji", authToken, roleMiddleware([roles.supadmin]), editGaji);
 router.get("/gaji/packing/:id_pekerja", authToken, roleMiddleware([roles.finance]), getGajiPacking);
-router.put("/gaji/packing/:id_gaji_pegawai", authToken, roleMiddleware([roles.supadmin]), payPackingStaff);
+router.get("/gaji/packing-sudahdibayar/:id_pekerja", authToken, roleMiddleware([roles.finance]), getSudahGajianPacking);
+router.post("/gaji/packing-pay", authToken, roleMiddleware([roles.supadmin]), payPackingStaff);
 
 // audit gaji
 

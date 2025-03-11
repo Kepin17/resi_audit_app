@@ -234,7 +234,7 @@ const DashboardLayout = ({ children, activePage }) => {
                     <li>
                       <button
                         onClick={!isLoading ? handleBackup : undefined}
-                        className={`w-full flex items-center p-3 text-slate-50 rounded-lg transition-colors ${isLoading ? "bg-white cursor-not-allowed" : "bg-green-700 hover:bg-green-600"}`}
+                        className={`w-full flex items-center p-3 text-slate-50 rounded-lg transition-colors ${isLoading ? "bg-gray-600 cursor-not-allowed" : "bg-green-700 hover:bg-green-600"}`}
                         disabled={isLoading}
                       >
                         <FaDatabase className="w-5 h-5" />
