@@ -90,16 +90,17 @@ const getGajiPacking = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    const { id_pekerja } = req.query;
+    let whereConditions = [];
+    let queryParams = [];
+
+    const { id_pekerja } = req.params;
 
     if (id_pekerja) {
       whereConditions.push("gaji_pegawai.id_pekerja = ?");
       queryParams.push(id_pekerja);
     }
 
-    let whereConditions = [];
-    let queryParams = [];
-
+    whereConditions.push("gaji_pegawai.is_dibayar = 0");
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
     const [constResult] = await mysqlPool.query(
@@ -109,9 +110,7 @@ const getGajiPacking = async (req, res) => {
       JOIN pekerja ON gaji_pegawai.id_pekerja = pekerja.id_pekerja
       JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
       ${whereClause}
-      ORDER BY gaji_pegawai.updated_at DESC
-
-    `,
+      `,
       queryParams
     );
 
@@ -120,14 +119,14 @@ const getGajiPacking = async (req, res) => {
 
     const [rows] = await mysqlPool.query(
       `
-      SELECT gaji_pegawai.*, nama_pekerja , total_gaji_per_scan
+      SELECT gaji_pegawai.*, nama_pekerja, total_gaji_per_scan
       FROM gaji_pegawai
       JOIN pekerja ON gaji_pegawai.id_pekerja = pekerja.id_pekerja
       JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
       ${whereClause}
-      WHERE gaji_pegawai.is_dibayar = 0
       ORDER BY gaji_pegawai.updated_at DESC
-      LIMIT ?, ?`,
+      LIMIT ?, ?
+      `,
       [...queryParams, offset, limit]
     );
 
@@ -137,7 +136,6 @@ const getGajiPacking = async (req, res) => {
       FROM gaji_pegawai
       JOIN pekerja ON gaji_pegawai.id_pekerja = pekerja.id_pekerja
       JOIN gaji ON gaji_pegawai.id_gaji = gaji.id_gaji
-      WHERE is_dibayar = 0
       ${whereClause}
       `,
       queryParams
