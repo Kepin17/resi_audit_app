@@ -265,7 +265,7 @@ const LogisticPage = () => {
                 />
               </Form.Item>
               <Form.Item label="Resi Code" name="id_resi" rules={[{ required: true, message: "Please input Resi Code!" }]}>
-                <Input placeholder="Example: CM" />
+                <Input placeholder="Example: CM" maxLength={2} />
               </Form.Item>
             </>
           )}

@@ -590,6 +590,53 @@ const showPackingStaff = async (req, res) => {
   }
 };
 
+const resetPass = async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).send({
+        success: false,
+        message: "Password is required",
+        error: "validation_error",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).send({
+        success: false,
+        message: "Password must be at least 6 characters long",
+        error: "validation_error",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const [result] = await mysqlPool.query("UPDATE pekerja SET password = ? WHERE id_pekerja = ?", [hashedPassword, id_pekerja]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Worker not found",
+        error: "not_found",
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "Password reset successfully",
+    });
+  } catch (error) {
+    console.error("Error in resetPass:", error);
+    res.status(500).send({
+      success: false,
+      message: "Error when trying to reset password",
+      error: "internal_server_error",
+    });
+  }
+};
+
 module.exports = {
   RegisterHandler,
   loginHandler,
@@ -600,4 +647,5 @@ module.exports = {
   deviceLog,
   deleteStaff,
   showPackingStaff,
+  resetPass,
 };

@@ -62,6 +62,7 @@ router.delete("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), 
 router.put("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), editStaff);
 router.get("/auth/log", authToken, roleMiddleware([roles.admin, roles.supadmin]), deviceLog);
 router.get("/auth/packing-staff", authToken, roleMiddleware([roles.finance]), showPackingStaff);
+router.get("/auth/reset-pass/:nama_pekerja", authToken, roleMiddleware([roles.picker, roles.packing, roles.pickout]), showPackingStaff);
 
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllBarang);

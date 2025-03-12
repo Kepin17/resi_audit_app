@@ -18,6 +18,7 @@ import ReturBarang from "./Components/Pages/Admin/ReturBarangPage";
 import ReturBarangPage from "./Components/Pages/Home/ReturBarang";
 import LogisticPage from "./Components/Pages/Admin/Logistic";
 import ErrorPage from "./Components/Pages/ErrorPage";
+import ResetPass from "./Components/Pages/Auth/ResetPass";
 
 function App() {
   const [getRole, setRole] = useState("");
@@ -87,6 +88,15 @@ function App() {
           element={
             <ProtectedRoute>
               <ReturBarangPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/reset-password/:nama_pekerja"
+          element={
+            <ProtectedRoute>
+              <ResetPass />
             </ProtectedRoute>
           }
         />

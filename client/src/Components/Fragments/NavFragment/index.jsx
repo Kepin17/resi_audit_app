@@ -2,7 +2,7 @@ import { jwtDecode } from "jwt-decode";
 import Button from "../../Elements/Button";
 import Title from "../../Elements/Title";
 import React, { useEffect, useState, useRef } from "react";
-import { FaUserCircle, FaSignOutAlt, FaTruck } from "react-icons/fa";
+import { FaUserCircle, FaSignOutAlt, FaTruck, FaKey } from "react-icons/fa";
 import { MdDashboard } from "react-icons/md";
 import { Link } from "react-router-dom";
 import { FaBoxesPacking, FaCartFlatbed } from "react-icons/fa6";
@@ -99,6 +99,13 @@ const NavFragment = () => {
                 ) : (
                   ""
                 )}
+
+                <Link to={`reset-password/${tokenDatas.username}`}>
+                  <Button buttonStyle="w-full text-left px-4 py-3 hover:bg-blue-50/50  flex items-center gap-3 text-blue-600  transition-all duration-200">
+                    <FaKey />
+                    Reset Password
+                  </Button>
+                </Link>
 
                 <Button
                   buttonStyle="w-full text-left px-4 py-3 hover:bg-red-50/50  flex items-center gap-3 text-red-600  transition-all duration-200"
