@@ -592,18 +592,19 @@ const showPackingStaff = async (req, res) => {
 
 const resetPass = async (req, res) => {
   try {
-    const { username } = req.params;
-    const { password } = req.body;
+    const { id_pekerja } = req.params;
+    const { oldPassword, newPassword } = req.body;
 
-    if (!password) {
+    // Validate input
+    if (!oldPassword || !newPassword) {
       return res.status(400).send({
         success: false,
-        message: "Password is required",
+        message: "Old password and new password are required",
         error: "validation_error",
       });
     }
 
-    if (password.length < 6) {
+    if (newPassword.length < 6) {
       return res.status(400).send({
         success: false,
         message: "Password must be at least 6 characters long",
@@ -611,27 +612,57 @@ const resetPass = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Get user from database
+    const [user] = await mysqlPool.query("SELECT * FROM pekerja WHERE id_pekerja = ?", [id_pekerja]);
 
+    if (user.length === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "User not found",
+        error: "not_found",
+      });
+    }
+k
+    // Verify old password
+    const isOldPasswordValid = await bcrypt.compare(oldPassword, user[0].password);
+    if (!isOldPasswordValid) {
+      return res.status(401).send({
+        success: false,
+        message: "Current password is incorrect",
+        error: "invalid_password",
+      });
+    }
+
+    // Check if new password is same as old
+    if (oldPassword === newPassword) {
+      return res.status(400).send({
+        success: false,
+        message: "New password must be different from current password",
+        error: "same_password",
+      });
+    }
+
+    // Hash and update new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     const [result] = await mysqlPool.query("UPDATE pekerja SET password = ? WHERE id_pekerja = ?", [hashedPassword, id_pekerja]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).send({
+      return res.status(500).send({
         success: false,
-        message: "Worker not found",
-        error: "not_found",
+        message: "Failed to update password",
+        error: "update_failed",
       });
     }
 
     res.status(200).send({
       success: true,
-      message: "Password reset successfully",
+      message: "Password updated successfully",
     });
   } catch (error) {
-    console.error("Error in resetPass:", error);
+    console.error("Password reset error:", error);
     res.status(500).send({
       success: false,
-      message: "Error when trying to reset password",
+      message: "Internal server error while resetting password",
       error: "internal_server_error",
     });
   }

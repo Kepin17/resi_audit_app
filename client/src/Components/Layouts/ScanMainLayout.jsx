@@ -209,16 +209,66 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     }
   };
 
+  // const handlePhotoCapture = async ({ photo }) => {
+  //   if (!checkTokenExpiration()) return;
+  //   if (isSoundLocked) return;
+  //   setIsSoundLocked(true);
+  //   if (!photo) {
+  //     playErrorSound();
+  //     toast.error("Photo is required");
+  //     setIsSoundLocked(false);
+  //     return;
+  //   }
+  //   try {
+  //     const token = localStorage.getItem("token");
+  //     const decodeToken = jwtDecode(token);
+  //     const user = decodeToken.id_pekerja;
+  //     const base64Response = await fetch(photo);
+  //     const blob = await base64Response.blob();
+  //     const formData = new FormData();
+  //     const photoFile = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" });
+  //     formData.append("photo", photoFile);
+  //     formData.append("id_pekerja", user);
+  //     formData.append("thisPage", thisPage);
+  //     const response = await axios.post(`${urlApi}/api/v1/auditResi/scan/${currentResi}`, formData, {
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //         "Content-Type": "multipart/form-data",
+  //       },
+  //     });
+  //     if (response.data.success) {
+  //       playSuccessSound();
+  //       toast.success(response.data.message || "Process completed successfully");
+  //     } else {
+  //       playErrorSound();
+  //       toast.error(response.data.message || "Process failed");
+  //     }
+  //   } catch (err) {
+  //     playErrorSound();
+  //     toast.error(err.response?.data?.message || "Failed to process");
+  //     setIsError(true);
+  //   } finally {
+  //     setIsPhotoMode(false);
+  //     setIsBarcodeActive(true);
+  //     setScanning(true);
+  //     setCurrentResi(null);
+  //     setTimeout(() => setIsSoundLocked(false), 500);
+  //   }
+  // };
+
   const handlePhotoCapture = async ({ photo }) => {
     if (!checkTokenExpiration()) return;
     if (isSoundLocked) return;
+
     setIsSoundLocked(true);
+
     if (!photo) {
       playErrorSound();
       toast.error("Photo is required");
       setIsSoundLocked(false);
       return;
     }
+
     try {
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
@@ -230,12 +280,19 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       formData.append("photo", photoFile);
       formData.append("id_pekerja", user);
       formData.append("thisPage", thisPage);
+
+      // Tambahkan timeout dan retry logic
       const response = await axios.post(`${urlApi}/api/v1/auditResi/scan/${currentResi}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
+        timeout: 30000, // 30 detik timeout
+        validateStatus: function (status) {
+          return status >= 200 && status < 500; // Handle HTTP errors explicitly
+        },
       });
+
       if (response.data.success) {
         playSuccessSound();
         toast.success(response.data.message || "Process completed successfully");
@@ -245,14 +302,22 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       }
     } catch (err) {
       playErrorSound();
-      toast.error(err.response?.data?.message || "Failed to process");
+      if (err.code === "ECONNABORTED") {
+        toast.error("Request timeout - please try again");
+      } else if (err.response) {
+        toast.error(err.response.data?.message || "Failed to process");
+      } else if (err.request) {
+        toast.error("No response from server - please try again");
+      } else {
+        toast.error("Error processing request");
+      }
       setIsError(true);
     } finally {
       setIsPhotoMode(false);
       setIsBarcodeActive(true);
       setScanning(true);
       setCurrentResi(null);
-      setTimeout(() => setIsSoundLocked(false), 500);
+      setTimeout(() => setIsSoundLocked(false), 1000);
     }
   };
 

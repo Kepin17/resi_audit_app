@@ -18,7 +18,7 @@ const {
   exportLogImportToExcel,
   resetBarangStatus,
 } = require("../controllers/barangController");
-const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, showPackingStaff } = require("../controllers/auth");
+const { RegisterHandler, showAllStaff, showStaffDetail, editStaff, deviceLog, deleteStaff, showPackingStaff, resetPass } = require("../controllers/auth");
 const { getBagian } = require("../controllers/BagianController");
 const { getSalary, editGaji, getGajiPacking, payPackingStaff, exportGaji, backupGajiPacking, importGajiFromExcel, getGajiPackingStats, getDailyEarnings, getSudahGajianPacking } = require("../controllers/SalaryController");
 const { showResiTerpack, exportPackToExcel, backupPackToExcel, importPackFromExcel } = require("../controllers/resiTerpackController");
@@ -62,7 +62,7 @@ router.delete("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), 
 router.put("/auth/:id_pekerja", authToken, roleMiddleware([roles.supadmin]), editStaff);
 router.get("/auth/log", authToken, roleMiddleware([roles.admin, roles.supadmin]), deviceLog);
 router.get("/auth/packing-staff", authToken, roleMiddleware([roles.finance]), showPackingStaff);
-router.get("/auth/reset-pass/:nama_pekerja", authToken, roleMiddleware([roles.picker, roles.packing, roles.pickout]), showPackingStaff);
+router.put("/auth/reset-pass/:id_pekerja", authToken, roleMiddleware([roles.picker, roles.packing, roles.pickout]), resetPass);
 
 // barang area
 router.get("/barang", authToken, roleMiddleware([roles.admin, roles.supadmin]), showAllBarang);

@@ -3,7 +3,7 @@ import Label from "../../Elements/Label";
 import Input from "../../Elements/Input";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 
-const InputFragment = ({ InputType = "text", inputName, htmlFor, inputValue, inputOnChange, children, isDisabled }) => {
+const InputFragment = ({ InputType = "text", inputName, htmlFor, inputValue, inputOnChange, children, isDisabled, maxLength }) => {
   const [isShowPass, setIsShowPass] = useState(false);
   return (
     <div className="relative w-full group">
@@ -16,6 +16,7 @@ const InputFragment = ({ InputType = "text", inputName, htmlFor, inputValue, inp
         value={inputValue}
         onChange={inputOnChange}
         isDisabled={isDisabled}
+        maxLength={maxLength}
       />
 
       {InputType === "password" && (
