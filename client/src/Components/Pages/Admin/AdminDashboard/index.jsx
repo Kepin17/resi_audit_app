@@ -470,8 +470,34 @@ const AdminDashboard = () => {
                     }}
                   />
                   <YAxis width={40} tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={{ fontSize: "12px" }} formatter={(value, name) => [value, name === "picker" ? "Picker" : name === "packing" ? "Packing" : "Pickout"]} />
-                  <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} formatter={(value) => (value === "picker" ? "Picker" : value === "packing" ? "Packing" : "Pickout")} />
+                  <Tooltip
+                    contentStyle={{
+                      fontSize: "12px",
+                      padding: "8px",
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      border: "none",
+                      borderRadius: "4px",
+                    }}
+                    formatter={(value, name) => {
+                      const labels = {
+                        picker: "Picker Activities",
+                        packing: "Packing Activities",
+                        pickout: "Pickout Activities",
+                      };
+                      return [value, labels[name] || name];
+                    }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
+                    formatter={(value) => {
+                      const statusMap = {
+                        picker: "Picker",
+                        packing: "Packing",
+                        pickout: "Pickout",
+                      };
+                      return statusMap[value] || value;
+                    }}
+                  />
                   {visibleSeries.picker && <Line type="monotone" dataKey="picker" name="Picker" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />}
                   {visibleSeries.packing && <Line type="monotone" dataKey="packing" name="Packing" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />}
                   {visibleSeries.pickout && <Line type="monotone" dataKey="pickout" name="Pickout" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />}

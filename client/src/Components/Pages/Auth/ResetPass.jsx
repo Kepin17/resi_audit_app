@@ -10,7 +10,6 @@ import { message } from "antd";
 const ResetPass = () => {
   const [formData, setFormData] = useState({ oldPassword: "", newPassword: "" });
 
-
   const handleResetPass = (e) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
@@ -74,7 +73,7 @@ const ResetPass = () => {
             </InputFragment>
           </div>
 
-          <Button className="w-full h-12 mt-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg">Reset Password</Button>
+          <Button className="w-full h-12  mt-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg">Reset Password</Button>
         </Form>
       </div>
     </div>

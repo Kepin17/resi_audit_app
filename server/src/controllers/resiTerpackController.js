@@ -71,19 +71,19 @@ const showResiTerpack = async (req, res) => {
     let expeditionCountQuery = `
       SELECT 
         ekpedisi.nama_ekspedisi,
-        COUNT(barang.resi_id) AS total_resi
+        COUNT(DISTINCT barang.resi_id) AS total_resi
       FROM barang
       JOIN ekpedisi ON barang.id_ekspedisi = ekpedisi.id_ekspedisi
-      JOIN proses ON barang.resi_id = proses.resi_id
-      WHERE proses.status_proses = 'pickout' 
+      JOIN log_proses ON barang.resi_id = log_proses.resi_id
+      WHERE log_proses.status_proses = 'pickout' 
     `;
 
     let expeditionParams = [];
 
     // Tambahkan filter tanggal jika tersedia
     if (startDate && endDate) {
-      expeditionCountQuery += ` AND barang.created_at BETWEEN ? AND ?`;
-      expeditionParams.push(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
+      expeditionCountQuery += ` AND DATE(log_proses.created_at) BETWEEN ? AND ?`;
+      expeditionParams.push(startDate, endDate);
     }
     // Akhiri query utama dengan GROUP BY
     expeditionCountQuery += ` GROUP BY ekpedisi.nama_ekspedisi`;

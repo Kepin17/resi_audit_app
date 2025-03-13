@@ -600,39 +600,60 @@ const getActivityNotComplited = async (req, res) => {
 
 const getExpeditionCounts = async (req, res) => {
   try {
-    const { startDate, endDate, selectedDate } = req.query;
+    const { selectedDate } = req.query;
 
-    let query = `
+    // Set date range for today by default or selected date
+    const targetDate = selectedDate ? moment(selectedDate) : moment();
+
+    // Set start and end of the day
+    const startDateTime = targetDate.format("YYYY-MM-DD 00:00:00");
+    const endDateTime = targetDate.format("YYYY-MM-DD 23:59:59");
+
+    // Modified query to include all expeditions and their pickout counts
+    const query = `
       SELECT 
-        ekpedisi.nama_ekspedisi,
-        COUNT(barang.resi_id) as total_resi
-      FROM barang
-      JOIN ekpedisi ON barang.id_ekspedisi = ekpedisi.id_ekspedisi
-      JOIN proses ON barang.resi_id = proses.resi_id
-      WHERE proses.status_proses != 'cancelled' AND proses.status_proses = "pickout"
-    `;
+        e.nama_ekspedisi,
+        e.id_ekspedisi,
+        COUNT(DISTINCT CASE 
+          WHEN p.status_proses = 'pickout' 
+          AND p.updated_at BETWEEN ? AND ? 
+          THEN b.resi_id 
+          ELSE NULL 
+        END) as total_resi
+      FROM ekpedisi e
+      LEFT JOIN barang b ON e.id_ekspedisi = b.id_ekspedisi
+      LEFT JOIN proses p ON b.resi_id = p.resi_id
+      GROUP BY e.id_ekspedisi, e.nama_ekspedisi
+      HAVING total_resi > 0
+      ORDER BY total_resi DESC`;
 
-    const queryParams = [];
+    const [rows] = await mysqlPool.query(query, [startDateTime, endDateTime]);
 
-    if (startDate && endDate) {
-      query += ` WHERE barang.created_at BETWEEN ? AND ?`;
-      queryParams.push(startDate + " 00:00:00", endDate + " 23:59:59");
-    }
-    if (selectedDate) {
-      query += ` WHERE DATE(barang.created_at) = ?`;
-      queryParams.push(selectedDate);
-    }
+    // Get total pickout counts for the date range
+    const totalQuery = `
+      SELECT COUNT(DISTINCT p.resi_id) as total_all_resi
+      FROM proses p
+      WHERE p.status_proses = 'pickout'
+      AND p.updated_at BETWEEN ? AND ?`;
 
-    query += ` GROUP BY ekpedisi.nama_ekspedisi`;
+    const [totalCounts] = await mysqlPool.query(totalQuery, [startDateTime, endDateTime]);
 
-    const [rows] = await mysqlPool.query(query, queryParams);
+    // Format the response data
+    const expeditionData = rows.map((row) => ({
+      expedition_id: row.id_ekspedisi,
+      name: row.nama_ekspedisi,
+      total_resi: parseInt(row.total_resi) || 0,
+    }));
 
     res.status(200).send({
       success: true,
       message: "Data found",
-      data: rows,
+      date: targetDate.format("YYYY-MM-DD"),
+      total_overall: totalCounts[0].total_all_resi || 0,
+      data: expeditionData,
     });
   } catch (error) {
+    console.error("Expedition count error:", error);
     handleError(error, res, "fetching expedition counts");
   }
 };

@@ -345,15 +345,21 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     try {
       const params = new URLSearchParams();
       if (selectedDate) {
-        params.append("date", selectedDate.format("YYYY-MM-DD"));
+        params.append("selectedDate", selectedDate.format("YYYY-MM-DD"));
       }
+
       const response = await axios.get(`${urlApi}/api/v1/expedition-counts?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      setExpeditionCount(response.data.data);
+
+      if (response.data.success) {
+        const expeditionData = response.data.data || [];
+        setExpeditionCount(expeditionData);
+      }
     } catch (err) {
+      console.error("Expedition fetch error:", err);
       if (err.response?.status !== 401) {
         message.error("Failed to fetch expedition counts");
       }
@@ -628,20 +634,21 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
             {thisPage === "pickout" && (
               <motion.div variants={itemVariants} className="mb-8">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
-                  Today's Deliveries
-                  <span className="bg-green-100 text-green-600 p-1 px-4 rounded-md text-xs font-medium">All Activity</span>
+                  {`Deliveries ${selectedDate ? selectedDate.format("DD MMM YYYY") : "Today"}`}
+                  <span className="bg-indigo-100 text-indigo-600 p-1 px-4 rounded-md text-xs font-medium">Total: {expeditionCount.reduce((acc, curr) => acc + (curr.total_resi || 0), 0)}</span>
                 </h2>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {expeditionCount.map((ekspedisi, index) => (
-                    <ExpeditionCountCard
-                      key={index}
-                      name={ekspedisi.nama_ekspedisi}
-                      count={ekspedisi.total_resi}
-                      color="text-indigo-500
-                    "
-                    />
-                  ))}
-                </div>
+
+                {expeditionCount && expeditionCount.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {expeditionCount.map((ekspedisi, index) => (
+                      <ExpeditionCountCard key={ekspedisi.expedition_id} name={ekspedisi.name} count={ekspedisi.total_resi} color="text-indigo-500" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-xl p-6 text-center">
+                    <p className="text-gray-500">No delivery data available for this date</p>
+                  </div>
+                )}
               </motion.div>
             )}
 

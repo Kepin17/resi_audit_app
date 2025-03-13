@@ -123,7 +123,7 @@ const ReturBarangPage = () => {
     return () => {
       // Cleanup when component unmounts
       if (isBarcodeActive || isPhotoMode) {
-        setIsBarcodeActive(false);
+        setIsBarcodeActive(isBarcodeActive);
         setIsPhotoMode(false);
       }
     };

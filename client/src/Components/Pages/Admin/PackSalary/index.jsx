@@ -257,7 +257,7 @@ const PackSalary = () => {
       key: "action",
       render: (text, record) => (
         <div className="flex gap-2">
-          <Buttonk
+          <Button
             type={record.is_dibayar ? "default" : "primary"}
             id={record.id_pekerja}
             className={`action-button ${record.is_dibayar ? "bg-gray-100" : "bg-blue-50 text-blue-600"}`}
@@ -289,7 +289,7 @@ const PackSalary = () => {
             icon={<MdPayments />}
           >
             Payment
-          </Buttonk>
+          </Button>
 
           <Button className="action-button bg-orange-50 text-orange-600" onClick={() => handleHistoryClick(record)}>
             <FaHistory />

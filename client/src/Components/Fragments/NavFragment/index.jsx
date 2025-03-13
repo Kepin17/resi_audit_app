@@ -100,7 +100,7 @@ const NavFragment = () => {
                   ""
                 )}
 
-                <Link to={`reset-password/${tokenDatas.username}`}>
+                <Link to={`/reset-password/${tokenDatas.username}`}>
                   <Button buttonStyle="w-full text-left px-4 py-3 hover:bg-blue-50/50  flex items-center gap-3 text-blue-600  transition-all duration-200">
                     <FaKey />
                     Reset Password
