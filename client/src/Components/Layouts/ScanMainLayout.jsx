@@ -522,53 +522,28 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       ) : (
         <div className="min-h-screen bg-gray-50 rounded-lg">
           {/* Main Content */}
-          <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-10">
-            {/* Header with animated gradient background */}
-            <motion.div
-              variants={itemVariants}
-              className={`relative overflow-hidden bg-gradient-to-r rounded-2xl shadow-lg mb-10
-                ${thisPage === "picker" ? "from-blue-500 to-blue-700" : thisPage === "packing" ? "from-green-500 to-green-700" : "from-indigo-500 to-indigo-700"}`}
-            >
-              <div className="absolute inset-0 opacity-10">
-                <svg className="w-full h-full" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                  <path fill="white" d="M0,50 Q25,25 50,50 T100,50 T50,90 T0,50" />
-                </svg>
-              </div>
-
-              <div className="relative p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-4 mb-4 md:mb-0">
-                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                    {thisPage === "picker" ? <FaCartFlatbed className="text-2xl text-white" /> : thisPage === "packing" ? <FaBoxesPacking className="text-2xl text-white" /> : <FaTruck className="text-2xl text-white" />}
-                  </div>
-                  <div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-white">{thisPage === "picker" ? "Pickup" : thisPage === "packing" ? "Packing" : thisPage === "pickout" ? "Delivery" : "Retur"} Station</h1>
-                    <p className="text-white/80 text-sm md:text-base mt-1">{thisPage === "picker" ? "Scan packages for pickup" : thisPage === "packing" ? "Process and pack items" : "Prepare items for delivery"}</p>
-                  </div>
+          <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col ">
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              {/* Scanner Section */}
+              <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold text-gray-900">Scanner</h2>
                 </div>
-                {thisPage === "packing" && !user.includes("fulltime") && (
-                  <div className="bg-white/20 backdrop-blur-sm py-2 px-6 rounded-xl inline-flex items-center gap-3">
-                    <span className="text-white text-sm font-medium">Daily Earnings</span>
-                    <span className="text-white font-bold text-xl">{dailyEarnings}</span>
-                  </div>
-                )}
-              </div>
-            </motion.div>
+                <div className="p-6">
+                  <BarcodeScannerFragment isError={isError} dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
+                </div>
+              </motion.div>
 
-            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100 ">
-              <div className="flex-1">
-                <BarcodeScannerFragment isError={isError} dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
-              </div>
-            </motion.div>
-
-            {/* Scanner Controls */}
-            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100 ">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="w-full md:w-auto">
-                  <h2 className="text-lg font-semibold text-gray-900  mb-4">Scan Settings</h2>
+              {/* Scanner Controls */}
+              <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div className="p-6 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold text-gray-900">Scan Settings</h2>
+                </div>
+                <div className="p-6">
                   <ScanModeButtons />
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
 
             {/* Stats Cards */}
             <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
