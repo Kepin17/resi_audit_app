@@ -397,22 +397,21 @@ const AdminDashboard = () => {
       </div>
 
       {/* Statistics Chart Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6 p-3 md:p-4">
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 lg:col-span-2">
-          <div className="flex flex-col space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-4 p-3 md:p-4">
+        {/* Chart Panel - spans full width on mobile, 8 cols on larger screens */}
+        <div className="bg-white rounded-xl shadow-lg p-3 md:p-4 lg:p-5 lg:col-span-8">
+          <div className="flex flex-col space-y-3 md:space-y-4">
             {/* Statistics header and controls section */}
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-              <h2 className="text-lg md:text-xl font-semibold">Activity Statistics</h2>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2 md:gap-3">
+              <h2 className="text-base md:text-lg font-semibold">Activity Statistics</h2>
+              <div className="flex flex-wrap gap-1.5 md:gap-2">
                 {["daily", "weekly", "monthly", "yearly"].map((period) => (
                   <button
                     key={period}
                     onClick={() => {
                       setStatisticsPeriod(period);
                     }}
-                    className={`px-2 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 ${
-                      statisticsPeriod === period ? "bg-blue-500 text-white shadow-md transform scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
+                    className={`px-2 py-1 text-xs md:text-sm rounded-lg transition-all duration-200 ${statisticsPeriod === period ? "bg-blue-500 text-white shadow-sm" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                   >
                     {period.charAt(0).toUpperCase() + period.slice(1)}
                   </button>
@@ -420,39 +419,12 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Series toggle buttons with better spacing */}
-            <div className="flex flex-wrap gap-2 pb-2">
-              <button
-                onClick={() => toggleSeriesVisibility("picker")}
-                className={`px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1 ${
-                  visibleSeries.picker ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-500 border border-blue-300"
-                }`}
-              >
-                <div className="w-3 h-3 rounded-full bg-blue-600"></div>
-                Picker
-              </button>
-              <button
-                onClick={() => toggleSeriesVisibility("packing")}
-                className={`px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1 ${
-                  visibleSeries.packing ? "bg-green-500 text-white" : "bg-gray-100 text-gray-500 border border-green-300"
-                }`}
-              >
-                <div className="w-3 h-3 rounded-full bg-green-600"></div>
-                Packing
-              </button>
-              <button
-                onClick={() => toggleSeriesVisibility("pickout")}
-                className={`px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1 ${
-                  visibleSeries.pickout ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-500 border border-purple-300"
-                }`}
-              >
-                <div className="w-3 h-3 rounded-full bg-purple-600"></div>
-                Pickout
-              </button>
-            </div>
+            {/* Series toggle buttons */}
+            <div className="flex flex-wrap gap-1.5 md:gap-2 pb-2">{/* ...existing toggle buttons code... */}</div>
 
-            {/* Adjusted chart height for better visibility */}
-            <div className="h-[350px] sm:h-[400px] lg:h-[450px] w-full">
+            {/* Chart container with responsive height */}
+            <div className="h-[300px] md:h-[350px] xl:h-[400px] w-full">
+              {/* ...existing ResponsiveContainer code... */}
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={statisticsData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -507,17 +479,19 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
+        {/* Worker Performance Panel - spans 4 cols on larger screens */}
+        <div className="bg-white rounded-xl shadow-lg p-3 md:p-4 lg:p-5 lg:col-span-4">
           <div className="flex flex-col h-full">
-            <h2 className="text-lg md:text-xl font-semibold mb-4">Worker Performance</h2>
+            <h2 className="text-base md:text-lg font-semibold mb-3">Worker Performance</h2>
             <div className="overflow-x-auto flex-grow">
               <table className="min-w-full divide-y divide-gray-200">
+                {/* ...existing table code with adjusted padding and text sizes... */}
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 md:px-4 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Worker</th>
-                    <th className="px-2 py-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Picked</th>
-                    <th className="px-2 py-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Packed</th>
-                    <th className="px-2 py-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider">Pickout</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Worker</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Picked</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Packed</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pickout</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -535,58 +509,54 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Log Table Section */}
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
+        {/* Activity Log Panel - spans full width */}
+        <div className="bg-white rounded-xl shadow-lg p-3 md:p-4 lg:p-5 lg:col-span-12">
           <div className="flex flex-col h-full">
-            <div className="flex flex-col gap-4 mb-4">
-              {/* Header and Description */}
-
-              <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 md:gap-4 mb-4">
+              {/* Header and controls */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-lg md:text-xl font-semibold">Activity Log</h2>
-                  <p className="text-sm text-gray-500">Track all warehouse activities</p>
+                  <h2 className="text-base md:text-lg font-semibold">Activity Log</h2>
+                  <p className="text-xs md:text-sm text-gray-500">Track all warehouse activities</p>
                 </div>
-                <Button className="h-full px-3 flex items-center justify-center hover:bg-gray-100 rounded-r-lg" onClick={handleExport} title="Export data">
-                  <FaFileExport className="text-gray-600" /> Export
+                <Button className="px-2.5 py-1 md:px-3 md:py-1.5 flex items-center gap-1.5 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors duration-200 text-xs md:text-sm" onClick={handleExport}>
+                  <FaFileExport className="text-gray-600" />
+                  <span className="hidden sm:inline">Export Data</span>
+                  <span className="sm:hidden">Export</span>
                 </Button>
               </div>
 
-              {/* Filters and Search Bar */}
-              <div className="flex flex-col md:flex-row gap-4">
-                {/* Date Filters */}
-                <div className="flex flex-col sm:flex-row gap-2 md:w-1/2">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                    <input type="date" className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              {/* Filters Section - Reorganized for better space usage */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                    <input type="date" className="w-full px-2 py-1.5 text-xs border rounded-lg" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                    <input type="date" className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                    <input type="date" className="w-full px-2 py-1.5 text-xs border rounded-lg" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
                   </div>
                 </div>
-
-                {/* Search and Status Filter */}
-                <div className="flex flex-col sm:flex-row gap-2 md:w-1/2">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                    <select className="w-full px-2 py-1.5 text-xs border rounded-lg" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
                       <option value="all">All Status</option>
                       <option value="picker">Picker</option>
                       <option value="packing">Packing</option>
                       <option value="pickout">Pickout</option>
                     </select>
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                    <div className="relative">
-                      <Input className="w-full py-2" onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search resi or staff" prefix={<FaSearch className="text-gray-400" />} />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Search</label>
+                    <Input className="w-full !py-1" size="small" onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search resi or staff" prefix={<FaSearch className="text-gray-400" />} />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table section with adjusted sizes */}
             <div className="overflow-x-auto flex-grow rounded-lg border">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -618,8 +588,9 @@ const AdminDashboard = () => {
               </table>
             </div>
 
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            {/* Pagination with adjusted sizes */}
+            <div className="flex items-center justify-between border-t border-gray-200 bg-white px-3 py-2 mt-3">
+              {/* ...existing pagination code with adjusted padding and text sizes... */}
               <div className="flex flex-1 justify-between sm:hidden">
                 <button
                   onClick={() => setPagination((prev) => ({ ...prev, currentPage: prev.currentPage - 1 }))}

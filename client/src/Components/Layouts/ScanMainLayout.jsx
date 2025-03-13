@@ -209,53 +209,6 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     }
   };
 
-  // const handlePhotoCapture = async ({ photo }) => {
-  //   if (!checkTokenExpiration()) return;
-  //   if (isSoundLocked) return;
-  //   setIsSoundLocked(true);
-  //   if (!photo) {
-  //     playErrorSound();
-  //     toast.error("Photo is required");
-  //     setIsSoundLocked(false);
-  //     return;
-  //   }
-  //   try {
-  //     const token = localStorage.getItem("token");
-  //     const decodeToken = jwtDecode(token);
-  //     const user = decodeToken.id_pekerja;
-  //     const base64Response = await fetch(photo);
-  //     const blob = await base64Response.blob();
-  //     const formData = new FormData();
-  //     const photoFile = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" });
-  //     formData.append("photo", photoFile);
-  //     formData.append("id_pekerja", user);
-  //     formData.append("thisPage", thisPage);
-  //     const response = await axios.post(`${urlApi}/api/v1/auditResi/scan/${currentResi}`, formData, {
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //         "Content-Type": "multipart/form-data",
-  //       },
-  //     });
-  //     if (response.data.success) {
-  //       playSuccessSound();
-  //       toast.success(response.data.message || "Process completed successfully");
-  //     } else {
-  //       playErrorSound();
-  //       toast.error(response.data.message || "Process failed");
-  //     }
-  //   } catch (err) {
-  //     playErrorSound();
-  //     toast.error(err.response?.data?.message || "Failed to process");
-  //     setIsError(true);
-  //   } finally {
-  //     setIsPhotoMode(false);
-  //     setIsBarcodeActive(true);
-  //     setScanning(true);
-  //     setCurrentResi(null);
-  //     setTimeout(() => setIsSoundLocked(false), 500);
-  //   }
-  // };
-
   const handlePhotoCapture = async ({ photo }) => {
     if (!checkTokenExpiration()) return;
     if (isSoundLocked) return;
@@ -542,7 +495,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     <MainLayout getPage={thisPage}>
       <ToastContainer className={"fixed top-[5rem] right-4"} autoClose={2000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
-      {isPhotoMode || isBarcodeActive ? (
+      {isPhotoMode ? (
         <div className="fixed inset-0 bg-white z-50">
           <div className={`w-full h-full ${isPortrait ? "flex flex-col" : "flex"} `}>
             {isPhotoMode ? (
@@ -562,28 +515,14 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                 </div>
               </>
             ) : (
-              <>
-                <div
-                  className={`bg-gradient-to-r ${
-                    thisPage === "picker" ? "from-blue-600 to-blue-800" : thisPage === "packing" ? "from-green-600 to-green-800" : "from-indigo-600 to-indigo-800"
-                  } text-white p-4 flex justify-between items-center ${!isPortrait ? "hidden" : ""}`}
-                >
-                  <h3 className={`text-lg font-medium ${!isPortrait ? "" : ""}`}>Scanner Resi</h3>
-                  <motion.button whileTap={{ scale: 0.95 }} onClick={handleBarcodeClose} className="text-white bg-black/30 backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-black/40 transition-all">
-                    Close
-                  </motion.button>
-                </div>
-                <div className="flex-1">
-                  <BarcodeScannerFragment isError={isError} dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
-                </div>
-              </>
+              ""
             )}
           </div>
         </div>
       ) : (
         <div className="min-h-screen bg-gray-50 rounded-lg">
           {/* Main Content */}
-          <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-10">
             {/* Header with animated gradient background */}
             <motion.div
               variants={itemVariants}
@@ -612,6 +551,22 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                     <span className="text-white font-bold text-xl">{dailyEarnings}</span>
                   </div>
                 )}
+              </div>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100 ">
+              <div className="flex-1">
+                <BarcodeScannerFragment isError={isError} dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
+              </div>
+            </motion.div>
+
+            {/* Scanner Controls */}
+            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100 ">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="w-full md:w-auto">
+                  <h2 className="text-lg font-semibold text-gray-900  mb-4">Scan Settings</h2>
+                  <ScanModeButtons />
+                </div>
               </div>
             </motion.div>
 
@@ -651,26 +606,6 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                 )}
               </motion.div>
             )}
-
-            {/* Scanner Controls */}
-            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100 ">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="w-full md:w-auto">
-                  <h2 className="text-lg font-semibold text-gray-900  mb-4">Scan Settings</h2>
-                  <ScanModeButtons />
-                </div>
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Button
-                    buttonStyle={`bg-gradient-to-r ${thisPage === "picker" ? "from-blue-500 to-blue-600" : thisPage === "packing" ? "from-green-500 to-green-600" : "from-indigo-500 to-indigo-600"} 
-                      px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg hover:shadow-xl`}
-                    onClick={() => setIsBarcodeActive(true)}
-                  >
-                    <CiBarcode className="text-xl" />
-                    Start Scanning
-                  </Button>
-                </motion.div>
-              </div>
-            </motion.div>
 
             {/* Activity List */}
             <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 ">

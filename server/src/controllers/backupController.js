@@ -8,49 +8,57 @@ const mysqlPool = require("../config/db");
 const backupDatabase = async (backupDir) => {
   try {
     const dataDir = path.join(backupDir, "data");
-
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
 
     const timestamp = moment().format("YYYY-MM-DD_HH-mm");
     const dumpFile = path.join(dataDir, `backup_${timestamp}.sql`);
+    const stream = fs.createWriteStream(dumpFile, { encoding: "utf8" });
 
-    // Get all tables
+    stream.write("/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;\n");
+    stream.write("/*!40103 SET TIME_ZONE='+00:00' */;\n");
+    stream.write("/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n");
+    stream.write("/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n");
+    stream.write("/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;\n");
+    stream.write("/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;\n\n");
+
     const [tables] = await mysqlPool.query("SHOW TABLES");
-    let dumpContent = "";
-
-    // For each table
     for (const tableRow of tables) {
       const tableName = tableRow[Object.keys(tableRow)[0]];
 
-      // Get create table statement
-      const [createTable] = await mysqlPool.query(`SHOW CREATE TABLE ${tableName}`);
-      dumpContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
-      dumpContent += createTable[0]["Create Table"] + ";\n\n";
+      // Get CREATE TABLE
+      const [createTable] = await mysqlPool.query(`SHOW CREATE TABLE \`${tableName}\``);
+      stream.write(`DROP TABLE IF EXISTS \`${tableName}\`;\n`);
+
+      let createTableStatement = createTable[0]["Create Table"];
+      if (!createTableStatement.includes("CHARSET=utf8mb4")) {
+        createTableStatement = createTableStatement.replace(/ENGINE=InnoDB/, "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+      }
+      stream.write(createTableStatement + ";\n\n");
 
       // Get table data
-      const [rows] = await mysqlPool.query(`SELECT * FROM ${tableName}`);
-      if (rows.length > 0) {
-        const columns = Object.keys(rows[0]);
-        dumpContent += `INSERT INTO \`${tableName}\` (\`${columns.join("`, `")}\`) VALUES\n`;
+      const [countResult] = await mysqlPool.query(`SELECT COUNT(*) as total FROM \`${tableName}\``);
+      const total = countResult[0].total;
+      const chunkSize = 1000;
 
-        const values = rows.map((row) => {
-          const rowValues = columns.map((column) => {
-            const value = row[column];
-            if (value === null) return "NULL";
-            if (typeof value === "number") return value;
-            return `'${value.toString().replace(/'/g, "''")}'`;
-          });
-          return `(${rowValues.join(", ")})`;
-        });
-
-        dumpContent += values.join(",\n") + ";\n\n";
+      for (let offset = 0; offset < total; offset += chunkSize) {
+        const [rows] = await mysqlPool.query(`SELECT * FROM \`${tableName}\` ORDER BY (SELECT NULL) LIMIT ? OFFSET ?`, [chunkSize, offset]);
+        if (rows.length > 0) {
+          const columns = Object.keys(rows[0]);
+          const values = rows.map((row) => `(${columns.map((column) => mysqlPool.escape(row[column])).join(", ")})`);
+          stream.write(`INSERT INTO \`${tableName}\` (\`${columns.join("`, `")}\`) VALUES\n`);
+          stream.write(values.join(",\n") + ";\n\n");
+        }
       }
     }
 
-    // Write SQL file
-    fs.writeFileSync(dumpFile, dumpContent, "utf8");
+    stream.write("/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;\n");
+    stream.write("/*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;\n");
+    stream.write("/*!40014 SET UNIQUE_CHECKS=IF(@OLD_UNIQUE_CHECKS IS NULL, 1, @OLD_UNIQUE_CHECKS) */;\n");
+    stream.write("/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;\n");
+
+    stream.end();
     return dataDir;
   } catch (error) {
     throw new Error(`Database backup failed: ${error.message}`);

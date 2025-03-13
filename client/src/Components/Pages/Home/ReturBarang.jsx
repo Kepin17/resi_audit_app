@@ -388,17 +388,7 @@ const ReturBarangPage = () => {
                 </div>
               </>
             ) : (
-              <>
-                <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Scanner Resi</h3>
-                  <motion.button whileTap={{ scale: 0.95 }} onClick={handleBarcodeClose} className="text-white bg-black/30 backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-black/40 transition-all">
-                    Close
-                  </motion.button>
-                </div>
-                <div className="flex-1">
-                  <BarcodeScannerFragment dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
-                </div>
-              </>
+              ""
             )}
           </div>
         </div>
@@ -427,11 +417,10 @@ const ReturBarangPage = () => {
               </div>
             </motion.div>
 
-            {/* Stats Cards */}
-            <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <StatCard title="Today's Returns" value={data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length} icon={<FaQrcode className="text-2xl" />} color="text-gray-900 " />
-
-              <StatCard title="Scan Mode" value={scanMode === "barcode-only" ? "Basic" : "Advanced"} icon={<CiBarcode className="text-2xl" />} color="text-purple-500" />
+            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100 ">
+              <div className="flex-1">
+                <BarcodeScannerFragment dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
+              </div>
             </motion.div>
 
             {/* Scanner Controls */}
@@ -441,13 +430,14 @@ const ReturBarangPage = () => {
                   <h2 className="text-lg font-semibold text-gray-900 mb-4 ">Scan Settings</h2>
                   <ScanModeButtons />
                 </div>
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Button buttonStyle="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg hover:shadow-xl" onClick={() => setIsBarcodeActive(true)}>
-                    <CiBarcode className="text-xl" />
-                    Start Scanning
-                  </Button>
-                </motion.div>
               </div>
+            </motion.div>
+
+            {/* Stats Cards */}
+            <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <StatCard title="Today's Returns" value={data.filter((item) => new Date(item.proses_scan).toDateString() === new Date().toDateString()).length} icon={<FaQrcode className="text-2xl" />} color="text-gray-900 " />
+
+              <StatCard title="Scan Mode" value={scanMode === "barcode-only" ? "Basic" : "Advanced"} icon={<CiBarcode className="text-2xl" />} color="text-purple-500" />
             </motion.div>
 
             {/* Activity List */}

@@ -845,8 +845,8 @@ const AdminBarangSection = () => {
                 { required: true, message: "Resi ID tidak boleh kosong!" },
                 { min: 3, message: "Resi ID minimal 3 karakter" },
                 {
-                  pattern: /^[A-Za-z0-9]+$/,
-                  message: "Resi ID hanya boleh berisi huruf dan angka",
+                  pattern: /^[A-Za-z0-9-]+$/,
+                  message: "Resi ID hanya boleh berisi huruf, (-) dan angka",
                 },
               ]}
             >
