@@ -135,6 +135,29 @@ const scaneHandler = async (req, res) => {
       });
     }
 
+    // Add check for duplicate scan in the current status
+    const [existingScans] = await mysqlPool.query(
+      `SELECT p.*, pk.nama_pekerja
+       FROM proses p
+       LEFT JOIN pekerja pk ON pk.id_pekerja = p.id_pekerja
+       WHERE p.resi_id = ? AND p.status_proses = ?
+       ORDER BY p.created_at DESC
+       LIMIT 1`,
+      [resi_id, thisPage]
+    );
+
+    if (existingScans && existingScans.length > 0) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      const formattedDate = moment(existingScans[0].created_at).format("DD MMM YYYY HH:mm:ss");
+      return res.status(400).send({
+        success: false,
+        message: `Resi ini sudah di scan dengan status ${thisPage} oleh ${existingScans[0].nama_pekerja} pada ${formattedDate}`,
+      });
+    }
+
     // Get current process status
     const [currentProcess] = await mysqlPool.query(
       `SELECT p.*, pk.nama_pekerja as processor_name, pk.username

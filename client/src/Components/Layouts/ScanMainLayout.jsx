@@ -212,16 +212,13 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
   const handlePhotoCapture = async ({ photo }) => {
     if (!checkTokenExpiration()) return;
     if (isSoundLocked) return;
-
     setIsSoundLocked(true);
-
     if (!photo) {
       playErrorSound();
       toast.error("Photo is required");
       setIsSoundLocked(false);
       return;
     }
-
     try {
       const token = localStorage.getItem("token");
       const decodeToken = jwtDecode(token);
@@ -233,19 +230,12 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       formData.append("photo", photoFile);
       formData.append("id_pekerja", user);
       formData.append("thisPage", thisPage);
-
-      // Tambahkan timeout dan retry logic
       const response = await axios.post(`${urlApi}/api/v1/auditResi/scan/${currentResi}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
-        timeout: 30000, // 30 detik timeout
-        validateStatus: function (status) {
-          return status >= 200 && status < 500; // Handle HTTP errors explicitly
-        },
       });
-
       if (response.data.success) {
         playSuccessSound();
         toast.success(response.data.message || "Process completed successfully");
@@ -255,22 +245,14 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       }
     } catch (err) {
       playErrorSound();
-      if (err.code === "ECONNABORTED") {
-        toast.error("Request timeout - please try again");
-      } else if (err.response) {
-        toast.error(err.response.data?.message || "Failed to process");
-      } else if (err.request) {
-        toast.error("No response from server - please try again");
-      } else {
-        toast.error("Error processing request");
-      }
+      toast.error(err.response?.data?.message || "Failed to process");
       setIsError(true);
     } finally {
       setIsPhotoMode(false);
       setIsBarcodeActive(true);
       setScanning(true);
       setCurrentResi(null);
-      setTimeout(() => setIsSoundLocked(false), 1000);
+      setTimeout(() => setIsSoundLocked(false), 500);
     }
   };
 
@@ -298,21 +280,15 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     try {
       const params = new URLSearchParams();
       if (selectedDate) {
-        params.append("selectedDate", selectedDate.format("YYYY-MM-DD"));
+        params.append("date", selectedDate.format("YYYY-MM-DD"));
       }
-
       const response = await axios.get(`${urlApi}/api/v1/expedition-counts?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-
-      if (response.data.success) {
-        const expeditionData = response.data.data || [];
-        setExpeditionCount(expeditionData);
-      }
+      setExpeditionCount(response.data.data);
     } catch (err) {
-      console.error("Expedition fetch error:", err);
       if (err.response?.status !== 401) {
         message.error("Failed to fetch expedition counts");
       }
@@ -495,7 +471,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     <MainLayout getPage={thisPage}>
       <ToastContainer className={"fixed top-[5rem] right-4"} autoClose={2000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
-      {isPhotoMode ? (
+      {isPhotoMode || isBarcodeActive ? (
         <div className="fixed inset-0 bg-white z-50">
           <div className={`w-full h-full ${isPortrait ? "flex flex-col" : "flex"} `}>
             {isPhotoMode ? (
@@ -515,35 +491,58 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
                 </div>
               </>
             ) : (
-              ""
+              <>
+                <div
+                  className={`bg-gradient-to-r ${
+                    thisPage === "picker" ? "from-blue-600 to-blue-800" : thisPage === "packing" ? "from-green-600 to-green-800" : "from-indigo-600 to-indigo-800"
+                  } text-white p-4 flex justify-between items-center ${!isPortrait ? "hidden" : ""}`}
+                >
+                  <h3 className={`text-lg font-medium ${!isPortrait ? "" : ""}`}>Scanner Resi</h3>
+                  <motion.button whileTap={{ scale: 0.95 }} onClick={handleBarcodeClose} className="text-white bg-black/30 backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-black/40 transition-all">
+                    Close
+                  </motion.button>
+                </div>
+                <div className="flex-1">
+                  <BarcodeScannerFragment isError={isError} dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
+                </div>
+              </>
             )}
           </div>
         </div>
       ) : (
         <div className="min-h-screen bg-gray-50 rounded-lg">
           {/* Main Content */}
-          <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col ">
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              {/* Scanner Section */}
-              <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
-                  <h2 className="text-lg font-semibold text-gray-900">Scanner</h2>
-                </div>
-                <div className="p-6">
-                  <BarcodeScannerFragment isError={isError} dataScan={dataScan} scanning={scanning} scanHandler={scanHandler} />
-                </div>
-              </motion.div>
+          <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Header with animated gradient background */}
+            <motion.div
+              variants={itemVariants}
+              className={`relative overflow-hidden bg-gradient-to-r rounded-2xl shadow-lg mb-10
+                ${thisPage === "picker" ? "from-blue-500 to-blue-700" : thisPage === "packing" ? "from-green-500 to-green-700" : "from-indigo-500 to-indigo-700"}`}
+            >
+              <div className="absolute inset-0 opacity-10">
+                <svg className="w-full h-full" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="white" d="M0,50 Q25,25 50,50 T100,50 T50,90 T0,50" />
+                </svg>
+              </div>
 
-              {/* Scanner Controls */}
-              <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="p-6 border-b border-gray-100">
-                  <h2 className="text-lg font-semibold text-gray-900">Scan Settings</h2>
+              <div className="relative p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-4 mb-4 md:mb-0">
+                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                    {thisPage === "picker" ? <FaCartFlatbed className="text-2xl text-white" /> : thisPage === "packing" ? <FaBoxesPacking className="text-2xl text-white" /> : <FaTruck className="text-2xl text-white" />}
+                  </div>
+                  <div>
+                    <h1 className="text-3xl md:text-4xl font-bold text-white">{thisPage === "picker" ? "Pickup" : thisPage === "packing" ? "Packing" : thisPage === "pickout" ? "Delivery" : "Retur"} Station</h1>
+                    <p className="text-white/80 text-sm md:text-base mt-1">{thisPage === "picker" ? "Scan packages for pickup" : thisPage === "packing" ? "Process and pack items" : "Prepare items for delivery"}</p>
+                  </div>
                 </div>
-                <div className="p-6">
-                  <ScanModeButtons />
-                </div>
-              </motion.div>
-            </div>
+                {thisPage === "packing" && !user.includes("fulltime") && (
+                  <div className="bg-white/20 backdrop-blur-sm py-2 px-6 rounded-xl inline-flex items-center gap-3">
+                    <span className="text-white text-sm font-medium">Daily Earnings</span>
+                    <span className="text-white font-bold text-xl">{dailyEarnings}</span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
 
             {/* Stats Cards */}
             <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -564,23 +563,42 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
             {thisPage === "pickout" && (
               <motion.div variants={itemVariants} className="mb-8">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
-                  {`Deliveries ${selectedDate ? selectedDate.format("DD MMM YYYY") : "Today"}`}
-                  <span className="bg-indigo-100 text-indigo-600 p-1 px-4 rounded-md text-xs font-medium">Total: {expeditionCount.reduce((acc, curr) => acc + (curr.total_resi || 0), 0)}</span>
+                  Today's Deliveries
+                  <span className="bg-green-100 text-green-600 p-1 px-4 rounded-md text-xs font-medium">All Activity</span>
                 </h2>
-
-                {expeditionCount && expeditionCount.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {expeditionCount.map((ekspedisi, index) => (
-                      <ExpeditionCountCard key={ekspedisi.expedition_id} name={ekspedisi.name} count={ekspedisi.total_resi} color="text-indigo-500" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-xl p-6 text-center">
-                    <p className="text-gray-500">No delivery data available for this date</p>
-                  </div>
-                )}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {expeditionCount.map((ekspedisi, index) => (
+                    <ExpeditionCountCard
+                      key={index}
+                      name={ekspedisi.name}
+                      count={ekspedisi.total_resi}
+                      color="text-indigo-500
+                    "
+                    />
+                  ))}
+                </div>
               </motion.div>
             )}
+
+            {/* Scanner Controls */}
+            <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100 ">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="w-full md:w-auto">
+                  <h2 className="text-lg font-semibold text-gray-900  mb-4">Scan Settings</h2>
+                  <ScanModeButtons />
+                </div>
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                  <Button
+                    buttonStyle={`bg-gradient-to-r ${thisPage === "picker" ? "from-blue-500 to-blue-600" : thisPage === "packing" ? "from-green-500 to-green-600" : "from-indigo-500 to-indigo-600"} 
+                      px-6 py-3 rounded-xl flex items-center gap-3 text-white transition-all duration-300 shadow-lg hover:shadow-xl`}
+                    onClick={() => setIsBarcodeActive(true)}
+                  >
+                    <CiBarcode className="text-xl" />
+                    Start Scanning
+                  </Button>
+                </motion.div>
+              </div>
+            </motion.div>
 
             {/* Activity List */}
             <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 ">

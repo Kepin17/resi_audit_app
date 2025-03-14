@@ -11,7 +11,7 @@ const showResiTerpack = async (req, res) => {
     // Get today's count
     const [todayCount] = await mysqlPool.query(
       `SELECT COUNT(*) as today_count 
-       FROM log_proses 
+       FROM proses 
        WHERE DATE(created_at) = CURDATE()`
     );
 
@@ -105,7 +105,7 @@ const showResiTerpack = async (req, res) => {
       SELECT 
         status_proses, 
         COUNT(*) as count 
-      FROM log_proses 
+      FROM proses 
       WHERE 1=1
     `;
     const statusCountsParams = [];

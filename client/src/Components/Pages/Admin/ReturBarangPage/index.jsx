@@ -7,6 +7,7 @@ import moment from "moment";
 import urlApi, { urlImg } from "../../../../utils/url";
 import LogImportSection from "../BarangManagement/LogImportSection";
 import { IoIosOpen } from "react-icons/io";
+import { jwtDecode } from "jwt-decode";
 
 const { RangePicker } = DatePicker;
 
@@ -35,9 +36,14 @@ const ReturBarangPage = () => {
   const [editingNote, setEditingNote] = useState("");
   const [openImportMenu, setOpenImportMenu] = useState(false);
   const [totalData, setTotalData] = useState(0);
+  const [dataPekerja, setDataPekerja] = useState([]);
 
   useEffect(() => {
     fetchData();
+    const token = localStorage.getItem("token");
+    const decoded = jwtDecode(token);
+    const id_pekerja = decoded.id_pekerja;
+    setDataPekerja(id_pekerja);
   }, [currentPage, pageSize, refreshKey, searchText, dateRange, status, ekspedisi]);
 
   const fetchData = async () => {
@@ -153,7 +159,7 @@ const ReturBarangPage = () => {
                 axios
                   .put(
                     `${urlApi}/api/v1/auditResi-toggle-status`,
-                    { status: status, resi_id: record.resi_id },
+                    { status: status, id_pekerja: dataPekerja, resi_id: record.resi_id },
                     {
                       headers: {
                         Authorization: `Bearer ${localStorage.getItem("token")}`,

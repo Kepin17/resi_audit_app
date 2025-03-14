@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 import { FaBoxesPacking, FaCartFlatbed } from "react-icons/fa6";
 import { MdOutlineDocumentScanner } from "react-icons/md";
 
-const NavFragment = () => {
+const NavFragment = ({ pageType }) => {
   const [tokenDatas, setTokenDatas] = useState({});
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -34,7 +34,7 @@ const NavFragment = () => {
     <nav className="fixed top-0 left-0 right-0 flex items-center justify-between w-full h-16  px-5 z-50 bg-white/80 backdrop-blur-md border-b shadow-md border-gray-200/50 ">
       <Title titleStyle="text-[1.2em] font-bold flex items-center gap-2 ">
         <MdOutlineDocumentScanner />
-        SIAR System
+        {pageType}
       </Title>
       <ul className="flex items-center space-x-4">
         <li>

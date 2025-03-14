@@ -210,7 +210,7 @@ const showAllBarangRetur = async (req, res) => {
     ${whereClause}
     ORDER BY b.created_at DESC
       `,
-      queryParams  
+      queryParams
     );
 
     return res.status(200).json({
@@ -600,7 +600,8 @@ const exportRetur = async (req, res) => {
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
     // Get data for export
-    const [rows] = await mysqlPool.query(`
+    const [rows] = await mysqlPool.query(
+      `
       SELECT 
         b.resi_id,
         b.id_ekspedisi,
@@ -613,7 +614,9 @@ const exportRetur = async (req, res) => {
       ${baseQuery}
       ${whereClause}
       ORDER BY b.created_at DESC
-    `, queryParams);
+    `,
+      queryParams
+    );
 
     const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet("Retur Data");
@@ -626,7 +629,7 @@ const exportRetur = async (req, res) => {
       { header: "Created At", key: "created_at", width: 20 },
       { header: "Updated At", key: "updated_at", width: 20 },
       { header: "Status", key: "status_retur", width: 15 },
-      { header: "Diterima Oleh", key: "diterima_oleh", width: 20 }
+      { header: "Diterima Oleh", key: "diterima_oleh", width: 20 },
     ];
 
     // Style the header row
@@ -639,7 +642,7 @@ const exportRetur = async (req, res) => {
         ...row,
         created_at: moment(row.created_at).format("YYYY-MM-DD HH:mm:ss"),
         updated_at: moment(row.updated_at).format("YYYY-MM-DD HH:mm:ss"),
-        diterima_oleh: row.diterima_oleh || '-'
+        diterima_oleh: row.diterima_oleh || "-",
       });
     });
 
@@ -859,7 +862,6 @@ const scanResiRetur = async (req, res) => {
         [resi_id]
       );
 
-   
       if (existingRecord.length === 0) {
         // If no record exists, create a new one
         await connection.query(
@@ -995,7 +997,7 @@ const showAllReturActiviy = async (req, res) => {
 };
 
 const toggleStatusRetur = async (req, res) => {
-  const { status, resi_id } = req.body;
+  const { status, resi_id, id_pekerja } = req.body;
 
   try {
     const [rows] = await mysqlPool.query("SELECT * FROM barang_retur WHERE resi_id = ?", [resi_id]);
@@ -1020,7 +1022,7 @@ const toggleStatusRetur = async (req, res) => {
     }
 
     // Fixed the parameter order here
-    await mysqlPool.query("UPDATE proses_barang_retur SET status_retur = ? WHERE resi_id = ?", [setStatus, resi_id]);
+    await mysqlPool.query("UPDATE proses_barang_retur SET status_retur = ?, id_pekerja = ? WHERE resi_id = ?", [setStatus, id_pekerja, resi_id]);
 
     return res.status(200).send({
       success: true,

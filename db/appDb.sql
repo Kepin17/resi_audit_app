@@ -135,6 +135,16 @@ CREATE TABLE proses (
   CONSTRAINT FK_Proses_resi FOREIGN KEY (resi_id) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+use siar_db;
+
+ALTER TABLE proses 
+MODIFY COLUMN status_proses VARCHAR(10) NOT NULL DEFAULT 'pending';
+
+ALTER TABLE proses 
+MODIFY COLUMN status_proses VARCHAR(10) NOT NULL DEFAULT 'pending' 
+CHECK (status_proses IN ('pending','picker', 'packing', 'pickout', 'konfirmasi', 'cancelled', 'validated'));
+
+
 
 ALTER TABLE proses ADD COLUMN gambar_resi VARCHAR(255) NULL ;
 
@@ -147,6 +157,7 @@ BEGIN
     VALUES (NEW.resi_id, 'pending');
 END$$
 DELIMITER ;
+
 
 
 

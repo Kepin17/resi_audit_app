@@ -11,26 +11,22 @@ const getStatistics = async (req, res) => {
       case "daily":
         dateFormat = "%Y-%m-%d %H:00:00";
         query = `
-          WITH log_counts AS (
+          WITH last_status AS (
             SELECT 
-              DATE_FORMAT(l.created_at, ?) as date,
               l.resi_id,
-              MAX(CASE WHEN l.status_proses = 'picker' THEN 1 END) as is_picked,
-              MAX(CASE WHEN l.status_proses = 'packing' THEN 1 END) as is_packed,
-              MAX(CASE WHEN l.status_proses = 'pickout' THEN 1 END) as is_pickout,
-              COUNT(DISTINCT l.id_pekerja) as workers_involved
+              l.status_proses,
+              DATE_FORMAT(l.created_at, ?) as date,
+              ROW_NUMBER() OVER (PARTITION BY l.resi_id ORDER BY l.created_at DESC) as rn
             FROM log_proses l
             WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
-            GROUP BY DATE_FORMAT(l.created_at, ?), l.resi_id
           )
           SELECT 
             date,
-            SUM(is_picked) as picker,
-            SUM(is_packed) as packing,
-            SUM(is_pickout) as pickout,
-            MAX(workers_involved) as active_workers,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'picker' AND rn = 1 THEN resi_id END) as picker,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'packing' AND rn = 1 THEN resi_id END) as packing,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'pickout' AND rn = 1 THEN resi_id END) as pickout,
             COUNT(DISTINCT resi_id) as total_resi
-          FROM log_counts
+          FROM last_status
           GROUP BY date
           ORDER BY date ASC`;
         break;
@@ -38,26 +34,22 @@ const getStatistics = async (req, res) => {
       case "weekly":
         dateFormat = "%Y-%m-%d";
         query = `
-          WITH log_counts AS (
+          WITH last_status AS (
             SELECT 
-              DATE_FORMAT(l.created_at, ?) as date,
               l.resi_id,
-              MAX(CASE WHEN l.status_proses = 'picker' THEN 1 END) as is_picked,
-              MAX(CASE WHEN l.status_proses = 'packing' THEN 1 END) as is_packed,
-              MAX(CASE WHEN l.status_proses = 'pickout' THEN 1 END) as is_pickout,
-              COUNT(DISTINCT l.id_pekerja) as workers_involved
+              l.status_proses,
+              DATE_FORMAT(l.created_at, ?) as date,
+              ROW_NUMBER() OVER (PARTITION BY l.resi_id ORDER BY l.created_at DESC) as rn
             FROM log_proses l
             WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)
-            GROUP BY DATE_FORMAT(l.created_at, ?), l.resi_id
           )
           SELECT 
             date,
-            SUM(is_picked) as picker,
-            SUM(is_packed) as packing,
-            SUM(is_pickout) as pickout,
-            MAX(workers_involved) as active_workers,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'picker' AND rn = 1 THEN resi_id END) as picker,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'packing' AND rn = 1 THEN resi_id END) as packing,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'pickout' AND rn = 1 THEN resi_id END) as pickout,
             COUNT(DISTINCT resi_id) as total_resi
-          FROM log_counts
+          FROM last_status
           GROUP BY date
           ORDER BY date ASC`;
         break;
@@ -69,20 +61,16 @@ const getStatistics = async (req, res) => {
             SELECT 
               DATE_FORMAT(l.created_at, ?) as date,
               l.resi_id,
-              MAX(CASE WHEN l.status_proses = 'picker' THEN 1 END) as is_picked,
-              MAX(CASE WHEN l.status_proses = 'packing' THEN 1 END) as is_packed,
-              MAX(CASE WHEN l.status_proses = 'pickout' THEN 1 END) as is_pickout,
-              COUNT(DISTINCT l.id_pekerja) as workers_involved
+              l.status_proses
             FROM log_proses l
             WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)
-            GROUP BY DATE_FORMAT(l.created_at, ?), l.resi_id
+            GROUP BY DATE_FORMAT(l.created_at, ?), l.resi_id, l.status_proses
           )
           SELECT 
             date,
-            SUM(is_picked) as picker,
-            SUM(is_packed) as packing,
-            SUM(is_pickout) as pickout,
-            MAX(workers_involved) as active_workers,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'picker' THEN resi_id END) as picker,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'packing' THEN resi_id END) as packing,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'pickout' THEN resi_id END) as pickout,
             COUNT(DISTINCT resi_id) as total_resi
           FROM log_counts
           GROUP BY date
@@ -96,20 +84,16 @@ const getStatistics = async (req, res) => {
             SELECT 
               DATE_FORMAT(l.created_at, ?) as date,
               l.resi_id,
-              MAX(CASE WHEN l.status_proses = 'picker' THEN 1 END) as is_picked,
-              MAX(CASE WHEN l.status_proses = 'packing' THEN 1 END) as is_packed,
-              MAX(CASE WHEN l.status_proses = 'pickout' THEN 1 END) as is_pickout,
-              COUNT(DISTINCT l.id_pekerja) as workers_involved
+              l.status_proses
             FROM log_proses l
             WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR)
-            GROUP BY DATE_FORMAT(l.created_at, ?), l.resi_id
+            GROUP BY DATE_FORMAT(l.created_at, ?), l.resi_id, l.status_proses
           )
           SELECT 
             date,
-            SUM(is_picked) as picker,
-            SUM(is_packed) as packing,
-            SUM(is_pickout) as pickout,
-            MAX(workers_involved) as active_workers,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'picker' THEN resi_id END) as picker,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'packing' THEN resi_id END) as packing,
+            COUNT(DISTINCT CASE WHEN status_proses LIKE 'pickout' THEN resi_id END) as pickout,
             COUNT(DISTINCT resi_id) as total_resi
           FROM log_counts
           GROUP BY date

@@ -17,7 +17,7 @@ const backupDatabase = async (backupDir) => {
     const stream = fs.createWriteStream(dumpFile, { encoding: "utf8" });
 
     stream.write("/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;\n");
-    stream.write("/*!40103 SET TIME_ZONE='+00:00' */;\n");
+    stream.write("/*!40103 SET TIME_ZONE='+07:00' */;\n");
     stream.write("/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n");
     stream.write("/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n");
     stream.write("/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;\n");
