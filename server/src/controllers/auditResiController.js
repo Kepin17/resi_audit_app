@@ -185,6 +185,29 @@ const scaneHandler = async (req, res) => {
     // Add check for duplicate scan in the current status
     const [existingScans] = await connection.query(`SELECT * FROM ${specificLogTable} WHERE ${resiColumn} = ?`, [resi_id]);
 
+    // Check for cancelled status
+    const [cancelledCheck] = await connection.query(`SELECT * FROM log_proses_cancelled WHERE resi_id_cancelled = ?`, [resi_id]);
+
+    if (cancelledCheck && cancelledCheck.length > 0) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+
+      // Get worker name who cancelled it
+      const [cancelWorker] = await connection.query(`SELECT nama_pekerja FROM pekerja WHERE id_pekerja = ?`, [cancelledCheck[0].id_pekerja]);
+
+      const cancellerName = cancelWorker.length > 0 ? cancelWorker[0].nama_pekerja : "Unknown";
+      const formattedDate = moment(cancelledCheck[0].created_at).format("DD MMM YYYY HH:mm:ss");
+
+      await connection.rollback();
+      connection.release();
+      return res.status(400).send({
+        success: false,
+        message: `Resi ini telah di cancel oleh ${cancellerName} pada ${formattedDate}`,
+      });
+    }
+
     if (existingScans && existingScans.length > 0) {
       if (req.file) {
         const fs = require("fs");
@@ -215,29 +238,6 @@ const scaneHandler = async (req, res) => {
        LIMIT 1`,
       [resi_id]
     );
-
-    // Check for cancelled status
-    const [cancelledCheck] = await connection.query(`SELECT * FROM log_proses_cancelled WHERE resi_id_cancelled = ?`, [resi_id]);
-
-    if (cancelledCheck && cancelledCheck.length > 0) {
-      if (req.file) {
-        const fs = require("fs");
-        fs.unlinkSync(req.file.path);
-      }
-
-      // Get worker name who cancelled it
-      const [cancelWorker] = await connection.query(`SELECT nama_pekerja FROM pekerja WHERE id_pekerja = ?`, [cancelledCheck[0].id_pekerja]);
-
-      const cancellerName = cancelWorker.length > 0 ? cancelWorker[0].nama_pekerja : "Unknown";
-      const formattedDate = moment(cancelledCheck[0].created_at).format("DD MMM YYYY HH:mm:ss");
-
-      await connection.rollback();
-      connection.release();
-      return res.status(400).send({
-        success: false,
-        message: `Resi ini telah di cancel oleh ${cancellerName} pada ${formattedDate}`,
-      });
-    }
 
     const workflow = ["picker", "packing", "pickout"];
 

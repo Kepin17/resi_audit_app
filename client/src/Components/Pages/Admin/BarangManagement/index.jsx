@@ -1266,9 +1266,7 @@ const AdminBarangSection = () => {
                           className={`w-full flex items-center justify-center gap-2 ${isMultipleActive ? "hidden" : ""} text-red-500 hover:bg-red-50 py-2 rounded-lg transition-all duration-300`}
                         >
                           <MdCancelScheduleSend className="text-lg" />
-                          <span className="text-sm font-medium">
-                            {item.status_proses === "pending" && user.roles === "admin" ? "konfirmasi Cancel" : item.status_proses === "Menyetujui Cancel" ? "Cancel Resi" : `Cancel ${item.status_description}`}
-                          </span>
+                          <span className="font-bold">Cancel Resi</span>
                         </button>
                       </div>
                     )}

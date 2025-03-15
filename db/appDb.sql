@@ -670,7 +670,7 @@ use siar_db;
 
 DELIMITER //
 
-CREATE TRIGGER `trg_destro_gaji_after_cancel`
+CREATE TRIGGER `trg_destroy_gaji_after_cancel`
 AFTER DELETE ON `log_proses_packing`
 FOR EACH ROW
 BEGIN
@@ -720,7 +720,6 @@ BEGIN
         END IF;
     END IF;
 END;
-//
 
 DELIMITER ;
 
@@ -797,6 +796,5 @@ CREATE TABLE log_proses (
     CONSTRAINT FK_ResiCancelled FOREIGN KEY (resi_id_cancelled) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL,
     CONSTRAINT FK_ResiValidated FOREIGN KEY (resi_id_validated) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
-
 
 
