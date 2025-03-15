@@ -548,7 +548,7 @@ const showDataByResi = async (req, res) => {
           pekerja.nama_pekerja,
           ${logTable}.${resiColumn} as resi,
           ${logTable}.status_proses as status,
-          ${logTable}.created_at as proses_scan
+          ${logTable}.created_at as proses_scan,
           ${logTable}.gambar_resi as gambar_resi
         FROM ${logTable}
         JOIN pekerja ON ${logTable}.id_pekerja = pekerja.id_pekerja
