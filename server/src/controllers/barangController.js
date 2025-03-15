@@ -4,6 +4,23 @@ const moment = require("moment");
 const path = require("path");
 const fs = require("fs");
 
+// Add mapping constants for log tables and columns
+const logTableMap = {
+  picker: "log_proses_picker",
+  packing: "log_proses_packing",
+  pickout: "log_proses_pickout",
+  cancelled: "log_proses_cancelled",
+  konfirmasi: "log_proses_validated",
+};
+
+const resiColumnMap = {
+  picker: "resi_id_picker",
+  packing: "resi_id_packing",
+  pickout: "resi_id_pickout",
+  cancelled: "resi_id_cancelled",
+  konfirmasi: "resi_id_validated",
+};
+
 const addNewBarang = async (req, res) => {
   try {
     const { resi_id } = req.body;
@@ -149,104 +166,46 @@ const showAllBarang = async (req, res) => {
         orderClause = "ORDER BY b.created_at ASC";
         break;
       case "last-update":
-        orderClause = "ORDER BY COALESCE(latest_process.last_scan, b.updated_at) DESC";
+        orderClause = "ORDER BY COALESCE(latest_process.last_scan, p.updated_at) DESC";
         break;
       default:
         orderClause = "ORDER BY b.created_at DESC";
     }
 
+    // Add the WHERE clause, order clause, and pagination to the main query
     const [rows] = await mysqlPool.query(
-      `SELECT 
-        b.resi_id,
-        b.created_at,
-        b.updated_at,
-        b.id_ekspedisi,
-        e.nama_ekspedisi,
-        COALESCE(latest_process.status_proses, 'pending') as status_proses,
+      `
+      SELECT 
+        b.resi_id, 
+        latest_process.status_proses, 
+        b.created_at, 
+        latest_process.last_scan as updated_at, 
         latest_process.nama_pekerja,
-        latest_process.last_scan,
-        CASE 
-          WHEN latest_process.status_proses = 'cancelled' THEN 'Dibatalkan'
-          WHEN latest_process.status_proses = 'pending' OR latest_process.status_proses IS NULL THEN 'Menunggu pickup'
-          WHEN latest_process.status_proses = 'picker' THEN 'Sudah dipickup'
-          WHEN latest_process.status_proses = 'packing' THEN 'Sudah dipacking'
-          WHEN latest_process.status_proses = 'pickout' THEN 'Dalam pengiriman'
-          WHEN latest_process.status_proses = 'konfirmasi' THEN 'Konfirmasi Cancel'
-          ELSE 'Menunggu proses'
-        END as status_description,
-        (
-          SELECT GROUP_CONCAT(DISTINCT l.status_proses ORDER BY l.created_at DESC)
-          FROM log_proses l
-          WHERE l.resi_id = b.resi_id
-        ) as process_history
-       FROM barang b
-       LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
-       LEFT JOIN (
-         SELECT p1.resi_id, 
-                p1.status_proses, 
-                p1.updated_at as last_scan,
-                pek.nama_pekerja
-         FROM proses p1
-         LEFT JOIN pekerja pek ON p1.id_pekerja = pek.id_pekerja
-         WHERE p1.id_proses = (
-           SELECT p2.id_proses 
-           FROM proses p2 
-           WHERE p2.resi_id = p1.resi_id 
-           ORDER BY p2.updated_at DESC 
-           LIMIT 1
-         )
-       ) latest_process ON b.resi_id = latest_process.resi_id
-       ${whereClause}
-       ${orderClause}
-       LIMIT ?, ?`,
-      [...queryParams, offset, limit]
-    );
-
-    const [barangKeseluruhan] = await mysqlPool.query(
-      `SELECT 
-        b.resi_id,
-        b.created_at,
-        b.updated_at,
-        b.id_ekspedisi,
-        e.nama_ekspedisi,
-        COALESCE(latest_process.status_proses, 'pending') as status_proses,
-        latest_process.nama_pekerja,
-        latest_process.last_scan,
-        CASE 
-          WHEN latest_process.status_proses = 'cancelled' THEN 'Dibatalkan'
-          WHEN latest_process.status_proses = 'pending' OR latest_process.status_proses IS NULL THEN 'Menunggu pickup'
-          WHEN latest_process.status_proses = 'picker' THEN 'Sudah dipickup'
-          WHEN latest_process.status_proses = 'packing' THEN 'Sudah dipacking'
-          WHEN latest_process.status_proses = 'pickout' THEN 'Dalam pengiriman'
-          WHEN latest_process.status_proses = 'konfirmasi' THEN 'Konfirmasi Cancel'
-          ELSE 'Menunggu proses'
-        END as status_description,
-        (
-          SELECT GROUP_CONCAT(DISTINCT l.status_proses ORDER BY l.created_at DESC)
-          FROM log_proses l
-          WHERE l.resi_id = b.resi_id
-        ) as process_history
-       FROM barang b
-       LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
-       LEFT JOIN (
-         SELECT p1.resi_id, 
-                p1.status_proses, 
-                p1.updated_at as last_scan,
-                pek.nama_pekerja
-         FROM proses p1
-         LEFT JOIN pekerja pek ON p1.id_pekerja = pek.id_pekerja
-         WHERE p1.id_proses = (
-           SELECT p2.id_proses 
-           FROM proses p2 
-           WHERE p2.resi_id = p1.resi_id 
-           ORDER BY p2.updated_at DESC 
-           LIMIT 1
-         )
-       ) latest_process ON b.resi_id = latest_process.resi_id
-       ${whereClause}
-       ${orderClause}
-    `,
-      [...queryParams, offset, limit]
+        e.nama_ekspedisi
+      FROM barang b
+      LEFT JOIN ekpedisi e ON b.id_ekspedisi = e.id_ekspedisi
+      LEFT JOIN (
+        SELECT 
+          p.resi_id, 
+          p.status_proses, 
+          p.created_at,
+          p.updated_at as last_scan,
+          pek.nama_pekerja
+        FROM proses p
+        LEFT JOIN pekerja pek ON p.id_pekerja = pek.id_pekerja
+        WHERE p.id_proses = (
+          SELECT MAX(p2.id_proses) 
+          FROM proses p2  
+          WHERE p2.resi_id = p.resi_id 
+          ORDER BY p2.updated_at DESC 
+          LIMIT 1
+        )
+      ) latest_process ON b.resi_id = latest_process.resi_id
+      ${whereClause}
+      ${orderClause}
+      LIMIT ? OFFSET ?
+      `,
+      [...queryParams, limit, offset]
     );
 
     const [getDataPending] = await mysqlPool.query(
@@ -259,7 +218,6 @@ const showAllBarang = async (req, res) => {
       success: true,
       message: "Data found",
       data: rows,
-      totalPesanan: barangKeseluruhan.length,
       countPending: getDataPending[0].count,
       pagination: {
         totalPages,
@@ -337,8 +295,26 @@ const cancelBarang = async (req, res) => {
     // Support for multiple resi_ids
     const resiIds = Array.isArray(resi_id) ? resi_id : [resi_id];
 
-    // Check if resis exist and get current status
-    const [existingResis] = await connection.query("SELECT resi_id, status_proses FROM proses WHERE resi_id IN (?) ORDER BY updated_at DESC", [resiIds]);
+    // Check if resis exist and their current status
+    const [existingResis] = await connection.query(
+      `SELECT b.resi_id, 
+        CASE 
+          WHEN lpc.resi_id_cancelled IS NOT NULL THEN 'cancelled'
+          WHEN lpv.resi_id_validated IS NOT NULL THEN 'konfirmasi'
+          WHEN lpo.resi_id_pickout IS NOT NULL THEN 'pickout'
+          WHEN lpp.resi_id_packing IS NOT NULL THEN 'packing'
+          WHEN lpk.resi_id_picker IS NOT NULL THEN 'picker'
+          ELSE 'pending'
+        END AS status_proses
+       FROM barang b
+       LEFT JOIN log_proses_cancelled lpc ON b.resi_id = lpc.resi_id_cancelled
+       LEFT JOIN log_proses_validated lpv ON b.resi_id = lpv.resi_id_validated
+       LEFT JOIN log_proses_pickout lpo ON b.resi_id = lpo.resi_id_pickout
+       LEFT JOIN log_proses_packing lpp ON b.resi_id = lpp.resi_id_packing
+       LEFT JOIN log_proses_picker lpk ON b.resi_id = lpk.resi_id_picker
+       WHERE b.resi_id IN (?)`,
+      [resiIds]
+    );
 
     const notFoundResis = resiIds.filter((id) => !existingResis.some((resi) => resi.resi_id === id));
 
@@ -358,8 +334,30 @@ const cancelBarang = async (req, res) => {
       });
     }
 
-    // Updated query to handle multiple resis
+    // Generate UUIDs for each resi to insert into log_proses
+    const uuid = require("uuid");
+
+    // Process each resi
     for (const resiId of resiIds) {
+      const logId = uuid.v4();
+
+      // Insert into log_proses_cancelled
+      await connection.query(
+        `INSERT INTO log_proses_cancelled 
+         (resi_id_cancelled, id_pekerja, status_proses, created_at, updated_at)
+         VALUES (?, ?, 'cancelled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [resiId, req.user.id_pekerja]
+      );
+
+      // Connect in log_proses
+      await connection.query(
+        `INSERT INTO log_proses 
+         (id_log, resi_id_cancelled)
+         VALUES (?, ?)`,
+        [logId, resiId]
+      );
+
+      // Update status in proses table if it exists
       await connection.query(
         `UPDATE proses 
          SET status_proses = 'cancelled', 
@@ -376,20 +374,7 @@ const cancelBarang = async (req, res) => {
          )`,
         [req.user.id_pekerja, resiId, resiId]
       );
-
-      await connection.query(
-        `UPDATE log_proses
-        SET status_proses = 'cancelled', updated_at = CURRENT_TIMESTAMP
-        WHERE resi_id = ? AND status_proses != 'cancelled'`,
-        [resiId]
-      );
     }
-
-    await connection.query(
-      `INSERT INTO log_proses (resi_id, status_proses, created_at, updated_at)
-        VALUES ?`,
-      [resiIds.map((resiId) => [resiId, "cancelled", moment().format("YYYY-MM-DD HH:mm:ss"), moment().format("YYYY-MM-DD HH:mm:ss")])]
-    );
 
     await connection.commit();
 
@@ -1083,9 +1068,17 @@ const deleteResi = async (req, res) => {
       });
     }
 
-    // Delete related records for all resis
-    await connection.query("DELETE FROM log_proses WHERE resi_id IN (?)", [resiIds]);
+    // Delete related records for all resis - execute each query separately
+    await connection.query("DELETE FROM log_proses_cancelled WHERE resi_id_cancelled IN (?)", [resiIds]);
+    await connection.query("DELETE FROM log_proses_picker WHERE resi_id_picker IN (?)", [resiIds]);
+    await connection.query("DELETE FROM log_proses_packing WHERE resi_id_packing IN (?)", [resiIds]);
+    await connection.query("DELETE FROM log_proses_pickout WHERE resi_id_pickout IN (?)", [resiIds]);
+    await connection.query("DELETE FROM log_proses_validated WHERE resi_id_validated IN (?)", [resiIds]);
 
+    // Delete from log_proses connecting table
+    await connection.query("DELETE FROM log_proses WHERE resi_id_cancelled IN (?) OR resi_id_picker IN (?) OR resi_id_packing IN (?) OR resi_id_pickout IN (?) OR resi_id_validated IN (?)", [resiIds, resiIds, resiIds, resiIds, resiIds]);
+
+    // Delete from proses table
     await connection.query("DELETE FROM proses WHERE resi_id IN (?)", [resiIds]);
 
     // Finally delete the barang records
@@ -1468,10 +1461,10 @@ const resetBarangStatus = async (req, res) => {
 
     // Check if resis exist and get current status
     const [existingResis] = await connection.query(
-      `SELECT resi_id, status_proses
+      `SELECT p.resi_id, p.status_proses
        FROM proses p 
-       WHERE resi_id IN (?) 
-       AND id_proses = (
+       WHERE p.resi_id IN (?) 
+       AND p.id_proses = (
          SELECT MAX(id_proses)
          FROM proses
          WHERE resi_id = p.resi_id
@@ -1482,6 +1475,8 @@ const resetBarangStatus = async (req, res) => {
     const notFoundResis = resiIds.filter((id) => !existingResis.some((resi) => resi.resi_id === id));
 
     if (notFoundResis.length > 0) {
+      await connection.rollback();
+      connection.release();
       return res.status(404).send({
         success: false,
         message: `Resi not found: ${notFoundResis.join(", ")}`,
@@ -1495,6 +1490,8 @@ const resetBarangStatus = async (req, res) => {
 
       // Validate that currentStatus matches what's in the database
       if (currentStatus !== dbStatus) {
+        await connection.rollback();
+        connection.release();
         return res.status(400).send({
           success: false,
           message: `Status mismatch. Current status : ${dbStatus}`,
@@ -1506,6 +1503,8 @@ const resetBarangStatus = async (req, res) => {
 
       // Validate current status
       if (currentIndex === -1 || !statusResetMap[currentStatus]) {
+        await connection.rollback();
+        connection.release();
         return res.status(400).send({
           success: false,
           message: `Invalid current status: ${currentStatus}. Must be one of: pickout, packing, or picker`,
@@ -1517,24 +1516,39 @@ const resetBarangStatus = async (req, res) => {
 
       // Validate linear progression
       if (currentIndex - previousIndex !== 1) {
+        await connection.rollback();
+        connection.release();
         return res.status(400).send({
           success: false,
           message: `Invalid status reset. Can only reset from ${currentStatus} to ${previousStatus}`,
         });
       }
 
-      // Delete the current status log
+      // Get the appropriate log tables and columns for current status
+      const currentLogTable = logTableMap[currentStatus];
+      const currentResiColumn = resiColumnMap[currentStatus];
+
+      if (!currentLogTable || !currentResiColumn) {
+        await connection.rollback();
+        connection.release();
+        return res.status(400).send({
+          success: false,
+          message: `Invalid current status type: ${currentStatus}`,
+        });
+      }
+
+      // Delete from the specific log table
+      await connection.query(
+        `DELETE FROM ${currentLogTable} 
+         WHERE ${currentResiColumn} = ?`,
+        [resiId]
+      );
+
+      // Delete from the connecting log_proses table
       await connection.query(
         `DELETE FROM log_proses 
-         WHERE resi_id = ? 
-         AND status_proses = ?
-         AND created_at = (
-           SELECT MAX(created_at)
-           FROM log_proses
-           WHERE resi_id = ?
-           AND status_proses = ?
-         )`,
-        [resiId, currentStatus, resiId, currentStatus]
+         WHERE ${currentResiColumn} = ?`,
+        [resiId]
       );
 
       // Update the current status in proses table

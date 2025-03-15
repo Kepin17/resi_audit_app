@@ -1,116 +1,133 @@
 const mysqlPool = require("../config/db");
 const moment = require("moment");
 
+// Add mapping constants for log tables and columns
+const logTableMap = {
+  picker: "log_proses_picker",
+  packing: "log_proses_packing",
+  pickout: "log_proses_pickout",
+  cancelled: "log_proses_cancelled",
+  konfirmasi: "log_proses_validated",
+};
+
+const resiColumnMap = {
+  picker: "resi_id_picker",
+  packing: "resi_id_packing",
+  pickout: "resi_id_pickout",
+  cancelled: "resi_id_cancelled",
+  konfirmasi: "resi_id_validated",
+};
+
 const getStatistics = async (req, res) => {
   try {
     const { period = "daily" } = req.query;
-    let query = "";
     let dateFormat = "";
+    let timeInterval = "";
 
+    // Set date format and time interval based on requested period
     switch (period) {
       case "daily":
         dateFormat = "%Y-%m-%d %H:00:00";
-        query = `
-          WITH last_status AS (
-            SELECT 
-              l.resi_id,
-              l.status_proses,
-              DATE_FORMAT(l.created_at, ?) as date,
-              ROW_NUMBER() OVER (PARTITION BY l.resi_id ORDER BY l.created_at DESC) as rn
-            FROM log_proses l
-            WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
-          )
-          SELECT 
-            date,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'picker' AND rn = 1 THEN resi_id END) as picker,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'packing' AND rn = 1 THEN resi_id END) as packing,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'pickout' AND rn = 1 THEN resi_id END) as pickout,
-            COUNT(DISTINCT resi_id) as total_resi
-          FROM last_status
-          GROUP BY date
-          ORDER BY date ASC`;
+        timeInterval = "INTERVAL 1 DAY";
         break;
-
       case "weekly":
         dateFormat = "%Y-%m-%d";
-        query = `
-          WITH last_status AS (
-            SELECT 
-              l.resi_id,
-              l.status_proses,
-              DATE_FORMAT(l.created_at, ?) as date,
-              ROW_NUMBER() OVER (PARTITION BY l.resi_id ORDER BY l.created_at DESC) as rn
-            FROM log_proses l
-            WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)
-          )
-          SELECT 
-            date,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'picker' AND rn = 1 THEN resi_id END) as picker,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'packing' AND rn = 1 THEN resi_id END) as packing,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'pickout' AND rn = 1 THEN resi_id END) as pickout,
-            COUNT(DISTINCT resi_id) as total_resi
-          FROM last_status
-          GROUP BY date
-          ORDER BY date ASC`;
+        timeInterval = "INTERVAL 1 WEEK";
         break;
-
       case "monthly":
         dateFormat = "%Y-%m-%d";
-        query = `
-          WITH log_counts AS (
-            SELECT 
-              DATE_FORMAT(l.created_at, ?) as date,
-              l.resi_id,
-              l.status_proses
-            FROM log_proses l
-            WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)
-            GROUP BY DATE_FORMAT(l.created_at, ?), l.resi_id, l.status_proses
-          )
-          SELECT 
-            date,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'picker' THEN resi_id END) as picker,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'packing' THEN resi_id END) as packing,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'pickout' THEN resi_id END) as pickout,
-            COUNT(DISTINCT resi_id) as total_resi
-          FROM log_counts
-          GROUP BY date
-          ORDER BY date ASC`;
+        timeInterval = "INTERVAL 1 MONTH";
         break;
-
       case "yearly":
         dateFormat = "%Y-%m";
-        query = `
-          WITH log_counts AS (
-            SELECT 
-              DATE_FORMAT(l.created_at, ?) as date,
-              l.resi_id,
-              l.status_proses
-            FROM log_proses l
-            WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR)
-            GROUP BY DATE_FORMAT(l.created_at, ?), l.resi_id, l.status_proses
-          )
-          SELECT 
-            date,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'picker' THEN resi_id END) as picker,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'packing' THEN resi_id END) as packing,
-            COUNT(DISTINCT CASE WHEN status_proses LIKE 'pickout' THEN resi_id END) as pickout,
-            COUNT(DISTINCT resi_id) as total_resi
-          FROM log_counts
-          GROUP BY date
-          ORDER BY date ASC`;
+        timeInterval = "INTERVAL 1 YEAR";
         break;
+      default:
+        dateFormat = "%Y-%m-%d %H:00:00";
+        timeInterval = "INTERVAL 1 DAY";
     }
 
-    const [rows] = await mysqlPool.query(query, [dateFormat, dateFormat]);
+    // Build queries for each process type
+    const processTypes = ["picker", "packing", "pickout", "cancelled"];
+    const queries = [];
 
-    // Process data and add additional metrics
-    const processedData = rows.map((row) => ({
-      date: row.date,
-      picker: parseInt(row.picker) || 0,
-      packing: parseInt(row.packing) || 0,
-      pickout: parseInt(row.pickout) || 0,
-      active_workers: parseInt(row.active_workers) || 0,
-      total_resi: parseInt(row.total_resi) || 0,
+    for (const processType of processTypes) {
+      const logTable = logTableMap[processType];
+      const resiColumn = resiColumnMap[processType];
+
+      // Skip if table mapping isn't defined
+      if (!logTable || !resiColumn) continue;
+
+      const query = `
+        SELECT 
+          DATE_FORMAT(created_at, ?) as date,
+          '${processType}' as process_type,
+          COUNT(DISTINCT ${resiColumn}) as count
+        FROM ${logTable}
+        WHERE created_at >= DATE_SUB(NOW(), ${timeInterval})
+        GROUP BY DATE_FORMAT(created_at, ?)
+      `;
+
+      queries.push(mysqlPool.query(query, [dateFormat, dateFormat]));
+    }
+
+    // Execute all queries in parallel
+    const results = await Promise.all(queries);
+
+    // Combine results and reorganize by date
+    const dateData = {};
+
+    processTypes.forEach((type, index) => {
+      if (results[index] && results[index][0]) {
+        const rows = results[index][0];
+
+        rows.forEach((row) => {
+          if (!dateData[row.date]) {
+            dateData[row.date] = {
+              date: row.date,
+              picker: 0,
+              packing: 0,
+              pickout: 0,
+              cancelled: 0,
+              total_resi: 0,
+            };
+          }
+
+          dateData[row.date][row.process_type] = parseInt(row.count);
+          dateData[row.date].total_resi += parseInt(row.count);
+        });
+      }
+    });
+
+    // Get active workers count
+    const workersQuery = `
+      SELECT 
+        DATE_FORMAT(lp.created_at, ?) as date,
+        COUNT(DISTINCT lp.id_pekerja) as active_workers
+      FROM (
+        SELECT id_pekerja, created_at FROM log_proses_picker
+        UNION ALL
+        SELECT id_pekerja, created_at FROM log_proses_packing
+        UNION ALL
+        SELECT id_pekerja, created_at FROM log_proses_pickout
+      ) lp
+      WHERE lp.created_at >= DATE_SUB(NOW(), ${timeInterval})
+      GROUP BY DATE_FORMAT(lp.created_at, ?)
+    `;
+
+    const [workersResults] = await mysqlPool.query(workersQuery, [dateFormat, dateFormat]);
+
+    // Add worker count to date data
+    workersResults.forEach((row) => {
+      if (dateData[row.date]) {
+        dateData[row.date].active_workers = parseInt(row.active_workers);
+      }
+    });
+
+    // Convert to array and calculate efficiency
+    const processedData = Object.values(dateData).map((row) => ({
+      ...row,
+      active_workers: row.active_workers || 0,
       efficiency: calculateEfficiency(row),
     }));
 
@@ -128,7 +145,7 @@ const getStatistics = async (req, res) => {
         total_packed: processedData.reduce((sum, item) => sum + item.packing, 0),
         total_pickout: processedData.reduce((sum, item) => sum + item.pickout, 0),
         total_resi_processed: processedData.reduce((sum, item) => sum + item.total_resi, 0),
-        average_workers_per_period: Math.round(processedData.reduce((sum, item) => sum + item.active_workers, 0) / processedData.length),
+        average_workers_per_period: Math.round(processedData.reduce((sum, item) => sum + item.active_workers, 0) / processedData.length || 1),
         overall_efficiency: overallStats.efficiency,
         peak_period: overallStats.peakPeriod,
       },
@@ -196,69 +213,97 @@ const getWorkerStatistics = async (req, res) => {
         dateFilter = "DATE(l.created_at) = CURDATE()";
     }
 
-    const query = `
-      WITH worker_stats AS (
+    // Get data for each process type separately
+    const processTypes = ["picker", "packing", "pickout"];
+    const workerData = {};
+
+    for (const processType of processTypes) {
+      const logTable = logTableMap[processType];
+      const resiColumn = resiColumnMap[processType];
+
+      if (!logTable || !resiColumn) continue;
+
+      const query = `
         SELECT 
-          pek.id_pekerja,
-          pek.nama_pekerja,
-          COUNT(DISTINCT l.resi_id) as unique_resis,
-          COUNT(CASE WHEN l.status_proses = 'picker' THEN 1 END) as picker_count,
-          COUNT(CASE WHEN l.status_proses = 'packing' THEN 1 END) as packing_count,
-          COUNT(CASE WHEN l.status_proses = 'pickout' THEN 1 END) as pickout_count,
-          COUNT(*) as total_scans,
+          p.id_pekerja,
+          p.nama_pekerja,
+          COUNT(DISTINCT l.${resiColumn}) as count,
           MIN(l.created_at) as first_scan,
           MAX(l.created_at) as last_scan,
-          GROUP_CONCAT(DISTINCT l.status_proses ORDER BY l.created_at) as process_flow,
           COUNT(DISTINCT DATE_FORMAT(l.created_at, '%Y-%m-%d %H:00:00')) as active_hours
-        FROM log_proses l
-        JOIN pekerja pek ON l.id_pekerja = pek.id_pekerja
-        WHERE ${dateFilter} AND l.status_proses IN ('picker', 'packing', 'pickout')
-        GROUP BY pek.id_pekerja, pek.nama_pekerja
-      )
-      SELECT 
-        ws.*,
-        TIMESTAMPDIFF(MINUTE, ws.first_scan, ws.last_scan) / 60.0 as hours_active,
-        CASE 
-          WHEN TIMESTAMPDIFF(MINUTE, ws.first_scan, ws.last_scan) = 0 THEN ws.total_scans
-          ELSE ws.total_scans / (TIMESTAMPDIFF(MINUTE, ws.first_scan, ws.last_scan) / 60.0)
-        END as scans_per_hour
-      FROM worker_stats ws
-      WHERE ws.total_scans > 0
-      ORDER BY ws.total_scans DESC
-    `;
+        FROM ${logTable} l
+        JOIN pekerja p ON l.id_pekerja = p.id_pekerja
+        WHERE ${dateFilter}
+        GROUP BY p.id_pekerja, p.nama_pekerja
+      `;
 
-    const [rows] = await mysqlPool.query(query);
+      const [results] = await mysqlPool.query(query);
 
-    // Calculate efficiency metrics with improved logic
-    const processedData = rows.map((worker) => {
-      const hoursWorked = parseFloat(worker.hours_active) || 0.01;
-      const scansPerHour = parseFloat(worker.scans_per_hour) || 0;
+      results.forEach((row) => {
+        if (!workerData[row.id_pekerja]) {
+          workerData[row.id_pekerja] = {
+            id_pekerja: row.id_pekerja,
+            nama_pekerja: row.nama_pekerja,
+            picker_count: 0,
+            packing_count: 0,
+            pickout_count: 0,
+            total_scans: 0,
+            unique_resis: 0,
+            first_scan: row.first_scan,
+            last_scan: row.last_scan,
+            active_hours: row.active_hours || 0,
+          };
+        }
 
-      // Calculate completion rate (successful processes vs total attempts)
-      const completionRate = ((worker.picker_count + worker.packing_count + worker.pickout_count) / (worker.total_scans * 3)) * 100;
+        // Update data for this worker
+        workerData[row.id_pekerja][`${processType}_count`] = parseInt(row.count);
+        workerData[row.id_pekerja].total_scans += parseInt(row.count);
+        workerData[row.id_pekerja].unique_resis += parseInt(row.count);
 
-      // Calculate process efficiency (completed full cycles)
-      const fullCycles = Math.min(worker.picker_count, worker.packing_count, worker.pickout_count);
+        // Update first & last scan times if needed
+        if (row.first_scan && (!workerData[row.id_pekerja].first_scan || new Date(row.first_scan) < new Date(workerData[row.id_pekerja].first_scan))) {
+          workerData[row.id_pekerja].first_scan = row.first_scan;
+        }
 
-      // Calculate weighted performance score with updated weights
-      const weightedScore = ((worker.picker_count * 1.0 + worker.packing_count * 1.2 + worker.pickout_count * 1.5 + fullCycles * 2.0) / (worker.total_scans || 1)) * 100;
+        if (row.last_scan && (!workerData[row.id_pekerja].last_scan || new Date(row.last_scan) > new Date(workerData[row.id_pekerja].last_scan))) {
+          workerData[row.id_pekerja].last_scan = row.last_scan;
+        }
 
-      return {
-        ...worker,
-        unique_resis: parseInt(worker.unique_resis),
-        hours_worked: worker.active_hours,
-        scans_per_hour: scansPerHour.toFixed(2),
-        performance_score: Math.min(100, weightedScore).toFixed(2),
-        efficiency_stats: {
-          completion_rate: completionRate.toFixed(1),
-          picker_ratio: ((worker.picker_count / worker.total_scans) * 100).toFixed(1),
-          packing_ratio: ((worker.packing_count / worker.total_scans) * 100).toFixed(1),
-          pickout_ratio: ((worker.pickout_count / worker.total_scans) * 100).toFixed(1),
-          full_cycles: fullCycles,
-          resis_per_hour: (worker.unique_resis / hoursWorked).toFixed(2),
-        },
-      };
-    });
+        workerData[row.id_pekerja].active_hours = Math.max(workerData[row.id_pekerja].active_hours, row.active_hours || 0);
+      });
+    }
+
+    // Convert to array and calculate additional metrics
+    const processedData = Object.values(workerData)
+      .filter((worker) => worker.total_scans > 0)
+      .map((worker) => {
+        const hoursWorked = worker.first_scan && worker.last_scan ? Math.max(0.01, moment(worker.last_scan).diff(moment(worker.first_scan), "hours", true)) : 0.01;
+
+        const scansPerHour = worker.total_scans / hoursWorked;
+
+        // Calculate completion rate and process efficiency
+        const completionRate = ((worker.picker_count + worker.packing_count + worker.pickout_count) / (worker.total_scans * 3)) * 100;
+        const fullCycles = Math.min(worker.picker_count, worker.packing_count, worker.pickout_count);
+
+        // Calculate weighted performance score
+        const weightedScore = ((worker.picker_count * 1.0 + worker.packing_count * 1.2 + worker.pickout_count * 1.5 + fullCycles * 2.0) / (worker.total_scans || 1)) * 100;
+
+        return {
+          ...worker,
+          hours_worked: worker.active_hours,
+          scans_per_hour: scansPerHour.toFixed(2),
+          performance_score: Math.min(100, weightedScore).toFixed(2),
+          efficiency_stats: {
+            completion_rate: completionRate.toFixed(1),
+            picker_ratio: ((worker.picker_count / worker.total_scans) * 100).toFixed(1),
+            packing_ratio: ((worker.packing_count / worker.total_scans) * 100).toFixed(1),
+            pickout_ratio: ((worker.pickout_count / worker.total_scans) * 100).toFixed(1),
+            full_cycles: fullCycles,
+            resis_per_hour: (worker.unique_resis / hoursWorked).toFixed(2),
+          },
+        };
+      })
+      .sort((a, b) => b.total_scans - a.total_scans);
 
     // Calculate team statistics
     const teamStats = processedData.reduce(

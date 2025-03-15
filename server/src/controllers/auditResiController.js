@@ -1,6 +1,23 @@
 const mysqlPool = require("../config/db");
 const moment = require("moment");
 
+// Add mapping constants for log tables and columns
+const logTableMap = {
+  picker: "log_proses_picker",
+  packing: "log_proses_packing",
+  pickout: "log_proses_pickout",
+  cancelled: "log_proses_cancelled",
+  konfirmasi: "log_proses_validated",
+};
+
+const resiColumnMap = {
+  picker: "resi_id_picker",
+  packing: "resi_id_packing",
+  pickout: "resi_id_pickout",
+  cancelled: "resi_id_cancelled",
+  konfirmasi: "resi_id_validated",
+};
+
 const handleError = (error, res, operation) => {
   console.error(`Error in ${operation}:`, error);
 
@@ -57,7 +74,12 @@ const showAllData = async (req, res) => {
 };
 
 const scaneHandler = async (req, res) => {
+  // Get a connection from the pool for transaction
+  const connection = await mysqlPool.getConnection();
+
   try {
+    await connection.beginTransaction();
+
     const { id_pekerja, thisPage } = req.body;
     const { resi_id } = req.params;
 
@@ -74,7 +96,7 @@ const scaneHandler = async (req, res) => {
     }
 
     // Get worker data with all roles
-    const [workerRoles] = await mysqlPool.query(
+    const [workerRoles] = await connection.query(
       `SELECT p.*, b.jenis_pekerja, b.id_bagian
        FROM pekerja p 
        JOIN role_pekerja rp ON p.id_pekerja = rp.id_pekerja
@@ -88,6 +110,8 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
+      await connection.rollback();
+      connection.release();
       return res.status(404).send({
         success: false,
         message: "Worker not found or has no roles",
@@ -104,6 +128,8 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
+      await connection.rollback();
+      connection.release();
       return res.status(403).send({
         success: false,
         message: `Kamu bukan bagian dari ${thisPage}`,
@@ -111,13 +137,15 @@ const scaneHandler = async (req, res) => {
     }
 
     // Check if resi exists and its status
-    const [checkBarangRow] = await mysqlPool.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
+    const [checkBarangRow] = await connection.query("SELECT * FROM barang WHERE resi_id = ?", [resi_id]);
 
     if (checkBarangRow.length === 0) {
       if (req.file) {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
+      await connection.rollback();
+      connection.release();
       return res.status(404).send({
         success: false,
         message: "Resi not found in system",
@@ -129,37 +157,56 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
+      await connection.rollback();
+      connection.release();
       return res.status(400).send({
         success: false,
         message: "Resi has been cancelled",
       });
     }
 
+    // Get the appropriate log table and column based on the process type
+    const specificLogTable = logTableMap[thisPage];
+    const resiColumn = resiColumnMap[thisPage];
+
+    if (!specificLogTable || !resiColumn) {
+      if (req.file) {
+        const fs = require("fs");
+        fs.unlinkSync(req.file.path);
+      }
+      await connection.rollback();
+      connection.release();
+      return res.status(400).send({
+        success: false,
+        message: "Invalid process type",
+      });
+    }
+
     // Add check for duplicate scan in the current status
-    const [existingScans] = await mysqlPool.query(
-      `SELECT p.*, pk.nama_pekerja
-       FROM proses p
-       LEFT JOIN pekerja pk ON pk.id_pekerja = p.id_pekerja
-       WHERE p.resi_id = ? AND p.status_proses = ?
-       ORDER BY p.created_at DESC
-       LIMIT 1`,
-      [resi_id, thisPage]
-    );
+    const [existingScans] = await connection.query(`SELECT * FROM ${specificLogTable} WHERE ${resiColumn} = ?`, [resi_id]);
 
     if (existingScans && existingScans.length > 0) {
       if (req.file) {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
+
+      // Get worker name who did the scan
+      const [scanWorker] = await connection.query(`SELECT nama_pekerja FROM pekerja WHERE id_pekerja = ?`, [existingScans[0].id_pekerja]);
+
+      const scannerName = scanWorker.length > 0 ? scanWorker[0].nama_pekerja : "Unknown";
       const formattedDate = moment(existingScans[0].created_at).format("DD MMM YYYY HH:mm:ss");
+
+      await connection.rollback();
+      connection.release();
       return res.status(400).send({
         success: false,
-        message: `Resi ini sudah di scan dengan status ${thisPage} oleh ${existingScans[0].nama_pekerja} pada ${formattedDate}`,
+        message: `Resi ini sudah di scan dengan status ${thisPage} oleh ${scannerName} pada ${formattedDate}`,
       });
     }
 
     // Get current process status
-    const [currentProcess] = await mysqlPool.query(
+    const [currentProcess] = await connection.query(
       `SELECT p.*, pk.nama_pekerja as processor_name, pk.username
        FROM proses p
        LEFT JOIN pekerja pk ON pk.id_pekerja = p.id_pekerja
@@ -169,28 +216,26 @@ const scaneHandler = async (req, res) => {
       [resi_id]
     );
 
-    // Check for cancelled status after getting current process
-    const [cancelledCheck] = await mysqlPool.query(
-      `SELECT p.*, pk.nama_pekerja, lp.created_at as cancelled_at
-       FROM proses p
-       JOIN log_proses lp ON p.resi_id = lp.resi_id
-       JOIN pekerja pk ON lp.id_pekerja = pk.id_pekerja
-       WHERE p.resi_id = ? 
-       AND p.status_proses = 'cancelled'
-       ORDER BY lp.created_at DESC
-       LIMIT 1`,
-      [resi_id]
-    );
+    // Check for cancelled status
+    const [cancelledCheck] = await connection.query(`SELECT * FROM log_proses_cancelled WHERE resi_id_cancelled = ?`, [resi_id]);
 
     if (cancelledCheck && cancelledCheck.length > 0) {
       if (req.file) {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
-      const formattedDate = moment(cancelledCheck[0].cancelled_at).format("DD MMM YYYY HH:mm:ss");
+
+      // Get worker name who cancelled it
+      const [cancelWorker] = await connection.query(`SELECT nama_pekerja FROM pekerja WHERE id_pekerja = ?`, [cancelledCheck[0].id_pekerja]);
+
+      const cancellerName = cancelWorker.length > 0 ? cancelWorker[0].nama_pekerja : "Unknown";
+      const formattedDate = moment(cancelledCheck[0].created_at).format("DD MMM YYYY HH:mm:ss");
+
+      await connection.rollback();
+      connection.release();
       return res.status(400).send({
         success: false,
-        message: `Resi ini telah di cancel oleh ${cancelledCheck[0].nama_pekerja} pada ${formattedDate}`,
+        message: `Resi ini telah di cancel oleh ${cancellerName} pada ${formattedDate}`,
       });
     }
 
@@ -203,6 +248,8 @@ const scaneHandler = async (req, res) => {
           const fs = require("fs");
           fs.unlinkSync(req.file.path);
         }
+        await connection.rollback();
+        connection.release();
         return res.status(400).send({
           success: false,
           message: "Resi harus discan oleh picker terlebih dahulu",
@@ -210,10 +257,7 @@ const scaneHandler = async (req, res) => {
       }
 
       // This is a valid first scan by a picker
-      const allowedRole = "picker";
-
-      // Process the scan with transaction
-      return await processScan(req, res, allowedRole, id_pekerja, resi_id, nama_pekerja, username);
+      return await processScan(req, res, connection);
     }
 
     // For existing processes, determine where we are in the workflow
@@ -226,6 +270,8 @@ const scaneHandler = async (req, res) => {
         const fs = require("fs");
         fs.unlinkSync(req.file.path);
       }
+      await connection.rollback();
+      connection.release();
       return res.status(400).send({
         success: false,
         message: "Resi telah selesai diproses",
@@ -243,98 +289,98 @@ const scaneHandler = async (req, res) => {
       }
 
       // Check if this specific worker has already scanned this resi in the current role
-      const [workerPreviousScan] = await mysqlPool.query(
-        `SELECT lp.*, p.username, p.nama_pekerja
-       FROM log_proses lp
-       JOIN pekerja p ON lp.id_pekerja = p.id_pekerja
-       WHERE lp.resi_id = ? AND lp.status_proses = ? AND lp.id_pekerja = ?
-       ORDER BY lp.created_at DESC
-       LIMIT 1`,
-        [resi_id, thisPage, id_pekerja]
+      const specificTable = logTableMap[thisPage];
+      const specificColumn = resiColumnMap[thisPage];
+
+      const [workerPreviousScan] = await connection.query(
+        `SELECT * FROM ${specificTable} 
+         WHERE ${specificColumn} = ? AND id_pekerja = ?`,
+        [resi_id, id_pekerja]
       );
 
       if (workerPreviousScan && workerPreviousScan.length > 0) {
-        if (req.file) {
-          const fs = require("fs");
-          fs.unlinkSync(req.file.path);
-        }
         moment.locale("id");
         const formattedDate = moment(workerPreviousScan[0].created_at).format("DD MMM YYYY - HH:mm:ss");
+
+        await connection.rollback();
+        connection.release();
         return res.status(400).send({
           success: false,
           message: `Kamu sudah melakukan scan pada ${formattedDate}`,
         });
       }
 
-      // Check if this role has already scanned this resi
-      const [roleScanCheck] = await mysqlPool.query(
-        `SELECT proses.*, pekerja.username, pekerja.nama_pekerja
-         FROM proses 
-         JOIN pekerja ON proses.id_pekerja = pekerja.id_pekerja
-         WHERE proses.resi_id = ? 
-         AND proses.status_proses = ?
-         ORDER BY proses.created_at DESC
-         LIMIT 1`,
-        [resi_id, thisPage]
-      );
-
-      if (roleScanCheck && roleScanCheck.length > 0) {
-        // This role has already scanned this resi
-        const formattedDate = moment(roleScanCheck[0].created_at).format("DD MMM YYYY HH:mm:ss");
-        return res.status(400).send({
-          success: false,
-          message: `Resi ini sudah di scan oleh ${thisPage} (${roleScanCheck[0].nama_pekerja}) pada ${formattedDate}`,
-        });
-      } else {
-        // The sequence is wrong - this role is not the next in line
-        return res.status(400).send({
-          success: false,
-          message: `Resi harus di scan ke ${expectedNextRole}. proses terakhir : ${currentStatus} `,
-        });
-      }
+      // The sequence is wrong - this role is not the next in line
+      await connection.rollback();
+      connection.release();
+      return res.status(400).send({
+        success: false,
+        message: `Resi harus di scan ke ${expectedNextRole}. proses terakhir : ${currentStatus}`,
+      });
     }
-
-    let gambar_resi = null;
-    if (req.file) {
-      gambar_resi = req.file.filename;
-    }
-
-    await mysqlPool.query("INSERT INTO log_proses (resi_id, id_pekerja, status_proses, gambar_resi) VALUES (?, ?, ?, ?)", [resi_id, id_pekerja, thisPage, gambar_resi]);
 
     // This is a valid scan - process it
-    return await processScan(req, res, expectedNextRole, id_pekerja, resi_id, nama_pekerja, username);
+    return await processScan(req, res, connection);
   } catch (error) {
     if (req.file) {
       const fs = require("fs");
-      fs.unlinkSync(req.file.path);
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (e) {
+        /* ignore */
+      }
     }
+
+    await connection.rollback();
+    connection.release();
     handleError(error, res, "processing scan and photo");
   }
 };
 
 // Helper function to process valid scans
-const processScan = async (req, res, role, id_pekerja, resi_id, nama_pekerja, username) => {
-  // Handle photo upload
-  let photoPath = null;
-  if (req.file) {
-    // Store only the filename, not the full path
-    photoPath = req.file.filename;
-  }
-
-  // Process the scan with transaction
-  const connection = await mysqlPool.getConnection();
+const processScan = async (req, res, connection) => {
   try {
-    await connection.beginTransaction();
+    const { id_pekerja, thisPage } = req.body;
+    const { resi_id } = req.params;
 
-    // Update the existing record
-    [result] = await connection.query(
+    let photoPath = null;
+    if (req.file) {
+      photoPath = req.file.filename;
+    }
+
+    // Use the existing table maps from parent scope
+    const specificLogTable = logTableMap[thisPage];
+    const resiColumn = resiColumnMap[thisPage];
+
+    if (!specificLogTable) {
+      throw new Error("Invalid process type");
+    }
+
+    // Generate unique log ID
+    const logId = `LOG${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+    // Insert into specific log table and main log table in transaction
+    await connection.query(
+      `INSERT INTO ${specificLogTable} (${resiColumn}, id_pekerja, status_proses, gambar_resi) 
+       VALUES (?, ?, ?, ?)`,
+      [resi_id, id_pekerja, thisPage, photoPath]
+    );
+
+    await connection.query(
+      `INSERT INTO log_proses (id_log, ${resiColumn}) 
+       VALUES (?, ?)`,
+      [logId, resi_id]
+    );
+
+    // Update proses table
+    await connection.query(
       `UPDATE proses 
        SET status_proses = ?, 
            id_pekerja = ?, 
            gambar_resi = ?,
            updated_at = CURRENT_TIMESTAMP
        WHERE resi_id = ?`,
-      [role, id_pekerja, photoPath, resi_id]
+      [thisPage, id_pekerja, photoPath, resi_id]
     );
 
     await connection.commit();
@@ -342,11 +388,10 @@ const processScan = async (req, res, role, id_pekerja, resi_id, nama_pekerja, us
     return res.status(200).send({
       success: true,
       message: "Resi berhasil di scan",
-      page: role,
+      page: thisPage,
       data: {
-        nama_pekerja,
-        username,
-        proses_scan: role,
+        resi_id,
+        status: thisPage,
         ...(photoPath && { gambar_resi: photoPath }),
       },
     });
@@ -360,12 +405,29 @@ const processScan = async (req, res, role, id_pekerja, resi_id, nama_pekerja, us
 
 const showAllActiviy = async (req, res) => {
   try {
-    const [rows] = await mysqlPool.query(`
-      SELECT pekerja.nama_pekerja, log_proses.resi_id as resi, log_proses.status_proses as status, log_proses.created_at as proses_scan
-      FROM log_proses 
-      JOIN proses ON log_proses.resi_id = proses.resi_id 
-      JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-    `);
+    const query = `
+      SELECT 
+        p.nama_pekerja,
+        COALESCE(lpp.resi_id_picker, lpk.resi_id_packing, lpo.resi_id_pickout, 
+                 lpc.resi_id_cancelled, lpv.resi_id_validated) as resi,
+        COALESCE(lpp.status_proses, lpk.status_proses, lpo.status_proses,
+                 lpc.status_proses, lpv.status_proses) as status,
+        COALESCE(lpp.created_at, lpk.created_at, lpo.created_at,
+                 lpc.created_at, lpv.created_at) as proses_scan
+      FROM log_proses l
+      LEFT JOIN log_proses_picker lpp ON l.resi_id_picker = lpp.resi_id_picker
+      LEFT JOIN log_proses_packing lpk ON l.resi_id_packing = lpk.resi_id_packing
+      LEFT JOIN log_proses_pickout lpo ON l.resi_id_pickout = lpo.resi_id_pickout
+      LEFT JOIN log_proses_cancelled lpc ON l.resi_id_cancelled = lpc.resi_id_cancelled
+      LEFT JOIN log_proses_validated lpv ON l.resi_id_validated = lpv.resi_id_validated
+      JOIN pekerja p ON p.id_pekerja IN (
+        lpp.id_pekerja, lpk.id_pekerja, lpo.id_pekerja,
+        lpc.id_pekerja, lpv.id_pekerja
+      )
+      ORDER BY proses_scan DESC`;
+
+    const [rows] = await mysqlPool.query(query);
+
     if (rows.length === 0) {
       return res.status(404).send({
         success: false,
@@ -389,47 +451,61 @@ const getActivityByName = async (req, res) => {
     const { date, search, page = 1, limit = 5 } = req.query;
     const offset = (page - 1) * limit;
 
+    // Get the appropriate log table and column name for this page type
+    const specificLogTable = logTableMap[thisPage];
+    const resiColumn = resiColumnMap[thisPage];
+
+    if (!specificLogTable || !resiColumn) {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid page type",
+      });
+    }
+
+    // Base query using the specific log table
     let query = `
-      SELECT pekerja.nama_pekerja, 
-             log_proses.resi_id as resi, 
-             log_proses.status_proses as status, 
-             log_proses.created_at as proses_scan
-      FROM log_proses 
-      JOIN proses ON log_proses.resi_id = proses.resi_id 
-      JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE pekerja.username = ? 
-      AND (log_proses.status_proses = ? OR log_proses.status_proses = 'cancelled')`;
+      SELECT 
+        pekerja.nama_pekerja, 
+        ${specificLogTable}.${resiColumn} as resi, 
+        ${specificLogTable}.status_proses as status, 
+        ${specificLogTable}.created_at as proses_scan
+      FROM ${specificLogTable}  
+      JOIN pekerja ON ${specificLogTable}.id_pekerja = pekerja.id_pekerja
+      WHERE pekerja.username = ?`;
 
-    const queryParams = [username, thisPage];
+    const queryParams = [username];
 
+    // Add date filter if provided
     if (date) {
-      query += ` AND DATE(log_proses.created_at) = ?`;
+      query += ` AND DATE(${specificLogTable}.created_at) = ?`;
       queryParams.push(date);
     }
 
+    // Add search filter if provided
     if (search) {
-      query += ` AND log_proses.resi_id LIKE ?`;
+      query += ` AND ${specificLogTable}.${resiColumn} LIKE ?`;
       queryParams.push(`%${search}%`);
     }
 
     // Get total count for pagination
-    const [totalRows] = await mysqlPool.query(`SELECT COUNT(*) as total FROM (${query}) as count_table`, queryParams);
+    const countQuery = `SELECT COUNT(*) as total FROM (${query}) as count_table`;
+    const [totalRows] = await mysqlPool.query(countQuery, queryParams);
 
-    query += ` ORDER BY log_proses.created_at DESC LIMIT ? OFFSET ?`;
+    // Add pagination
+    query += ` ORDER BY ${specificLogTable}.created_at DESC LIMIT ? OFFSET ?`;
     queryParams.push(parseInt(limit), offset);
 
     const [rows] = await mysqlPool.query(query, queryParams);
 
-    // Get total scans for today
+    // Get total scans for today for this worker and page type
     const todayQuery = `
       SELECT COUNT(*) as todayTotal
-      FROM log_proses 
-      JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE pekerja.username = ? 
-      AND log_proses.status_proses = ?
-      AND DATE(log_proses.created_at) = CURDATE()`;
+      FROM ${specificLogTable}
+      JOIN pekerja ON ${specificLogTable}.id_pekerja = pekerja.id_pekerja
+      WHERE pekerja.username = ?
+      AND DATE(${specificLogTable}.created_at) = CURDATE()`;
 
-    const [todayTotal] = await mysqlPool.query(todayQuery, [username, thisPage]);
+    const [todayTotal] = await mysqlPool.query(todayQuery, [username]);
 
     res.status(200).send({
       success: true,
@@ -459,32 +535,51 @@ const showDataByResi = async (req, res) => {
       });
     }
 
-    const [rows] = await mysqlPool.query(
-      `
-      SELECT 
-        pekerja.nama_pekerja,
-        log_proses.resi_id as resi,
-        log_proses.status_proses as status,
-        log_proses.created_at as proses_scan
-      FROM log_proses 
-      JOIN proses ON log_proses.resi_id = proses.resi_id 
-      JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE log_proses.resi_id = ?
-      ORDER BY log_proses.created_at ASC`,
-      [resi_id]
-    );
+    // Query each log table for this resi
+    const queries = [];
+    const allResults = [];
 
-    if (rows.length === 0) {
+    // For each log table type, check if this resi exists
+    for (const [processType, logTable] of Object.entries(logTableMap)) {
+      const resiColumn = resiColumnMap[processType];
+
+      const query = `
+        SELECT 
+          pekerja.nama_pekerja,
+          ${logTable}.${resiColumn} as resi,
+          ${logTable}.status_proses as status,
+          ${logTable}.created_at as proses_scan
+        FROM ${logTable}
+        JOIN pekerja ON ${logTable}.id_pekerja = pekerja.id_pekerja
+        WHERE ${logTable}.${resiColumn} = ?`;
+
+      queries.push(mysqlPool.query(query, [resi_id]));
+    }
+
+    // Execute all queries in parallel
+    const results = await Promise.all(queries);
+
+    // Combine results from all tables
+    for (const result of results) {
+      if (result[0] && result[0].length > 0) {
+        allResults.push(...result[0]);
+      }
+    }
+
+    if (allResults.length === 0) {
       return res.status(404).send({
         success: false,
         message: `No data found for resi ID: ${resi_id}`,
       });
     }
 
+    // Sort by timestamp
+    allResults.sort((a, b) => new Date(a.proses_scan) - new Date(b.proses_scan));
+
     res.status(200).send({
       success: true,
       message: "Data found",
-      data: rows,
+      data: allResults,
     });
   } catch (error) {
     handleError(error, res, "fetching data by resi ID");
@@ -681,6 +776,234 @@ const getExpeditionCounts = async (req, res) => {
   }
 };
 
+const getStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    // Format dates or use defaults (current day)
+    const start = startDate ? moment(startDate).format("YYYY-MM-DD 00:00:00") : moment().format("YYYY-MM-DD 00:00:00");
+    const end = endDate ? moment(endDate).format("YYYY-MM-DD 23:59:59") : moment().format("YYYY-MM-DD 23:59:59");
+
+    // Query to get counts from each specific log table based on dates
+    const pickerQuery = `
+      SELECT COUNT(*) as count 
+      FROM log_proses_picker 
+      WHERE created_at BETWEEN ? AND ?`;
+
+    const packingQuery = `
+      SELECT COUNT(*) as count 
+      FROM log_proses_packing 
+      WHERE created_at BETWEEN ? AND ?`;
+
+    const pickoutQuery = `
+      SELECT COUNT(*) as count 
+      FROM log_proses_pickout 
+      WHERE created_at BETWEEN ? AND ?`;
+
+    const cancelledQuery = `
+      SELECT COUNT(*) as count 
+      FROM log_proses_cancelled 
+      WHERE created_at BETWEEN ? AND ?`;
+
+    // Execute all queries in parallel
+    const [pickerCount, packingCount, pickoutCount, cancelledCount] = await Promise.all([
+      mysqlPool.query(pickerQuery, [start, end]),
+      mysqlPool.query(packingQuery, [start, end]),
+      mysqlPool.query(pickoutQuery, [start, end]),
+      mysqlPool.query(cancelledQuery, [start, end]),
+    ]);
+
+    // Count by date query for each process type
+    const countsByDateQueries = [];
+    for (const [processType, logTable] of Object.entries(logTableMap)) {
+      if (processType === "konfirmasi") continue; // Skip if not needed
+
+      const query = `
+        SELECT 
+          DATE(created_at) as date,
+          COUNT(*) as count
+        FROM ${logTable}
+        WHERE created_at BETWEEN ? AND ?
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC`;
+
+      countsByDateQueries.push({
+        type: processType,
+        promise: mysqlPool.query(query, [start, end]),
+      });
+    }
+
+    // Execute all date-based queries
+    const countsByDateResults = await Promise.all(countsByDateQueries.map((item) => item.promise));
+
+    // Format counts by date
+    const countsByDate = {};
+    countsByDateQueries.forEach((item, index) => {
+      countsByDate[item.type] = countsByDateResults[index][0].reduce((acc, row) => {
+        const dateStr = moment(row.date).format("YYYY-MM-DD");
+        acc[dateStr] = row.count;
+        return acc;
+      }, {});
+    });
+
+    // Generate all dates in range
+    const allDates = [];
+    const startMoment = moment(start);
+    const endMoment = moment(end);
+
+    for (let m = startMoment; m.isSameOrBefore(endMoment); m.add(1, "days")) {
+      allDates.push(m.format("YYYY-MM-DD"));
+    }
+
+    // Format final response
+    const dailyStats = allDates.map((date) => {
+      const result = { date };
+
+      for (const type of Object.keys(countsByDate)) {
+        result[type] = countsByDate[type][date] || 0;
+      }
+
+      return result;
+    });
+
+    res.status(200).send({
+      success: true,
+      message: "Statistics retrieved successfully",
+      period: {
+        start: moment(start).format("YYYY-MM-DD"),
+        end: moment(end).format("YYYY-MM-DD"),
+      },
+      totals: {
+        picker: pickerCount[0][0].count,
+        packing: packingCount[0][0].count,
+        pickout: pickoutCount[0][0].count,
+        cancelled: cancelledCount[0][0].count,
+      },
+      dailyStats,
+    });
+  } catch (error) {
+    handleError(error, res, "fetching statistics");
+  }
+};
+
+const getWorkerStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate, processType = "all" } = req.query;
+
+    // Format dates or use defaults (current day)
+    const start = startDate ? moment(startDate).format("YYYY-MM-DD 00:00:00") : moment().format("YYYY-MM-DD 00:00:00");
+    const end = endDate ? moment(endDate).format("YYYY-MM-DD 23:59:59") : moment().format("YYYY-MM-DD 23:59:59");
+
+    const workerStatsQueries = [];
+
+    if (processType === "all") {
+      // Query all process types
+      for (const [type, logTable] of Object.entries(logTableMap)) {
+        // Skip konfirmasi if not needed
+        if (type === "konfirmasi") continue;
+
+        const query = `
+          SELECT 
+            p.id_pekerja,
+            p.nama_pekerja,
+            '${type}' as process_type,
+            COUNT(*) as count
+          FROM ${logTable} l
+          JOIN pekerja p ON l.id_pekerja = p.id_pekerja
+          WHERE l.created_at BETWEEN ? AND ?
+          GROUP BY p.id_pekerja, p.nama_pekerja
+          ORDER BY count DESC`;
+
+        workerStatsQueries.push({
+          type,
+          promise: mysqlPool.query(query, [start, end]),
+        });
+      }
+    } else {
+      // Query specific process type
+      const logTable = logTableMap[processType];
+      if (!logTable) {
+        return res.status(400).send({
+          success: false,
+          message: `Invalid process type: ${processType}`,
+        });
+      }
+
+      const query = `
+        SELECT 
+          p.id_pekerja,
+          p.nama_pekerja,
+          '${processType}' as process_type,
+          COUNT(*) as count
+        FROM ${logTable} l
+        JOIN pekerja p ON l.id_pekerja = p.id_pekerja
+        WHERE l.created_at BETWEEN ? AND ?
+        GROUP BY p.id_pekerja, p.nama_pekerja
+        ORDER BY count DESC`;
+
+      workerStatsQueries.push({
+        type: processType,
+        promise: mysqlPool.query(query, [start, end]),
+      });
+    }
+
+    // Execute all queries
+    const workerStatsResults = await Promise.all(workerStatsQueries.map((item) => item.promise));
+
+    // Format worker stats
+    const workerStatsByType = {};
+    workerStatsQueries.forEach((item, index) => {
+      workerStatsByType[item.type] = workerStatsResults[index][0];
+    });
+
+    // Calculate overall rankings
+    let allWorkerStats = [];
+    for (const type in workerStatsByType) {
+      for (const stat of workerStatsByType[type]) {
+        // Enrich data with process type
+        allWorkerStats.push({
+          ...stat,
+          processType: type,
+        });
+      }
+    }
+
+    // Get overall workers stats
+    const overallWorkerStats = Object.values(
+      allWorkerStats.reduce((acc, stat) => {
+        const { id_pekerja, nama_pekerja } = stat;
+
+        if (!acc[id_pekerja]) {
+          acc[id_pekerja] = {
+            id_pekerja,
+            nama_pekerja,
+            total_count: 0,
+            process_counts: {},
+          };
+        }
+
+        acc[id_pekerja].total_count += stat.count;
+        acc[id_pekerja].process_counts[stat.processType] = stat.count;
+
+        return acc;
+      }, {})
+    ).sort((a, b) => b.total_count - a.total_count);
+
+    res.status(200).send({
+      success: true,
+      message: "Worker statistics retrieved successfully",
+      period: {
+        start: moment(start).format("YYYY-MM-DD"),
+        end: moment(end).format("YYYY-MM-DD"),
+      },
+      processTypeStats: workerStatsByType,
+      overallStats: overallWorkerStats,
+    });
+  } catch (error) {
+    handleError(error, res, "fetching worker statistics");
+  }
+};
+
 module.exports = {
   showAllData,
   scaneHandler,
@@ -690,4 +1013,6 @@ module.exports = {
   uploadPhoto,
   getActivityNotComplited,
   getExpeditionCounts,
+  getStatistics, // Added new function
+  getWorkerStatistics, // Added new function
 };

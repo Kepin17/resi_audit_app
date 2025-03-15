@@ -8,90 +8,190 @@ const showResiTerpack = async (req, res) => {
     const limit = 12;
     const offset = (page - 1) * limit;
 
-    // Get today's count
-    const [todayCount] = await mysqlPool.query(
-      `SELECT COUNT(*) as today_count 
-       FROM proses 
-       WHERE DATE(created_at) = CURDATE()`
-    );
-
-    let countQuery = `
-      SELECT COUNT(DISTINCT log_proses.id_log) as total
-      FROM log_proses
-      LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE 1=1
+    // Get today's count from all process tables combined
+    const todayCountQuery = `
+      SELECT 
+        (SELECT COUNT(*) FROM log_proses_picker WHERE DATE(created_at) = CURDATE()) +
+        (SELECT COUNT(*) FROM log_proses_packing WHERE DATE(created_at) = CURDATE()) +
+        (SELECT COUNT(*) FROM log_proses_pickout WHERE DATE(created_at) = CURDATE()) +
+        (SELECT COUNT(*) FROM log_proses_cancelled WHERE DATE(created_at) = CURDATE()) +
+        (SELECT COUNT(*) FROM log_proses_validated WHERE DATE(created_at) = CURDATE()) as today_count
     `;
+    const [todayCount] = await mysqlPool.query(todayCountQuery);
 
-    let dataQuery = `
-      SELECT DISTINCT
-        log_proses.id_log,
-        log_proses.resi_id,
-        log_proses.id_pekerja,
-        log_proses.status_proses,
-        log_proses.created_at,
-        pekerja.nama_pekerja
-      FROM log_proses
-      LEFT JOIN pekerja ON log_proses.id_pekerja = pekerja.id_pekerja
-      WHERE 1=1
-    `;
-
+    // Build query based on status filter
+    let countQuery = "";
+    let dataQuery = "";
     const params = [];
     const countParams = [];
 
-    // Add status filter
+    // Determine which table to query based on status
     if (status && status !== "all") {
-      const statusCondition = ` AND log_proses.status_proses = ?`;
-      dataQuery += statusCondition;
-      countQuery += statusCondition;
-      params.push(status);
-      countParams.push(status);
+      let statusTable = "";
+      let resiIdColumn = "";
+
+      switch (status) {
+        case "picker":
+          statusTable = "log_proses_picker";
+          resiIdColumn = "resi_id_picker";
+          break;
+        case "packing":
+          statusTable = "log_proses_packing";
+          resiIdColumn = "resi_id_packing";
+          break;
+        case "pickout":
+          statusTable = "log_proses_pickout";
+          resiIdColumn = "resi_id_pickout";
+          break;
+        case "cancelled":
+          statusTable = "log_proses_cancelled";
+          resiIdColumn = "resi_id_cancelled";
+          break;
+        case "konfirmasi":
+          statusTable = "log_proses_validated";
+          resiIdColumn = "resi_id_validated";
+          break;
+        default:
+          statusTable = "log_proses_picker";
+          resiIdColumn = "resi_id_picker";
+      }
+
+      // Start with base query without WHERE 1=1
+      countQuery = `
+        SELECT COUNT(DISTINCT ${statusTable}.${resiIdColumn}) as total
+        FROM ${statusTable}
+        LEFT JOIN pekerja ON ${statusTable}.id_pekerja = pekerja.id_pekerja
+      `;
+
+      dataQuery = `
+        SELECT 
+          ${statusTable}.${resiIdColumn} as resi_id,
+          ${statusTable}.id_pekerja,
+          ${statusTable}.status_proses,
+          ${statusTable}.created_at,
+          pekerja.nama_pekerja
+        FROM ${statusTable}
+        LEFT JOIN pekerja ON ${statusTable}.id_pekerja = pekerja.id_pekerja
+      `;
+
+      // Create conditions array to collect WHERE clauses
+      const conditions = [];
+      const countConditions = [];
+
+      // Add search conditions if present
+      if (search) {
+        conditions.push(`(${statusTable}.${resiIdColumn} = ? COLLATE utf8mb4_general_ci OR pekerja.nama_pekerja = ? COLLATE utf8mb4_general_ci)`);
+        countConditions.push(`(${statusTable}.${resiIdColumn} = ? COLLATE utf8mb4_general_ci OR pekerja.nama_pekerja = ? COLLATE utf8mb4_general_ci)`);
+        params.push(search, search);
+        countParams.push(search, search);
+      }
+
+      // Add date filter if present
+      if (startDate && endDate) {
+        conditions.push(`DATE(created_at) BETWEEN ? AND ?`);
+        countConditions.push(`DATE(created_at) BETWEEN ? AND ?`);
+        params.push(startDate, endDate);
+        countParams.push(startDate, endDate);
+      }
+
+      // Add WHERE clause only if conditions exist
+      if (conditions.length > 0) {
+        dataQuery += ` WHERE ${conditions.join(" AND ")}`;
+      }
+
+      if (countConditions.length > 0) {
+        countQuery += ` WHERE ${countConditions.join(" AND ")}`;
+      }
+    } else {
+      // If no specific status, union all tables
+      countQuery = `
+        SELECT COUNT(*) as total FROM (
+          SELECT resi_id_picker as resi_id FROM log_proses_picker
+          UNION ALL
+          SELECT resi_id_packing as resi_id FROM log_proses_packing
+          UNION ALL
+          SELECT resi_id_pickout as resi_id FROM log_proses_pickout
+          UNION ALL
+          SELECT resi_id_cancelled as resi_id FROM log_proses_cancelled
+          UNION ALL
+          SELECT resi_id_validated as resi_id FROM log_proses_validated
+        ) as combined_logs
+      `;
+
+      // Build each UNION subquery with proper conditions
+      const buildSubquery = (tableName, idColumn) => {
+        const conditions = [];
+        if (search) {
+          conditions.push(`(${idColumn} = ? COLLATE utf8mb4_general_ci OR (SELECT nama_pekerja FROM pekerja WHERE pekerja.id_pekerja = ${tableName}.id_pekerja) = ? COLLATE utf8mb4_general_ci)`);
+          params.push(search, search);
+        }
+
+        if (startDate && endDate) {
+          conditions.push(`DATE(created_at) BETWEEN ? AND ?`);
+          params.push(startDate, endDate);
+        }
+
+        return `
+          (SELECT 
+            ${idColumn} as resi_id,
+            id_pekerja,
+            status_proses,
+            created_at,
+            (SELECT nama_pekerja FROM pekerja WHERE pekerja.id_pekerja = ${tableName}.id_pekerja) as nama_pekerja
+           FROM ${tableName}
+           ${conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""}
+          )
+        `;
+      };
+
+      // Create UNION query with proper conditions for each table
+      dataQuery = [
+        buildSubquery("log_proses_picker", "resi_id_picker"),
+        buildSubquery("log_proses_packing", "resi_id_packing"),
+        buildSubquery("log_proses_pickout", "resi_id_pickout"),
+        buildSubquery("log_proses_cancelled", "resi_id_cancelled"),
+        buildSubquery("log_proses_validated", "resi_id_validated"),
+      ].join(" UNION ALL ");
     }
 
-    if (search) {
-      // Updated search condition to be more specific but case insensitive
-      const searchCondition = ` AND (log_proses.resi_id = ? COLLATE utf8mb4_general_ci OR pekerja.nama_pekerja = ? COLLATE utf8mb4_general_ci)`;
-      dataQuery += searchCondition;
-      countQuery += searchCondition;
-      params.push(search, search);
-      countParams.push(search, search);
+    // Add order by and limit for data query
+    if (status && status !== "all") {
+      dataQuery += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+    } else {
+      // For UNION queries, wrap in a subquery to apply order and limit
+      dataQuery = `SELECT * FROM (${dataQuery}) AS combined_data ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
     }
 
-    if (startDate && endDate) {
-      const dateCondition = ` AND DATE(log_proses.created_at) BETWEEN ? AND ?`;
-      dataQuery += dateCondition;
-      countQuery += dateCondition;
-      params.push(startDate, endDate);
-      countParams.push(startDate, endDate);
-    }
-
-    dataQuery += ` ORDER BY log_proses.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-
-    // Modify the expedition count query to get individual rows
+    // Expedition count query for pickout status - Use array for conditions
     let expeditionCountQuery = `
       SELECT 
         ekpedisi.nama_ekspedisi,
         COUNT(DISTINCT barang.resi_id) AS total_resi
       FROM barang
       JOIN ekpedisi ON barang.id_ekspedisi = ekpedisi.id_ekspedisi
-      JOIN log_proses ON barang.resi_id = log_proses.resi_id
-      WHERE log_proses.status_proses = 'pickout' 
+      JOIN log_proses_pickout ON barang.resi_id = log_proses_pickout.resi_id_pickout
     `;
 
     let expeditionParams = [];
+    const expeditionConditions = [];
 
-    // Tambahkan filter tanggal jika tersedia
     if (startDate && endDate) {
-      expeditionCountQuery += ` AND DATE(log_proses.created_at) BETWEEN ? AND ?`;
+      expeditionConditions.push(`DATE(log_proses_pickout.created_at) BETWEEN ? AND ?`);
       expeditionParams.push(startDate, endDate);
     }
-    // Akhiri query utama dengan GROUP BY
+
+    if (expeditionConditions.length > 0) {
+      expeditionCountQuery += ` WHERE ${expeditionConditions.join(" AND ")}`;
+    }
+
     expeditionCountQuery += ` GROUP BY ekpedisi.nama_ekspedisi`;
 
     const [rows] = await mysqlPool.query(dataQuery, params);
     const [countResult] = await mysqlPool.query(countQuery, countParams);
 
-    // Get expedition counts using the modified query
+    // Get expedition counts
     let expeditionCounts;
     try {
       [expeditionCounts] = await mysqlPool.query(expeditionCountQuery, expeditionParams);
@@ -100,25 +200,31 @@ const showResiTerpack = async (req, res) => {
       expeditionCounts = [];
     }
 
-    // Get counts for different statuses
-    let statusCountsQuery = `
-      SELECT 
-        status_proses, 
-        COUNT(*) as count 
-      FROM proses 
-      WHERE 1=1
+    // Get counts for different statuses - Build condition parts separately
+    const getStatusDateCondition = (startDate, endDate) => {
+      return startDate && endDate ? `WHERE DATE(created_at) BETWEEN '${startDate}' AND '${endDate}'` : "";
+    };
+
+    const statusCountsQuery = `
+      SELECT 'picker' as status_proses, COUNT(*) as count FROM log_proses_picker
+      ${getStatusDateCondition(startDate, endDate)}
+      UNION ALL
+      SELECT 'packing' as status_proses, COUNT(*) as count FROM log_proses_packing
+      ${getStatusDateCondition(startDate, endDate)}
+      UNION ALL
+      SELECT 'pickout' as status_proses, COUNT(*) as count FROM log_proses_pickout
+      ${getStatusDateCondition(startDate, endDate)}
+      UNION ALL
+      SELECT 'cancelled' as status_proses, COUNT(*) as count FROM log_proses_cancelled
+      ${getStatusDateCondition(startDate, endDate)}
+      UNION ALL
+      SELECT 'konfirmasi' as status_proses, COUNT(*) as count FROM log_proses_validated
+      ${getStatusDateCondition(startDate, endDate)}
     `;
-    const statusCountsParams = [];
 
-    if (startDate && endDate) {
-      statusCountsQuery += ` AND DATE(created_at) BETWEEN ? AND ?`;
-      statusCountsParams.push(startDate, endDate);
-    }
+    const [statusCounts] = await mysqlPool.query(statusCountsQuery);
 
-    statusCountsQuery += ` GROUP BY status_proses`;
-
-    const [statusCounts] = await mysqlPool.query(statusCountsQuery, statusCountsParams);
-
+    // Calculate pagination info
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 

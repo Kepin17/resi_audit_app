@@ -664,3 +664,139 @@ CREATE TABLE configTable (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )
+
+use siar_db;
+
+
+DELIMITER //
+
+CREATE TRIGGER `trg_destro_gaji_after_cancel`
+AFTER DELETE ON `log_proses_packing`
+FOR EACH ROW
+BEGIN
+    DECLARE v_id_gaji INT;
+    DECLARE v_gaji_per_scan DECIMAL(10, 2);
+    DECLARE v_existing_record INT;
+    DECLARE v_new_scan_count INT;
+    DECLARE v_packing_worker_id VARCHAR(9);
+
+    -- Ambil ID pekerja yang melakukan packing dari log_proses_packing
+    SET v_packing_worker_id = OLD.id_pekerja;
+
+    -- Hanya lanjut jika pekerja ditemukan
+    IF v_packing_worker_id IS NOT NULL THEN
+        -- Ambil pengaturan gaji terbaru
+        SELECT id_gaji, total_gaji_per_scan 
+        INTO v_id_gaji, v_gaji_per_scan 
+        FROM gaji 
+        LIMIT 1;
+
+        -- Periksa apakah sudah ada catatan gaji hari ini yang belum dibayar
+        SELECT COUNT(*) 
+        INTO v_existing_record 
+        FROM gaji_pegawai 
+        WHERE id_pekerja = v_packing_worker_id 
+          AND DATE(created_at) = CURDATE() 
+          AND is_dibayar = FALSE;
+
+        IF v_existing_record > 0 THEN
+            -- Ambil jumlah scan yang ada, minimal 0
+            SELECT GREATEST(jumlah_scan - 1, 0) 
+            INTO v_new_scan_count 
+            FROM gaji_pegawai 
+            WHERE id_pekerja = v_packing_worker_id 
+              AND DATE(created_at) = CURDATE() 
+              AND is_dibayar = FALSE
+            LIMIT 1;
+
+            -- Update jumlah scan dan total gaji di gaji_pegawai
+            UPDATE gaji_pegawai 
+            SET jumlah_scan = v_new_scan_count,
+                gaji_total = v_new_scan_count * v_gaji_per_scan,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id_pekerja = v_packing_worker_id 
+              AND DATE(created_at) = CURDATE() 
+              AND is_dibayar = FALSE;
+        END IF;
+    END IF;
+END;
+//
+
+DELIMITER ;
+
+
+
+CREATE TABLE log_proses_picker (
+  resi_id_picker  VARCHAR(35) PRIMARY KEY NOT NULL,
+  id_pekerja VARCHAR(9), 
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('picker')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  gambar_resi VARCHAR(255) NULL,
+  CONSTRAINT FK_PekerjaLogPicker FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+
+-- Untuk log_proses_packing
+CREATE TABLE log_proses_packing (
+  resi_id_packing VARCHAR(35) PRIMARY KEY NOT NULL,
+  id_pekerja VARCHAR(9), 
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('packing')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  gambar_resi VARCHAR(255) NULL,
+  CONSTRAINT FK_PekerjaLogPacking FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+-- Untuk log_proses_pickout
+CREATE TABLE log_proses_pickout (
+  resi_id_pickout VARCHAR(35) PRIMARY KEY NOT NULL,
+  id_pekerja VARCHAR(9), 
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('pickout')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  gambar_resi VARCHAR(255) NULL,
+  CONSTRAINT FK_PekerjaLogPickout FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+-- Untuk log_proses_cancelled
+CREATE TABLE log_proses_cancelled (
+  resi_id_cancelled VARCHAR(35) PRIMARY KEY NOT NULL,
+  id_pekerja VARCHAR(9), 
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('cancelled')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  gambar_resi VARCHAR(255) NULL,
+  CONSTRAINT FK_PekerjaLogCancelled FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+-- Untuk log_proses_validated
+CREATE TABLE log_proses_validated (
+  resi_id_validated VARCHAR(35) PRIMARY KEY NOT NULL,
+  id_pekerja VARCHAR(9), 
+  status_proses VARCHAR(10) NOT NULL CHECK (status_proses IN ('konfirmasi')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  gambar_resi VARCHAR(255) NULL,
+  CONSTRAINT FK_PekerjaLogValidated FOREIGN KEY (id_pekerja) REFERENCES pekerja(id_pekerja) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+
+
+
+CREATE TABLE log_proses (
+    id_log VARCHAR (35) PRIMARY KEY NOT NULL,
+    resi_id_picker VARCHAR(35),
+    resi_id_packing VARCHAR(35),
+    resi_id_pickout VARCHAR(35),
+    resi_id_cancelled VARCHAR(35),
+    resi_id_validated VARCHAR(35),
+    CONSTRAINT FK_ResiPicker FOREIGN KEY (resi_id_picker) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT FK_ResiPacking FOREIGN KEY (resi_id_packing) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT FK_ResiPickout FOREIGN KEY (resi_id_pickout) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT FK_ResiCancelled FOREIGN KEY (resi_id_cancelled) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT FK_ResiValidated FOREIGN KEY (resi_id_validated) REFERENCES barang(resi_id) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+
+

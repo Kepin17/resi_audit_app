@@ -177,20 +177,51 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     if (!checkTokenExpiration()) return;
     if (isSoundLocked) return;
     setIsSoundLocked(true);
+
+    const currentResiId = resiId || currentResi;
+    if (!currentResiId) {
+      playErrorSound();
+      toast.error("No resi detected");
+      setIsSoundLocked(false);
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        toast.error("Session expired. Please login again.");
+        handleLogout();
+        return;
+      }
+
       const decodeToken = jwtDecode(token);
       const user = decodeToken.id_pekerja;
+
+      // Check if resi was recently scanned (within last 5 seconds)
+      const lastScanTime = localStorage.getItem(`lastScan_${currentResiId}`);
+      const now = Date.now();
+      if (lastScanTime && now - parseInt(lastScanTime) < 5000) {
+        playErrorSound();
+        toast.warning("Please wait before scanning the same resi again");
+        setIsSoundLocked(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append("id_pekerja", user);
       formData.append("thisPage", thisPage);
-      const response = await axios.post(`${urlApi}/api/v1/auditResi/scan/${resiId || currentResi}`, formData, {
+      formData.append("timestamp", now);
+
+      const response = await axios.post(`${urlApi}/api/v1/auditResi/scan/${currentResiId}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       });
+
       if (response.data.success) {
+        // Store last scan time
+        localStorage.setItem(`lastScan_${currentResiId}`, now.toString());
         playSuccessSound();
         toast.success(response.data.message || "Process completed successfully");
       } else {
@@ -199,13 +230,21 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       }
     } catch (err) {
       playErrorSound();
-      toast.error(err.response?.data?.message || "Failed to process");
+      if (err.response?.status === 409) {
+        toast.warning(err.response.data.message || "Duplicate scan detected");
+      } else {
+        toast.error(err.response?.data?.message || "Failed to process");
+      }
       setIsError(true);
     } finally {
       setScanning(true);
       setCurrentResi(null);
       setIsBarcodeActive(true);
-      setTimeout(() => setIsSoundLocked(false), 500);
+      setTimeout(() => {
+        setIsSoundLocked(false);
+        // Cleanup old scan records (older than 1 hour)
+        cleanupOldScanRecords();
+      }, 1000);
     }
   };
 
@@ -213,30 +252,53 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
     if (!checkTokenExpiration()) return;
     if (isSoundLocked) return;
     setIsSoundLocked(true);
-    if (!photo) {
+
+    if (!photo || !currentResi) {
       playErrorSound();
-      toast.error("Photo is required");
+      toast.error(photo ? "Invalid resi" : "Photo is required");
       setIsSoundLocked(false);
       return;
     }
+
+    // Check if resi was recently scanned
+    const lastScanTime = localStorage.getItem(`lastScan_${currentResi}`);
+    const now = Date.now();
+    if (lastScanTime && now - parseInt(lastScanTime) < 5000) {
+      playErrorSound();
+      toast.warning("Please wait before scanning the same resi again");
+      setIsSoundLocked(false);
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        toast.error("Session expired. Please login again.");
+        handleLogout();
+        return;
+      }
+
       const decodeToken = jwtDecode(token);
       const user = decodeToken.id_pekerja;
       const base64Response = await fetch(photo);
       const blob = await base64Response.blob();
       const formData = new FormData();
-      const photoFile = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" });
+      const photoFile = new File([blob], `photo_${currentResi}_${Date.now()}.jpg`, { type: "image/jpeg" });
+
       formData.append("photo", photoFile);
       formData.append("id_pekerja", user);
       formData.append("thisPage", thisPage);
+      formData.append("timestamp", now);
+
       const response = await axios.post(`${urlApi}/api/v1/auditResi/scan/${currentResi}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       });
+
       if (response.data.success) {
+        localStorage.setItem(`lastScan_${currentResi}`, now.toString());
         playSuccessSound();
         toast.success(response.data.message || "Process completed successfully");
       } else {
@@ -245,14 +307,35 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
       }
     } catch (err) {
       playErrorSound();
-      toast.error(err.response?.data?.message || "Failed to process");
+      if (err.response?.status === 409) {
+        toast.warning(err.response.data.message || "Duplicate scan detected");
+      } else {
+        toast.error(err.response?.data?.message || "Failed to process");
+      }
       setIsError(true);
     } finally {
       setIsPhotoMode(false);
       setIsBarcodeActive(true);
       setScanning(true);
       setCurrentResi(null);
-      setTimeout(() => setIsSoundLocked(false), 500);
+      setTimeout(() => {
+        setIsSoundLocked(false);
+        cleanupOldScanRecords();
+      }, 500);
+    }
+  };
+
+  // Add this new utility function
+  const cleanupOldScanRecords = () => {
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("lastScan_")) {
+        const timestamp = parseInt(localStorage.getItem(key));
+        if (timestamp < oneHourAgo) {
+          localStorage.removeItem(key);
+        }
+      }
     }
   };
 
@@ -348,7 +431,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
         });
     };
     fetchData();
-    const interval = setInterval(fetchData, 3000);
+    const interval = setInterval(fetchData, 1000);
     return () => clearInterval(interval);
   }, [thisPage, selectedDate, searchQuery, pagination.currentPage, pagination.limit]);
 
@@ -398,7 +481,7 @@ const ScanMainLayout = ({ goTo, dailyEarnings }) => {
         });
     };
     fetchDataBeloman();
-    const interval = setInterval(fetchDataBeloman, 3000);
+    const interval = setInterval(fetchDataBeloman, 1000);
     return () => clearInterval(interval);
   }, [thisPage, selectedDate, searchQuery, paginationBeloman.currentPage, paginationBeloman.limit]);
 

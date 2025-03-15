@@ -734,10 +734,7 @@ const getDailyEarnings = async (req, res) => {
   }
 };
 
-const getHistorySalaryByPekerja = async (req, res) => {
-  
-}
-
+const getHistorySalaryByPekerja = async (req, res) => {};
 
 module.exports = {
   getSalary,

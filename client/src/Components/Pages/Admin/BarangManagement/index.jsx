@@ -1064,7 +1064,7 @@ const AdminBarangSection = () => {
                   <Tag color="blue">
                     <span className="font-semibold text-xl flex items-center gap-2">
                       <FaReceipt />
-                      {resiDetail[0]?.resi_id}
+                      {resiDetail[0]?.resi}
                     </span>
                   </Tag>
                 </div>
@@ -1072,8 +1072,8 @@ const AdminBarangSection = () => {
                   <Table.Column title="Nama Pekerja" dataIndex="nama_pekerja" key="nama_pekerja" />
                   <Table.Column
                     title="Status"
-                    dataIndex="status_proses"
-                    key="status_proses"
+                    dataIndex="status"
+                    key="status"
                     render={(text) => {
                       return (
                         <span
@@ -1081,7 +1081,7 @@ const AdminBarangSection = () => {
                           onClick={() => {
                             axios
                               .put(
-                                `${urlApi}/api/v1/barang-reset-status/${resiDetail[0]?.resi_id}`,
+                                `${urlApi}/api/v1/barang-reset-status/${resiDetail[0]?.resi}`,
                                 {
                                   currentStatus: text,
                                 },
@@ -1184,7 +1184,7 @@ const AdminBarangSection = () => {
                       handleItemSelection(item.resi_id);
                     } else if (item.status_proses !== "pending" && item.status_proses !== "cancelled") {
                       try {
-                        const response = await axios.get(`${urlApi}/api/v1/barang/${item.resi_id}`, {
+                        const response = await axios.get(`${urlApi}/api/v1/auditResi/${item.resi_id}`, {
                           headers: {
                             Authorization: `Bearer ${localStorage.getItem("token")}`,
                           },
@@ -1233,7 +1233,7 @@ const AdminBarangSection = () => {
                     {/* Content */}
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">
-                        {item.status_description} {item.status_proses !== "pending" && item.status_proses !== "cancelled" ? <span className="font-medium text-gray-900">• {item.nama_pekerja}</span> : ""}
+                        Telah Di{item.status_proses} {item.status_proses !== "pending" && item.status_proses !== "cancelled" ? <span className="font-medium text-gray-900">• {item.nama_pekerja}</span> : ""}
                       </p>
 
                       <div className="flex items-center text-xs text-gray-500">
@@ -1250,7 +1250,7 @@ const AdminBarangSection = () => {
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Last Scan: {!item.last_scan ? "Belum di scan" : moment(item.last_scan).format("LL HH:mm:ss")}
+                          Last Scan: {!item.updated_at ? "Belum di scan" : moment(item.updated_at).format("LL HH:mm:ss")}
                         </span>
                       </div>
                     </div>
